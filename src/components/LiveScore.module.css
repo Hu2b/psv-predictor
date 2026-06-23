@@ -1,0 +1,73 @@
+.card {
+  background: var(--psv-surface);
+  border: 1px solid var(--psv-border);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.liveCard {
+  border-color: var(--psv-red);
+  background: rgba(225,0,14,0.05);
+}
+
+.liveHeader {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.liveDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--psv-red);
+  animation: pulse 1.5s ease infinite;
+}
+
+.liveText {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: var(--psv-red);
+}
+
+.minuut {
+  font-size: 11px;
+  color: var(--psv-gray-lt);
+  font-weight: 600;
+}
+
+.ftHeader {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: var(--green);
+  text-transform: uppercase;
+}
+
+.scoreRij {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 12px;
+}
+
+.team {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--psv-white);
+}
+
+.teamR { text-align: right; }
+
+.score {
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 900;
+  color: var(--psv-white);
+  text-align: center;
+  white-space: nowrap;
+}
