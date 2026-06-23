@@ -1,0 +1,247 @@
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.loadState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 60px 20px;
+  color: var(--psv-gray-lt);
+  font-size: 14px;
+}
+
+.klassement {
+  background: var(--psv-surface);
+  border: 1px solid var(--psv-border);
+  border-radius: var(--radius-lg);
+  padding: 20px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.klassementTitel {
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--psv-gray-lt);
+}
+
+.scores {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 16px;
+}
+
+.spelerScore {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  position: relative;
+}
+
+.spelerNaam {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--psv-gray-lt);
+}
+
+.leider .spelerNaam { color: var(--psv-white); }
+
+.spelerPunt {
+  font-family: var(--font-display);
+  font-size: 56px;
+  font-weight: 900;
+  line-height: 1;
+  color: var(--psv-white);
+}
+
+.leider .spelerPunt { color: var(--gold); }
+
+.kroon {
+  font-size: 20px;
+  position: absolute;
+  top: -12px;
+  right: 8px;
+}
+
+.scheidingV {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--psv-gray-md);
+  text-transform: uppercase;
+}
+
+.geenData {
+  text-align: center;
+  font-size: 13px;
+  color: var(--psv-gray-lt);
+}
+
+.resultaten {
+  background: var(--psv-surface);
+  border: 1px solid var(--psv-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.resultTitel {
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--psv-gray-lt);
+  padding: 14px 16px 10px;
+}
+
+.resultHeader {
+  display: grid;
+  grid-template-columns: 1fr 80px 80px;
+  gap: 8px;
+  padding: 8px 16px;
+  background: rgba(0,0,0,0.2);
+  border-bottom: 1px solid var(--psv-border);
+}
+
+.colWedstrijd {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--psv-gray-lt);
+}
+
+.colSpeler {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--psv-gray-lt);
+  text-align: center;
+}
+
+.resultRij {
+  display: grid;
+  grid-template-columns: 1fr 80px 80px;
+  gap: 8px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--psv-border);
+  align-items: center;
+}
+
+.resultRij:last-child { border-bottom: none; }
+
+.wedstrijdInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.wedstrijdMeta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.compTag {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--psv-red);
+  background: rgba(225,0,14,0.1);
+  border-radius: 3px;
+  padding: 1px 4px;
+}
+
+.wedstrijdDatum {
+  font-size: 10px;
+  color: var(--psv-gray-lt);
+}
+
+.wedstrijdTeams {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.teamCode {
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--psv-white);
+}
+
+.uitslag {
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 900;
+  color: var(--psv-white);
+  background: var(--psv-gray);
+  border-radius: 4px;
+  padding: 1px 6px;
+}
+
+.spelerResultaat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.predScore {
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--psv-white);
+}
+
+.punt {
+  font-size: 11px;
+  font-weight: 800;
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+
+.puntGoud { color: var(--gold); background: rgba(245,184,0,0.1); }
+.puntGroen { color: var(--green); background: rgba(34,197,94,0.1); }
+.puntBlauw { color: #60A5FA; background: rgba(96,165,250,0.1); }
+.puntNul { color: var(--psv-gray-lt); }
+
+.lopendTotaal {
+  font-size: 10px;
+  color: var(--psv-gray-lt);
+  font-weight: 600;
+}
+
+.leeg {
+  background: var(--psv-surface);
+  border: 1px solid var(--psv-border);
+  border-radius: var(--radius-lg);
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--psv-gray-lt);
+  font-size: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.leegSub {
+  font-size: 12px;
+  color: var(--psv-gray-md);
+}
