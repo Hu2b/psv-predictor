@@ -1,0 +1,173 @@
+.card {
+  background: var(--psv-surface);
+  border: 1px solid var(--psv-border);
+  border-radius: var(--radius-lg);
+  padding: 20px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.titel {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--psv-white);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.spelerBadge {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--psv-red);
+  background: rgba(225,0,14,0.1);
+  border: 1px solid rgba(225,0,14,0.3);
+  border-radius: 4px;
+  padding: 2px 8px;
+}
+
+.invoer { display: flex; flex-direction: column; gap: 16px; }
+
+.scoreRij {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 12px;
+  align-items: center;
+}
+
+.scoreBlok {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: center;
+}
+
+.scoreLabel {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--psv-gray-lt);
+}
+
+.scoreInput {
+  width: 100%;
+  background: var(--psv-gray);
+  border: 2px solid var(--psv-border);
+  border-radius: var(--radius-sm);
+  color: var(--psv-white);
+  font-size: 36px;
+  font-family: var(--font-display);
+  font-weight: 900;
+  text-align: center;
+  padding: 12px 8px;
+  transition: border-color 0.15s;
+  -moz-appearance: textfield;
+}
+
+.scoreInput::-webkit-inner-spin-button,
+.scoreInput::-webkit-outer-spin-button { -webkit-appearance: none; }
+.scoreInput:focus { border-color: var(--psv-red); }
+
+.scoreDash {
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 900;
+  color: var(--psv-gray-md);
+  margin-top: 20px;
+}
+
+.fout { font-size: 13px; color: #FF6B6B; text-align: center; }
+
+.bevestigBtn {
+  width: 100%;
+  background: var(--psv-red);
+  color: white;
+  padding: 16px;
+  border-radius: var(--radius);
+  font-size: 16px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 54px;
+  transition: background 0.15s;
+}
+
+.bevestigBtn:active:not(:disabled) { background: var(--psv-red-dk); }
+.bevestigBtn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.btnSpinner {
+  width: 20px; height: 20px;
+  border: 3px solid rgba(255,255,255,0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.bevestigd { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+
+.bevestigdScore { display: flex; align-items: center; gap: 8px; }
+
+.bevestigdGetal {
+  font-family: var(--font-display);
+  font-size: 52px;
+  font-weight: 900;
+  color: var(--psv-white);
+  line-height: 1;
+}
+
+.bevestigdDash {
+  font-family: var(--font-display);
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--psv-gray-md);
+}
+
+.toto { font-size: 13px; color: var(--psv-gray-lt); }
+.toto strong { color: var(--psv-white); font-weight: 700; }
+
+.bevestigdCheck { font-size: 13px; font-weight: 700; color: var(--green); }
+
+.wacht {
+  font-size: 12px;
+  color: var(--psv-gray-lt);
+  text-align: center;
+  animation: pulse 2s ease infinite;
+}
+
+.andereWrap { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.scheidingslijn { width: 100%; height: 1px; background: var(--psv-border); }
+
+.andereLabel {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--psv-gray-lt);
+}
+
+.andereScore { display: flex; align-items: center; gap: 8px; }
+
+.andereGetal {
+  font-family: var(--font-display);
+  font-size: 40px;
+  font-weight: 900;
+  color: var(--gold);
+  line-height: 1;
+}
+
+.andereDash {
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--psv-gray-md);
+}
+
+.gesloten { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 12px 0; }
+.geslotenIcon { font-size: 28px; }
+.geslotenTekst { font-size: 14px; color: var(--psv-gray-lt); text-align: center; }
