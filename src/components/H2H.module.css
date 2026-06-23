@@ -1,0 +1,87 @@
+.card {
+  background: var(--psv-surface);
+  border: 1px solid var(--psv-border);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.titel {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--psv-gray-lt);
+}
+
+.loadRij {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--psv-gray-lt);
+}
+
+.lijst {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.rij {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.datum {
+  font-size: 11px;
+  color: var(--psv-gray-lt);
+}
+
+.comp {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--psv-red);
+  background: rgba(225,0,14,0.08);
+  border-radius: 3px;
+  padding: 1px 5px;
+}
+
+.match {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 8px;
+}
+
+.team {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--psv-white);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.teamR { text-align: right; }
+
+.score {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--psv-white);
+  background: var(--psv-gray);
+  border-radius: 4px;
+  padding: 2px 8px;
+  text-align: center;
+}
