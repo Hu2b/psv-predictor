@@ -6,7 +6,7 @@ const PSV_ID     = 673
 
 const SEASON     = parseInt(process.env.PSV_SEASON || '2026')
 const CACHE_KEY  = `psv:fixtures:${SEASON}`
-const CACHE_TTL  = 60 * 60 * 6
+const CACHE_TTL  = 60 * 5
 
 const COMPETITIONS = {
   88:  'ERE',
