@@ -1,9 +1,17 @@
 import { useState, useEffect } from 'react'
 import PlayerSelect from './components/PlayerSelect.jsx'
 import NextMatch from './components/NextMatch.jsx'
-import Standings from './components/Standings.jsx'
 import Header from './components/Header.jsx'
 import styles from './App.module.css'
+
+const StandingsLazy = ({ fixtures, speler }) => {
+  const [Comp, setComp] = useState(null)
+  useEffect(() => {
+    import('./components/Standings.jsx').then(m => setComp(() => m.default))
+  }, [])
+  if (!Comp) return <div style={{padding:'40px',textAlign:'center',color:'#666'}}>Laden…</div>
+  return <Comp fixtures={fixtures} speler={speler} />
+}
 
 export default function App() {
   const [speler, setSpeler] = useState(() => localStorage.getItem('psv_speler') || null)
@@ -79,7 +87,7 @@ export default function App() {
         ) : tab === 'wedstrijd' ? (
           <NextMatch fixture={volgende} fixtures={fixtures} speler={speler} />
         ) : (
-          <Standings fixtures={fixtures} speler={speler} />
+          <StandingsLazy fixtures={fixtures} speler={speler} />
         )}
       </main>
     </div>
