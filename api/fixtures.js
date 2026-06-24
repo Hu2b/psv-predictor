@@ -15,6 +15,7 @@ const COMPETITIONS = {
   3:   'UL',
   848: 'UL',
   531: 'JCS',
+  760: 'ERE',
 }
 
 function dagAfkorting(dateStr) {
