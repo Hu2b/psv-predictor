@@ -3,7 +3,6 @@ import { kvGet, kvSet } from './_kv.js'
 const API_KEY    = process.env.API_FOOTBALL_KEY
 const API_BASE   = 'https://v3.football.api-sports.io'
 const PSV_ID     = 673
-
 const SEASON     = parseInt(process.env.PSV_SEASON || '2026')
 const CACHE_KEY  = `psv:fixtures:${SEASON}`
 const CACHE_TTL  = 60 * 5
@@ -47,11 +46,10 @@ async function fetchFromAPI(leagueId) {
   const url = `${API_BASE}/fixtures?team=${PSV_ID}&league=${leagueId}&season=${SEASON}`
   const res = await fetch(url, {
     headers: { 
+      'x-apisports-key': API_KEY,
       'x-rapidapi-key': API_KEY,
       'x-rapidapi-host': 'v3.football.api-sports.io'
     }
-
-    
   })
   if (!res.ok) throw new Error(`API-Football ${res.status}`)
   const data = await res.json()
@@ -80,12 +78,15 @@ function mapFixture(f, comp) {
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
+
   const cached = await kvGet(CACHE_KEY)
   if (cached?.cached_at) {
     const ageMin = (Date.now() - new Date(cached.cached_at).getTime()) / 60000
     if (ageMin < CACHE_TTL / 60) return res.status(200).json({ source: 'cache', fixtures: cached.fixtures })
   }
+
   if (!API_KEY) return res.status(500).json({ error: 'API_FOOTBALL_KEY niet ingesteld' })
+
   try {
     const results = await Promise.allSettled(
       Object.entries(COMPETITIONS).map(async ([leagueId, comp]) => {
@@ -104,6 +105,7 @@ export default async function handler(req, res) {
     })
     allFixtures.sort((a, b) => new Date(a.datumISO) - new Date(b.datumISO))
     allFixtures = allFixtures.map((f, i) => ({ ...f, volgnummer: i + 1 }))
+
     const payload = { fixtures: allFixtures, cached_at: new Date().toISOString() }
     await kvSet(CACHE_KEY, payload, CACHE_TTL)
     return res.status(200).json({ source: 'fetched', fixtures: allFixtures })
