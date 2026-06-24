@@ -20,7 +20,10 @@ export default async function handler(req, res) {
   try {
     const url = `${API_BASE}/fixtures?id=${matchId}`
     const r = await fetch(url, {
-      headers: { 'x-apisports-key': API_KEY, 'x-rapidapi-key': API_KEY }
+      headers: { 
+        'x-rapidapi-key': API_KEY,
+        'x-rapidapi-host': 'v3.football.api-sports.io'
+    }
     })
     const data = await r.json()
     const f = data.response?.[0]
