@@ -3,8 +3,9 @@ import { kvGet, kvSet } from './_kv.js'
 const API_KEY    = process.env.API_FOOTBALL_KEY
 const API_BASE   = 'https://v3.football.api-sports.io'
 const PSV_ID     = 673
-const SEASON     = 2025
-const CACHE_KEY  = 'psv:fixtures:2025'
+
+const SEASON     = parseInt(process.env.PSV_SEASON || '2026')
+const CACHE_KEY  = `psv:fixtures:${SEASON}`
 const CACHE_TTL  = 60 * 60 * 6
 
 const COMPETITIONS = {
