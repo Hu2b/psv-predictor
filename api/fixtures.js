@@ -46,7 +46,12 @@ function teamAfkorting(naam) {
 async function fetchFromAPI(leagueId) {
   const url = `${API_BASE}/fixtures?team=${PSV_ID}&league=${leagueId}&season=${SEASON}`
   const res = await fetch(url, {
-    headers: { 'x-apisports-key': API_KEY, 'x-rapidapi-key': API_KEY }
+    headers: { 
+      'x-rapidapi-key': API_KEY,
+      'x-rapidapi-host': 'v3.football.api-sports.io'
+    }
+
+    
   })
   if (!res.ok) throw new Error(`API-Football ${res.status}`)
   const data = await res.json()
