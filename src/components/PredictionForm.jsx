@@ -86,7 +86,6 @@ export default function PredictionForm({ fixture, speler }) {
         Jouw voorspelling
         <span className={styles.spelerBadge}>{speler === 'niek' ? 'Niek' : 'Huub'}</span>
       </h2>
-
       {status !== 'confirmed' && !isSluiting && (
         <div className={styles.invoer}>
           <div className={styles.scoreRij}>
@@ -98,7 +97,7 @@ export default function PredictionForm({ fixture, speler }) {
                 className={styles.scoreInput} placeholder="0" inputMode="numeric"
               />
             </div>
-            <div className={styles.scoreDash}>–</div>
+            <div className={styles.scoreDash}>-</div>
             <div className={styles.scoreBlok}>
               <label className={styles.scoreLabel}>{fixture.uit}</label>
               <input
@@ -114,14 +113,32 @@ export default function PredictionForm({ fixture, speler }) {
           </button>
         </div>
       )}
-
       {status === 'confirmed' && mijnPred && (
         <div className={styles.bevestigd}>
           <div className={styles.bevestigdScore}>
             <span className={styles.bevestigdGetal}>{mijnPred.home}</span>
-            <span className={styles.bevestigdDash}>–</span>
+            <span className={styles.bevestigdDash}>-</span>
             <span className={styles.bevestigdGetal}>{mijnPred.away}</span>
           </div>
           <div className={styles.toto}>Toto: <strong>{totoLabel(mijnPred.home, mijnPred.away)}</strong></div>
-          <div className={styles.bevestigdCheck}>✓ Bevestigd</div>
-          {
+          <div className={styles.bevestigdCheck}>Bevestigd</div>
+          {!beideBevest && !isSluiting && (
+            <p className={styles.wacht}>Wachten op {andere === 'niek' ? 'Niek' : 'Huub'}...</p>
+          )}
+        </div>
+      )}
+      {beideBevest && anderePred && (
+        <div className={styles.andereWrap}>
+          <div className={styles.scheidingslijn} />
+          <h3 className={styles.andereLabel}>Voorspelling {andere === 'niek' ? 'Niek' : 'Huub'}</h3>
+          <div className={styles.andereScore}>
+            <span className={styles.andereGetal}>{anderePred.home}</span>
+            <span className={styles.andereDash}>-</span>
+            <span className={styles.andereGetal}>{anderePred.away}</span>
+          </div>
+          <div className={styles.toto}>Toto: <strong>{totoLabel(anderePred.home, anderePred.away)}</strong></div>
+        </div>
+      )}
+    </div>
+  )
+}
