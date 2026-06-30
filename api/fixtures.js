@@ -51,9 +51,11 @@ async function fetchFromAPI(leagueId) {
       'x-rapidapi-host': 'v3.football.api-sports.io'
     }
   })
-  if (!res.ok) throw new Error(`API-Football ${res.status}`)
   const data = await res.json()
-  return data.response || []
+  if (data.errors && Object.keys(data.errors).length > 0) {
+    console.error('API-Football errors:', JSON.stringify(data.errors))
+  }
+  return { fixtures: data.response || [], errors: data.errors || {}, results: data.results }
 }
 
 function mapFixture(f, comp) {
@@ -88,15 +90,18 @@ export default async function handler(req, res) {
   if (!API_KEY) return res.status(500).json({ error: 'API_FOOTBALL_KEY niet ingesteld' })
 
   try {
+    const leagueIds = Object.keys(COMPETITIONS)
     const results = await Promise.allSettled(
-      Object.entries(COMPETITIONS).map(async ([leagueId, comp]) => {
-        const fixtures = await fetchFromAPI(leagueId)
-        return fixtures.map(f => mapFixture(f, comp))
+      leagueIds.map(async (leagueId) => {
+        const comp = COMPETITIONS[leagueId]
+        const { fixtures, errors, results: apiResults } = await fetchFromAPI(leagueId)
+        return { mapped: fixtures.map(f => mapFixture(f, comp)), errors, apiResults }
       })
     )
+
     let allFixtures = []
     for (const r of results) {
-      if (r.status === 'fulfilled') allFixtures = allFixtures.concat(r.value)
+      if (r.status === 'fulfilled') allFixtures = allFixtures.concat(r.value.mapped)
     }
     const seen = new Set()
     allFixtures = allFixtures.filter(f => {
@@ -108,7 +113,17 @@ export default async function handler(req, res) {
 
     const payload = { fixtures: allFixtures, cached_at: new Date().toISOString() }
     await kvSet(CACHE_KEY, payload, CACHE_TTL)
-    return res.status(200).json({ source: 'fetched', fixtures: allFixtures })
+
+    const debugInfo = results.map((r, i) => ({
+      league: leagueIds[i],
+      status: r.status,
+      reason: r.status === 'rejected' ? r.reason?.message : undefined,
+      count: r.status === 'fulfilled' ? r.value.mapped.length : 0,
+      apiResults: r.status === 'fulfilled' ? r.value.apiResults : undefined,
+      errors: r.status === 'fulfilled' ? r.value.errors : undefined,
+    }))
+
+    return res.status(200).json({ source: 'fetched', fixtures: allFixtures, debug: debugInfo, season: SEASON })
   } catch (err) {
     if (cached) return res.status(200).json({ source: 'cache-fallback', fixtures: cached.fixtures })
     return res.status(500).json({ error: err.message })
