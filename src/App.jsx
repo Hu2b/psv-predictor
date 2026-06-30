@@ -45,12 +45,16 @@ export default function App() {
     setSpeler(null)
   }
 
-  const nu = new Date()
-  const volgende = fixtures.find(f => {
-    const isFT = ['FT','AET','PEN'].includes(f.status)
-    const isNog = new Date(f.datumISO) >= nu
-    return !isFT || isNog
-  }) || fixtures[0]
+  // Eerstvolgende nog te spelen wedstrijd (status niet FT/AET/PEN)
+  // Als alles gespeeld is: toon de laatst gespeelde wedstrijd
+  function bepaalGetoondeWedstrijd() {
+    if (fixtures.length === 0) return null
+    const nogTeSpelen = fixtures.find(f => !['FT','AET','PEN'].includes(f.status))
+    if (nogTeSpelen) return nogTeSpelen
+    return fixtures[fixtures.length - 1]
+  }
+
+  const getoondeWedstrijd = bepaalGetoondeWedstrijd()
 
   if (!speler) return <PlayerSelect onKeuze={handleSpelerKeuze} />
 
@@ -85,7 +89,7 @@ export default function App() {
             </button>
           </div>
         ) : tab === 'wedstrijd' ? (
-          <NextMatch fixture={volgende} fixtures={fixtures} speler={speler} />
+          <NextMatch fixture={getoondeWedstrijd} fixtures={fixtures} speler={speler} />
         ) : (
           <StandingsLazy fixtures={fixtures} speler={speler} />
         )}
