@@ -3,6 +3,50 @@ import styles from './Admin.module.css'
 
 const COMPETITIES = ['JCS', 'ERE', 'KNVB', 'CL', 'UL']
 
+const TEAM_NAMEN = {
+  'PSV': 'PSV Eindhoven',
+  'AJX': 'Ajax',
+  'FEY': 'Feyenoord',
+  'AZ ': 'AZ Alkmaar',
+  'AZ':  'AZ Alkmaar',
+  'UTR': 'FC Utrecht',
+  'TWE': 'FC Twente',
+  'NEC': 'NEC Nijmegen',
+  'HEE': 'sc Heerenveen',
+  'GRO': 'FC Groningen',
+  'ALM': 'Almere City FC',
+  'SPA': 'Sparta Rotterdam',
+  'GAE': 'Go Ahead Eagles',
+  'RKC': 'RKC Waalwijk',
+  'PEC': 'PEC Zwolle',
+  'FOR': 'Fortuna Sittard',
+  'WIL': 'Willem II',
+  'NAC': 'NAC Breda',
+  'HER': 'Heracles Almelo',
+  'EXC': 'Excelsior',
+  'CAM': 'SC Cambuur',
+  'VOL': 'FC Volendam',
+  'TEL': 'Telstar 1963',
+  'SBV': 'SBV Excelsior',
+  'SCH': 'Schalke 04',
+  'ADO': 'ADO Den Haag',
+  'ROY': 'Royale Union SG',
+  'BAR': 'FC Barcelona',
+  'REA': 'Real Madrid',
+  'MCI': 'Manchester City',
+  'LIV': 'Liverpool FC',
+  'JUV': 'Juventus',
+  'PSG': 'Paris SG',
+  'MUN': 'Manchester United',
+  'CHE': 'Chelsea FC',
+  'ARS': 'Arsenal FC',
+  'ATM': 'Atlético Madrid',
+  'INT': 'Inter Milan',
+  'ACM': 'AC Milan',
+  'BOR': 'Borussia Dortmund',
+  'BAY': 'Bayern München',
+}
+
 export default function Admin({ fixtures }) {
   const [tab, setTab] = useState('uitslag')
   const [handmatig, setHandmatig] = useState([])
@@ -31,13 +75,25 @@ export default function Admin({ fixtures }) {
     laad()
   }, [])
 
-  // Alle wedstrijden combineren
   const alleWedstrijden = [
     ...fixtures,
     ...handmatig
   ].sort((a, b) => new Date(a.datumISO) - new Date(b.datumISO))
 
   const gekozen = alleWedstrijden.find(f => String(f.matchId) === String(gekozenMatch))
+
+  // Auto-invullen volledige naam op basis van 3-letter afkorting
+  function handleThuisAfkorting(val) {
+    const upper = val.toUpperCase()
+    setThuis(upper)
+    if (TEAM_NAMEN[upper]) setThuisNaam(TEAM_NAMEN[upper])
+  }
+
+  function handleUitAfkorting(val) {
+    const upper = val.toUpperCase()
+    setUit(upper)
+    if (TEAM_NAMEN[upper]) setUitNaam(TEAM_NAMEN[upper])
+  }
 
   async function handleUitslag() {
     if (!gekozenMatch || homeScore === '' || awayScore === '') {
@@ -84,18 +140,25 @@ export default function Admin({ fixtures }) {
         action: 'toevoegen',
         competitie: comp,
         thuis: thuis.toUpperCase().substring(0,3),
-        thuisNaam,
+        thuisNaam: thuisNaam || thuis,
         uit: uit.toUpperCase().substring(0,3),
-        uitNaam,
+        uitNaam: uitNaam || uit,
         datum: new Date(datum).toLocaleDateString('nl-NL', {weekday:'short', day:'numeric', month:'short', year:'numeric'}),
         datumISO,
       })
     })
     const data = await r.json()
     if (data.success) {
-      setHandmatig(prev => [...prev, data.wedstrijd])
+      const nieuw = data.wedstrijd
+      setHandmatig(prev => [...prev, nieuw])
       setThuis(''); setThuisNaam(''); setUit(''); setUitNaam(''); setDatum('')
-      setMelding({ type: 'ok', tekst: 'Wedstrijd toegevoegd!' })
+      setMelding({ type: 'ok', tekst: 'Wedstrijd toegevoegd! Uitslag invoeren?' })
+      // Automatisch naar uitslag tab met nieuwe wedstrijd geselecteerd
+      setGekozenMatch(String(nieuw.matchId))
+      setHomeScore('')
+      setAwayScore('')
+      setResultaat(null)
+      setTab('uitslag')
     } else {
       setMelding({ type: 'fout', tekst: data.error || 'Fout bij toevoegen' })
     }
@@ -106,10 +169,16 @@ export default function Admin({ fixtures }) {
       <h2 className={styles.titel}>Admin</h2>
 
       <div className={styles.tabBar}>
-        <button className={`${styles.tabBtn} ${tab === 'uitslag' ? styles.tabActief : ''}`} onClick={() => setTab('uitslag')}>
+        <button
+          className={`${styles.tabBtn} ${tab === 'uitslag' ? styles.tabActief : ''}`}
+          onClick={() => setTab('uitslag')}
+        >
           Uitslag invoeren
         </button>
-        <button className={`${styles.tabBtn} ${tab === 'toevoegen' ? styles.tabActief : ''}`} onClick={() => setTab('toevoegen')}>
+        <button
+          className={`${styles.tabBtn} ${tab === 'toevoegen' ? styles.tabActief : ''}`}
+          onClick={() => setTab('toevoegen')}
+        >
           Wedstrijd toevoegen
         </button>
       </div>
@@ -206,15 +275,37 @@ export default function Admin({ fixtures }) {
           <div className={styles.teamRij}>
             <div className={styles.teamBlok}>
               <label className={styles.label}>Thuis (3-letter)</label>
-              <input className={styles.input} value={thuis} onChange={e => setThuis(e.target.value)} placeholder="PSV" maxLength={3} />
+              <input
+                className={styles.input}
+                value={thuis}
+                onChange={e => handleThuisAfkorting(e.target.value)}
+                placeholder="PSV"
+                maxLength={3}
+              />
               <label className={styles.label}>Volledige naam</label>
-              <input className={styles.input} value={thuisNaam} onChange={e => setThuisNaam(e.target.value)} placeholder="PSV Eindhoven" />
+              <input
+                className={styles.input}
+                value={thuisNaam}
+                onChange={e => setThuisNaam(e.target.value)}
+                placeholder="PSV Eindhoven"
+              />
             </div>
             <div className={styles.teamBlok}>
               <label className={styles.label}>Uit (3-letter)</label>
-              <input className={styles.input} value={uit} onChange={e => setUit(e.target.value)} placeholder="AJX" maxLength={3} />
+              <input
+                className={styles.input}
+                value={uit}
+                onChange={e => handleUitAfkorting(e.target.value)}
+                placeholder="AJX"
+                maxLength={3}
+              />
               <label className={styles.label}>Volledige naam</label>
-              <input className={styles.input} value={uitNaam} onChange={e => setUitNaam(e.target.value)} placeholder="Ajax" />
+              <input
+                className={styles.input}
+                value={uitNaam}
+                onChange={e => setUitNaam(e.target.value)}
+                placeholder="Ajax"
+              />
             </div>
           </div>
 
