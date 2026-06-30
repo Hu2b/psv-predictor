@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import PlayerSelect from './components/PlayerSelect.jsx'
 import NextMatch from './components/NextMatch.jsx'
 import Header from './components/Header.jsx'
+import Admin from './components/Admin.jsx'
 import styles from './App.module.css'
 
 const StandingsLazy = ({ fixtures, speler }) => {
@@ -45,8 +46,6 @@ export default function App() {
     setSpeler(null)
   }
 
-  // Eerstvolgende nog te spelen wedstrijd (status niet FT/AET/PEN)
-  // Als alles gespeeld is: toon de laatst gespeelde wedstrijd
   function bepaalGetoondeWedstrijd() {
     if (fixtures.length === 0) return null
     const nogTeSpelen = fixtures.find(f => !['FT','AET','PEN'].includes(f.status))
@@ -74,6 +73,12 @@ export default function App() {
         >
           🏆 Totaal
         </button>
+        <button
+          className={`${styles.tab} ${tab === 'admin' ? styles.tabActive : ''}`}
+          onClick={() => setTab('admin')}
+        >
+          ⚙️ Admin
+        </button>
       </nav>
       <main className={styles.main}>
         {loading ? (
@@ -90,8 +95,10 @@ export default function App() {
           </div>
         ) : tab === 'wedstrijd' ? (
           <NextMatch fixture={getoondeWedstrijd} fixtures={fixtures} speler={speler} />
-        ) : (
+        ) : tab === 'totaal' ? (
           <StandingsLazy fixtures={fixtures} speler={speler} />
+        ) : (
+          <Admin fixtures={fixtures} />
         )}
       </main>
     </div>
