@@ -13,6 +13,5 @@ export default async function handler(req, res) {
     geschreven: testValue,
     setResult,
     teruggelezen: terug,
-    werkt: JSON.stringify(testValue) === JSON.stringify(terug),
   })
 }
