@@ -14,13 +14,12 @@ export async function kvGet(key) {
     }
     return d.result
   } catch (e) {
-    console.error('kvGet error:', e.message)
     return null
   }
 }
 
 export async function kvSet(key, value, ttlSeconds = null) {
-  if (!REDIS_URL || !REDIS_TOKEN) return false
+  if (!REDIS_URL || !REDIS_TOKEN) return { ok: false, error: 'geen env vars' }
   try {
     const url = ttlSeconds
       ? `${REDIS_URL}/set/${encodeURIComponent(key)}?EX=${ttlSeconds}`
@@ -34,10 +33,9 @@ export async function kvSet(key, value, ttlSeconds = null) {
       body: JSON.stringify(value)
     })
     const d = await r.json()
-    return d.result === 'OK'
+    return { ok: d.result === 'OK', raw: d, status: r.status }
   } catch (e) {
-    console.error('kvSet error:', e.message)
-    return false
+    return { ok: false, error: e.message }
   }
 }
 
@@ -48,7 +46,5 @@ export async function kvDel(key) {
       method: 'POST',
       headers: { Authorization: `Bearer ${REDIS_TOKEN}` }
     })
-  } catch (e) {
-    console.error('kvDel error:', e.message)
-  }
+  } catch (e) {}
 }
