@@ -22,7 +22,6 @@ export async function kvGet(key) {
 export async function kvSet(key, value, ttlSeconds = null) {
   if (!REDIS_URL || !REDIS_TOKEN) return false
   try {
-    const body = JSON.stringify(value)
     const url = ttlSeconds
       ? `${REDIS_URL}/set/${encodeURIComponent(key)}?EX=${ttlSeconds}`
       : `${REDIS_URL}/set/${encodeURIComponent(key)}`
@@ -32,7 +31,7 @@ export async function kvSet(key, value, ttlSeconds = null) {
         Authorization: `Bearer ${REDIS_TOKEN}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify(body)
+      body: JSON.stringify(value)
     })
     const d = await r.json()
     return d.result === 'OK'
