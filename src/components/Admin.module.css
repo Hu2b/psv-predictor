@@ -293,4 +293,24 @@
   border: 1px solid rgba(225,0,14,0.3);
   border-radius: var(--radius-sm);
   color: var(--psv-red);
-  
+   font-size: 13px;
+  font-family: var(--font-body);
+}
+
+.btnKleinGrijs {
+  padding: 6px 10px;
+  background: var(--psv-gray);
+  border: 1px solid var(--psv-border);
+  border-radius: var(--radius-sm);
+  color: var(--psv-gray-lt);
+  font-size: 13px;
+  font-family: var(--font-body);
+}
+
+.wijzigenForm {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+ 
