@@ -20,18 +20,31 @@ const TEAM_NAMEN = {
   'BAY': 'Bayern München',
 }
 
+// Lokale datetime string voor input (YYYY-MM-DDTHH:MM)
+function toLocalInput(isoStr) {
+  if (!isoStr) return ''
+  const d = new Date(isoStr)
+  const pad = n => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+// Lokale input naar ISO zonder UTC conversie
+function localInputToISO(val) {
+  if (!val) return ''
+  // val is "YYYY-MM-DDTHH:MM" — bewaar als lokale tijd
+  return new Date(val).toISOString()
+}
+
 export default function Admin({ fixtures }) {
   const [tab, setTab] = useState('uitslag')
   const [handmatig, setHandmatig] = useState([])
   const [melding, setMelding] = useState(null)
 
-  // Uitslag state
   const [gekozenMatch, setGekozenMatch] = useState('')
   const [homeScore, setHomeScore] = useState('')
   const [awayScore, setAwayScore] = useState('')
   const [resultaat, setResultaat] = useState(null)
 
-  // Toevoegen state
   const [comp, setComp] = useState('JCS')
   const [thuis, setThuis] = useState('')
   const [thuisNaam, setThuisNaam] = useState('')
@@ -39,7 +52,6 @@ export default function Admin({ fixtures }) {
   const [uitNaam, setUitNaam] = useState('')
   const [datum, setDatum] = useState('')
 
-  // Wijzigen state
   const [wijzigenId, setWijzigenId] = useState(null)
   const [wijzigenData, setWijzigenData] = useState({})
 
@@ -106,7 +118,10 @@ export default function Admin({ fixtures }) {
       setMelding({ type: 'fout', tekst: 'Vul alle velden in' })
       return
     }
-    const datumISO = new Date(datum).toISOString()
+    const datumISO = localInputToISO(datum)
+    const datumLabel = new Date(datum).toLocaleDateString('nl-NL', {
+      weekday:'short', day:'numeric', month:'short', year:'numeric'
+    })
     const r = await fetch('/api/admin', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -117,7 +132,7 @@ export default function Admin({ fixtures }) {
         thuisNaam: thuisNaam || thuis,
         uit: uit.substring(0,3),
         uitNaam: uitNaam || uit,
-        datum: new Date(datum).toLocaleDateString('nl-NL', {weekday:'short', day:'numeric', month:'short', year:'numeric'}),
+        datum: datumLabel,
         datumISO,
       })
     })
@@ -140,14 +155,18 @@ export default function Admin({ fixtures }) {
     setWijzigenData({
       competitie: w.competitie,
       thuis: w.thuis,
-      thuisNaam: w.thuisNaam,
+      thuisNaam: w.thuisNaam || '',
       uit: w.uit,
-      uitNaam: w.uitNaam,
-      datumISO: w.datumISO?.substring(0,16) || '',
+      uitNaam: w.uitNaam || '',
+      datumISO: toLocalInput(w.datumISO),
     })
   }
 
   async function handleWijzigen() {
+    const datumISO = localInputToISO(wijzigenData.datumISO)
+    const datumLabel = new Date(wijzigenData.datumISO).toLocaleDateString('nl-NL', {
+      weekday:'short', day:'numeric', month:'short', year:'numeric'
+    })
     const r = await fetch('/api/admin', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -155,7 +174,8 @@ export default function Admin({ fixtures }) {
         action: 'wijzigen',
         matchId: wijzigenId,
         ...wijzigenData,
-        datumISO: new Date(wijzigenData.datumISO).toISOString(),
+        datum: datumLabel,
+        datumISO,
       })
     })
     const data = await r.json()
@@ -191,7 +211,7 @@ export default function Admin({ fixtures }) {
           Uitslag invoeren
         </button>
         <button className={`${styles.tabBtn} ${tab === 'toevoegen' ? styles.tabActief : ''}`} onClick={() => setTab('toevoegen')}>
-          Wedstrijd toevoegen
+          Toevoegen
         </button>
         <button className={`${styles.tabBtn} ${tab === 'beheer' ? styles.tabActief : ''}`} onClick={() => setTab('beheer')}>
           Beheer
@@ -230,120 +250,4 @@ export default function Admin({ fixtures }) {
               <div className={styles.scoreRij}>
                 <div className={styles.scoreBlok}>
                   <label className={styles.scoreLabel}>{gekozen.thuis}</label>
-                  <input type="number" min="0" max="20" value={homeScore}
-                    onChange={e => setHomeScore(e.target.value)}
-                    className={styles.scoreInput} placeholder="0" inputMode="numeric" />
-                </div>
-                <span className={styles.scoreDash}>–</span>
-                <div className={styles.scoreBlok}>
-                  <label className={styles.scoreLabel}>{gekozen.uit}</label>
-                  <input type="number" min="0" max="20" value={awayScore}
-                    onChange={e => setAwayScore(e.target.value)}
-                    className={styles.scoreInput} placeholder="0" inputMode="numeric" />
-                </div>
-              </div>
-              <button className={styles.btn} onClick={handleUitslag}>
-                Uitslag opslaan & punten berekenen
-              </button>
-              {resultaat && (
-                <div className={styles.resultaatBlok}>
-                  <div className={styles.resultaatRij}>
-                    <span>Niek: {resultaat.result.predNiek ? `${resultaat.result.predNiek.home}-${resultaat.result.predNiek.away}` : '—'}</span>
-                    <span className={styles.punten}>+{resultaat.punten.niek} pt</span>
-                    <span className={styles.totaal}>Totaal: {resultaat.totals.niek}</span>
-                  </div>
-                  <div className={styles.resultaatRij}>
-                    <span>Huub: {resultaat.result.predHuub ? `${resultaat.result.predHuub.home}-${resultaat.result.predHuub.away}` : '—'}</span>
-                    <span className={styles.punten}>+{resultaat.punten.huub} pt</span>
-                    <span className={styles.totaal}>Totaal: {resultaat.totals.huub}</span>
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-        </div>
-      )}
-
-      {tab === 'toevoegen' && (
-        <div className={styles.sectie}>
-          <label className={styles.label}>Competitie</label>
-          <select className={styles.select} value={comp} onChange={e => setComp(e.target.value)}>
-            {COMPETITIES.map(c => <option key={c} value={c}>{c}</option>)}
-          </select>
-          <label className={styles.label}>Datum & tijd</label>
-          <input type="datetime-local" className={styles.input} value={datum} onChange={e => setDatum(e.target.value)} />
-          <div className={styles.teamRij}>
-            <div className={styles.teamBlok}>
-              <label className={styles.label}>Thuis (3-letter)</label>
-              <input className={styles.input} value={thuis} onChange={e => handleThuisAfkorting(e.target.value)} placeholder="PSV" maxLength={3} />
-              <label className={styles.label}>Volledige naam</label>
-              <input className={styles.input} value={thuisNaam} onChange={e => setThuisNaam(e.target.value)} placeholder="PSV Eindhoven" />
-            </div>
-            <div className={styles.teamBlok}>
-              <label className={styles.label}>Uit (3-letter)</label>
-              <input className={styles.input} value={uit} onChange={e => handleUitAfkorting(e.target.value)} placeholder="AJX" maxLength={3} />
-              <label className={styles.label}>Volledige naam</label>
-              <input className={styles.input} value={uitNaam} onChange={e => setUitNaam(e.target.value)} placeholder="Ajax" />
-            </div>
-          </div>
-          <button className={styles.btn} onClick={handleToevoegen}>Wedstrijd toevoegen</button>
-        </div>
-      )}
-
-      {tab === 'beheer' && (
-        <div className={styles.sectie}>
-          <label className={styles.label}>Handmatig toegevoegde wedstrijden</label>
-          {handmatig.length === 0 && (
-            <p className={styles.leegTekst}>Geen handmatige wedstrijden</p>
-          )}
-          {handmatig.map(w => (
-            <div key={w.matchId} className={styles.beheerRij}>
-              {wijzigenId === w.matchId ? (
-                 <div className={styles.wijzigenForm}>
-                  <select className={styles.select} value={wijzigenData.competitie}
-                    onChange={e => setWijzigenData(p => ({...p, competitie: e.target.value}))}>
-                    {COMPETITIES.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                  <input className={styles.input} value={wijzigenData.datumISO}
-                    type="datetime-local"
-                    onChange={e => setWijzigenData(p => ({...p, datumISO: e.target.value}))} />
-                  <div className={styles.teamRij}>
-                    <div className={styles.teamBlok}>
-                      <input className={styles.input} value={wijzigenData.thuis} placeholder="PSV" maxLength={3}
-                        onChange={e => { const v = e.target.value.toUpperCase(); setWijzigenData(p => ({...p, thuis: v, thuisNaam: TEAM_NAMEN[v] || p.thuisNaam})) }} />
-                      <input className={styles.input} value={wijzigenData.thuisNaam} placeholder="PSV Eindhoven"
-                        onChange={e => setWijzigenData(p => ({...p, thuisNaam: e.target.value}))} />
-                    </div>
-                    <div className={styles.teamBlok}>
-                      <input className={styles.input} value={wijzigenData.uit} placeholder="AJX" maxLength={3}
-                        onChange={e => { const v = e.target.value.toUpperCase(); setWijzigenData(p => ({...p, uit: v, uitNaam: TEAM_NAMEN[v] || p.uitNaam})) }} />
-                      <input className={styles.input} value={wijzigenData.uitNaam} placeholder="Ajax"
-                        onChange={e => setWijzigenData(p => ({...p, uitNaam: e.target.value}))} />
-                    </div>
-                  </div>
-                  <div className={styles.beheerBtns}>
-                    <button className={styles.btnKlein} onClick={handleWijzigen}>Opslaan</button>
-                    <button className={styles.btnKleinGrijs} onClick={() => setWijzigenId(null)}>Annuleren</button>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  <div className={styles.beheerInfo}>
-                    <span className={styles.compTag}>{w.competitie}</span>
-                    <span className={styles.beheerNaam}>{w.datum} — {w.thuis} vs {w.uit}</span>
-                    {w.uitslag && <span className={styles.beheerUitslag}>{w.uitslag.home}-{w.uitslag.away}</span>}
-                  </div>
-                  <div className={styles.beheerBtns}>
-                    <button className={styles.btnKlein} onClick={() => startWijzigen(w)}>✏️</button>
-                    <button className={styles.btnKleinRood} onClick={() => handleVerwijderen(w.matchId)}>🗑️</button>
-                  </div>
-                </>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-               
+                  
