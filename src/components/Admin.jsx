@@ -299,4 +299,51 @@ export default function Admin({ fixtures }) {
           {handmatig.map(w => (
             <div key={w.matchId} className={styles.beheerRij}>
               {wijzigenId === w.matchId ? (
-                
+                 <div className={styles.wijzigenForm}>
+                  <select className={styles.select} value={wijzigenData.competitie}
+                    onChange={e => setWijzigenData(p => ({...p, competitie: e.target.value}))}>
+                    {COMPETITIES.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                  <input className={styles.input} value={wijzigenData.datumISO}
+                    type="datetime-local"
+                    onChange={e => setWijzigenData(p => ({...p, datumISO: e.target.value}))} />
+                  <div className={styles.teamRij}>
+                    <div className={styles.teamBlok}>
+                      <input className={styles.input} value={wijzigenData.thuis} placeholder="PSV" maxLength={3}
+                        onChange={e => { const v = e.target.value.toUpperCase(); setWijzigenData(p => ({...p, thuis: v, thuisNaam: TEAM_NAMEN[v] || p.thuisNaam})) }} />
+                      <input className={styles.input} value={wijzigenData.thuisNaam} placeholder="PSV Eindhoven"
+                        onChange={e => setWijzigenData(p => ({...p, thuisNaam: e.target.value}))} />
+                    </div>
+                    <div className={styles.teamBlok}>
+                      <input className={styles.input} value={wijzigenData.uit} placeholder="AJX" maxLength={3}
+                        onChange={e => { const v = e.target.value.toUpperCase(); setWijzigenData(p => ({...p, uit: v, uitNaam: TEAM_NAMEN[v] || p.uitNaam})) }} />
+                      <input className={styles.input} value={wijzigenData.uitNaam} placeholder="Ajax"
+                        onChange={e => setWijzigenData(p => ({...p, uitNaam: e.target.value}))} />
+                    </div>
+                  </div>
+                  <div className={styles.beheerBtns}>
+                    <button className={styles.btnKlein} onClick={handleWijzigen}>Opslaan</button>
+                    <button className={styles.btnKleinGrijs} onClick={() => setWijzigenId(null)}>Annuleren</button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className={styles.beheerInfo}>
+                    <span className={styles.compTag}>{w.competitie}</span>
+                    <span className={styles.beheerNaam}>{w.datum} — {w.thuis} vs {w.uit}</span>
+                    {w.uitslag && <span className={styles.beheerUitslag}>{w.uitslag.home}-{w.uitslag.away}</span>}
+                  </div>
+                  <div className={styles.beheerBtns}>
+                    <button className={styles.btnKlein} onClick={() => startWijzigen(w)}>✏️</button>
+                    <button className={styles.btnKleinRood} onClick={() => handleVerwijderen(w.matchId)}>🗑️</button>
+                  </div>
+                </>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+               
