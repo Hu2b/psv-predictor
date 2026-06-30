@@ -2,11 +2,25 @@ import { kvGet, kvSet } from './_kv.js'
 
 const API_KEY    = process.env.FOOTBALL_DATA_KEY
 const API_BASE   = 'https://api.football-data.org/v4'
-const CACHE_KEY  = 'psv:fixtures:fd'
+
+// Bepaal seizoen: na 15 juni -> nieuw seizoen (bv. juli 2026 -> seizoen 2026)
+// Voor 15 juni -> lopend seizoen (bv. maart 2026 -> seizoen 2025, want dat liep door tot mei 2026)
+function bepaalSeizoen() {
+  const nu = new Date()
+  const jaar = nu.getFullYear()
+  const maand = nu.getMonth() + 1 // 1-12
+  const dag = nu.getDate()
+
+  if (maand > 6 || (maand === 6 && dag >= 15)) {
+    return jaar // na 15 juni: nieuwe seizoen start dit jaar
+  }
+  return jaar - 1 // voor 15 juni: vorig kalenderjaar is start van lopend seizoen
+}
+
+const SEASON     = parseInt(process.env.PSV_SEASON || String(bepaalSeizoen()))
+const CACHE_KEY  = `psv:fixtures:fd:${SEASON}`
 const CACHE_TTL  = 60 * 30
 
-// Eredivisie en Champions League zijn gratis beschikbaar
-// KNVB Beker en Johan Cruijff Schaal zijn niet beschikbaar op football-data.org gratis tier
 const COMPETITIONS = {
   DED: 'ERE',
   CL:  'CL',
@@ -21,7 +35,7 @@ function dagAfkorting(dateStr) {
 function formatDatum(dateStr) {
   const d = new Date(dateStr)
   const maanden = ['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec']
-  return `${dagAfkorting(dateStr)} ${d.getDate()} ${maanden[d.getMonth()]}`
+  return `${dagAfkorting(dateStr)} ${d.getDate()} ${maanden[d.getMonth()]} ${d.getFullYear()}`
 }
 
 function teamAfkorting(naam) {
@@ -47,7 +61,7 @@ function mapStatus(s) {
 }
 
 async function fetchCompetitionMatches(code) {
-  const url = `${API_BASE}/competitions/${code}/matches?season=2025`
+  const url = `${API_BASE}/competitions/${code}/matches?season=${SEASON}`
   const res = await fetch(url, {
     headers: { 'X-Auth-Token': API_KEY }
   })
@@ -84,7 +98,7 @@ export default async function handler(req, res) {
   const cached = await kvGet(CACHE_KEY)
   if (cached?.cached_at) {
     const ageMin = (Date.now() - new Date(cached.cached_at).getTime()) / 60000
-    if (ageMin < CACHE_TTL / 60) return res.status(200).json({ source: 'cache', fixtures: cached.fixtures })
+    if (ageMin < CACHE_TTL / 60) return res.status(200).json({ source: 'cache', fixtures: cached.fixtures, season: SEASON })
   }
 
   if (!API_KEY) return res.status(500).json({ error: 'FOOTBALL_DATA_KEY niet ingesteld' })
@@ -112,9 +126,9 @@ export default async function handler(req, res) {
     const payload = { fixtures: allFixtures, cached_at: new Date().toISOString() }
     await kvSet(CACHE_KEY, payload, CACHE_TTL)
 
-    return res.status(200).json({ source: 'fetched', fixtures: allFixtures })
+    return res.status(200).json({ source: 'fetched', fixtures: allFixtures, season: SEASON })
   } catch (err) {
-    if (cached) return res.status(200).json({ source: 'cache-fallback', fixtures: cached.fixtures })
+    if (cached) return res.status(200).json({ source: 'cache-fallback', fixtures: cached.fixtures, season: SEASON })
     return res.status(500).json({ error: err.message })
   }
 }
