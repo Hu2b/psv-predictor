@@ -10,43 +10,28 @@ export async function kvGet(key) {
     const d = await r.json()
     if (d.result === null || d.result === undefined) return null
     if (typeof d.result === 'string') {
-      try { return JSON.parse(d.result) } catch (_) { return d.result }
+      try { return JSON.parse(d.result) } catch (_) { return null }
     }
     return d.result
   } catch (e) { return null }
 }
 
 export async function kvSet(key, value, ttlSeconds = null) {
-  if (!REDIS_URL || !REDIS_TOKEN) return false
+  if (!REDIS_URL || !REDIS_TOKEN) return
   try {
-    const serialized = JSON.stringify(value)
-    // Upstash REST: POST /pipeline met array van commando's
-    const commands = ttlSeconds
-      ? [['SET', key, serialized, 'EX', ttlSeconds]]
-      : [['SET', key, serialized]]
-    const r = await fetch(`${REDIS_URL}/pipeline`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${REDIS_TOKEN}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(commands)
-    })
-    const d = await r.json()
-    return d?.[0]?.result === 'OK'
-  } catch (e) { return false }
+    const encoded = encodeURIComponent(JSON.stringify(value))
+    const url = ttlSeconds
+      ? `${REDIS_URL}/set/${encodeURIComponent(key)}/${encoded}/EX/${ttlSeconds}`
+      : `${REDIS_URL}/set/${encodeURIComponent(key)}/${encoded}`
+    await fetch(url, { headers: { Authorization: `Bearer ${REDIS_TOKEN}` } })
+  } catch (e) {}
 }
 
 export async function kvDel(key) {
   if (!REDIS_URL || !REDIS_TOKEN) return
   try {
-    await fetch(`${REDIS_URL}/pipeline`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${REDIS_TOKEN}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify([['DEL', key]])
+    await fetch(`${REDIS_URL}/del/${encodeURIComponent(key)}`, {
+      headers: { Authorization: `Bearer ${REDIS_TOKEN}` }
     })
   } catch (e) {}
 }
