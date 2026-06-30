@@ -103,6 +103,24 @@
   outline: none;
 }
 
+.inputDatum {
+  background: var(--psv-gray);
+  border: 1px solid var(--psv-border);
+  border-radius: var(--radius-sm);
+  color: var(--psv-white);
+  padding: 10px 12px;
+  font-size: 14px;
+  font-family: var(--font-body);
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.inputDatum:focus {
+  border-color: var(--psv-red);
+  outline: none;
+}
+
 .matchInfo {
   display: flex;
   align-items: center;
@@ -235,7 +253,6 @@
   padding: 16px 0;
 }
 
-/* Beheer */
 .beheerRij {
   display: flex;
   align-items: center;
@@ -293,7 +310,7 @@
   border: 1px solid rgba(225,0,14,0.3);
   border-radius: var(--radius-sm);
   color: var(--psv-red);
-   font-size: 13px;
+  font-size: 13px;
   font-family: var(--font-body);
 }
 
@@ -313,4 +330,3 @@
   gap: 8px;
   width: 100%;
 }
- 
