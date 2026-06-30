@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import H2H from './H2H.jsx'
 import PredictionForm from './PredictionForm.jsx'
 import LiveScore from './LiveScore.jsx'
@@ -14,39 +14,59 @@ const COMP_LABELS = {
 
 export default function NextMatch({ fixture, fixtures, speler }) {
   const [gekozenId, setGekozenId] = useState(null)
+  const [handmatig, setHandmatig] = useState([])
 
-  if (!fixture) {
-    return <div className={styles.leeg}><p>Geen aankomende PSV wedstrijden.</p></div>
+  useEffect(() => {
+    async function laad() {
+      try {
+        const r = await fetch('/api/admin?action=wedstrijden')
+        const data = await r.json()
+        setHandmatig(data.wedstrijden || [])
+      } catch (_) {}
+    }
+    laad()
+  }, [])
+
+  const alleWedstrijden = [...fixtures, ...handmatig]
+    .sort((a, b) => new Date(a.datumISO) - new Date(b.datumISO))
+
+  if (alleWedstrijden.length === 0) {
+    return <div className={styles.leeg}><p>Geen PSV wedstrijden gevonden.</p></div>
   }
 
-  const getoond = fixtures.find(f => f.matchId === gekozenId) || fixture
-  const komend = fixtures.filter(f => !['FT','AET','PEN'].includes(f.status)).slice(0,10)
+  // Standaard: eerstvolgende niet-gespeelde, of laatste als alles gespeeld
+  const standaard = alleWedstrijden.find(f => !['FT','AET','PEN'].includes(f.status))
+    || alleWedstrijden[alleWedstrijden.length - 1]
+
+  const getoond = alleWedstrijden.find(f => f.matchId === gekozenId) || standaard
+
   const isAfgelopen = ['FT','AET','PEN'].includes(getoond.status)
   const isLive = ['1H','HT','2H','ET','BT','LIVE'].includes(getoond.status)
 
   return (
     <div className={styles.wrapper}>
-      {komend.length > 1 && (
-        <div className={styles.selectorWrap}>
-          <label className={styles.selectorLabel}>Wedstrijd</label>
-          <select
-            className={styles.selector}
-            value={getoond.matchId}
-            onChange={e => setGekozenId(Number(e.target.value))}
-          >
-            {komend.map(f => (
-              <option key={f.matchId} value={f.matchId}>
-                #{f.volgnummer} {f.datum} — {f.thuis} vs {f.uit} ({f.competitie})
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
+      {/* Wedstrijd selector — alle wedstrijden */}
+      <div className={styles.selectorWrap}>
+        <label className={styles.selectorLabel}>Wedstrijd</label>
+        <select
+          className={styles.selector}
+          value={getoond.matchId}
+          onChange={e => setGekozenId(e.target.value)}
+        >
+          {alleWedstrijden.map(f => (
+            <option key={f.matchId} value={f.matchId}>
+              #{f.volgnummer || '—'} {f.datum} — {f.thuis} vs {f.uit} ({f.competitie})
+              {['FT','AET','PEN'].includes(f.status) ? ` ✓` : ''}
+            </option>
+          ))}
+        </select>
+      </div>
 
+      {/* Wedstrijd kaart */}
       <div className={styles.card}>
         <div className={styles.compRow}>
           <span className={styles.compBadge}>{COMP_LABELS[getoond.competitie] || getoond.competitie}</span>
-          <span className={styles.volgnr}>#{getoond.volgnummer}</span>
+          <span className={styles.volgnr}>#{getoond.volgnummer || '—'}</span>
         </div>
         <div className={styles.datum}>{getoond.datum}</div>
         <div className={styles.teams}>
