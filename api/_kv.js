@@ -10,24 +10,46 @@ export async function kvGet(key) {
     const d = await r.json()
     if (d.result === null || d.result === undefined) return null
     if (typeof d.result === 'string') {
-      try { return JSON.parse(d.result) } catch (_) { return null }
+      try { return JSON.parse(d.result) } catch (_) { return d.result }
     }
     return d.result
-  } catch (e) { return null }
+  } catch (e) {
+    console.error('kvGet error:', e.message)
+    return null
+  }
 }
 
 export async function kvSet(key, value, ttlSeconds = null) {
-  if (!REDIS_URL || !REDIS_TOKEN) return
-  const encoded = encodeURIComponent(JSON.stringify(value))
-  const url = ttlSeconds
-    ? `${REDIS_URL}/set/${encodeURIComponent(key)}/${encoded}/EX/${ttlSeconds}`
-    : `${REDIS_URL}/set/${encodeURIComponent(key)}/${encoded}`
-  await fetch(url, { headers: { Authorization: `Bearer ${REDIS_TOKEN}` } })
+  if (!REDIS_URL || !REDIS_TOKEN) return false
+  try {
+    const body = JSON.stringify(value)
+    const url = ttlSeconds
+      ? `${REDIS_URL}/set/${encodeURIComponent(key)}?EX=${ttlSeconds}`
+      : `${REDIS_URL}/set/${encodeURIComponent(key)}`
+    const r = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${REDIS_TOKEN}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body)
+    })
+    const d = await r.json()
+    return d.result === 'OK'
+  } catch (e) {
+    console.error('kvSet error:', e.message)
+    return false
+  }
 }
 
 export async function kvDel(key) {
   if (!REDIS_URL || !REDIS_TOKEN) return
-  await fetch(`${REDIS_URL}/del/${encodeURIComponent(key)}`, {
-    headers: { Authorization: `Bearer ${REDIS_TOKEN}` }
-  })
+  try {
+    await fetch(`${REDIS_URL}/del/${encodeURIComponent(key)}`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${REDIS_TOKEN}` }
+    })
+  } catch (e) {
+    console.error('kvDel error:', e.message)
+  }
 }
