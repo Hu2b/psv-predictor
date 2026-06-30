@@ -1,20 +1,15 @@
 import { kvGet, kvSet } from './_kv.js'
 
-const API_KEY    = process.env.API_FOOTBALL_KEY
-const API_BASE   = 'https://v3.football.api-sports.io'
-const PSV_ID     = 673
-const SEASON     = parseInt(process.env.PSV_SEASON || '2026')
-const CACHE_KEY  = `psv:fixtures:${SEASON}`
-const CACHE_TTL  = 60 * 5
+const API_KEY    = process.env.FOOTBALL_DATA_KEY
+const API_BASE   = 'https://api.football-data.org/v4'
+const CACHE_KEY  = 'psv:fixtures:fd'
+const CACHE_TTL  = 60 * 30
 
+// Eredivisie en Champions League zijn gratis beschikbaar
+// KNVB Beker en Johan Cruijff Schaal zijn niet beschikbaar op football-data.org gratis tier
 const COMPETITIONS = {
-  88:  'ERE',
-  90:  'KNVB',
-  2:   'CL',
-  3:   'UL',
-  848: 'UL',
-  531: 'JCS',
-  760: 'ERE',
+  DED: 'ERE',
+  CL:  'CL',
 }
 
 function dagAfkorting(dateStr) {
@@ -31,50 +26,55 @@ function formatDatum(dateStr) {
 
 function teamAfkorting(naam) {
   const mapping = {
-    'PSV Eindhoven':'PSV','PSV':'PSV','Ajax':'AJX','Feyenoord':'FEY',
-    'AZ':'AZ ','Utrecht':'UTR','Twente':'TWE','Vitesse':'VIT','NEC':'NEC',
-    'Heerenveen':'HEE','Groningen':'GRO','Almere City':'ALM',
+    'PSV Eindhoven':'PSV','PSV':'PSV','Ajax':'AJX','AFC Ajax':'AJX',
+    'Feyenoord':'FEY','Feyenoord Rotterdam':'FEY',
+    'AZ':'AZ ','AZ Alkmaar':'AZ ','FC Utrecht':'UTR','FC Twente':'TWE',
+    'FC Twente Enschede':'TWE','Vitesse':'VIT','NEC':'NEC','NEC Nijmegen':'NEC',
+    'sc Heerenveen':'HEE','FC Groningen':'GRO','Almere City FC':'ALM',
     'Sparta Rotterdam':'SPA','Go Ahead Eagles':'GAE','RKC Waalwijk':'RKC',
     'PEC Zwolle':'PEC','Fortuna Sittard':'FOR','Willem II':'WIL',
-    'NAC Breda':'NAC','Heracles':'HER','Excelsior':'EXC','Cambuur':'CAM',
+    'NAC Breda':'NAC','Heracles Almelo':'HER','Excelsior':'EXC',
+    'SC Cambuur':'CAM','FC Volendam':'VOL',
   }
   if (mapping[naam]) return mapping[naam]
   return naam.replace(/[^a-zA-Z]/g,'').substring(0,3).toUpperCase()
 }
 
-async function fetchFromAPI(leagueId) {
-  const url = `${API_BASE}/fixtures?team=${PSV_ID}&league=${leagueId}&season=${SEASON}`
-  const res = await fetch(url, {
-    headers: { 
-      'x-apisports-key': API_KEY,
-      'x-rapidapi-key': API_KEY,
-      'x-rapidapi-host': 'v3.football.api-sports.io'
-    }
-  })
-  const data = await res.json()
-  if (data.errors && Object.keys(data.errors).length > 0) {
-    console.error('API-Football errors:', JSON.stringify(data.errors))
-  }
-  return { fixtures: data.response || [], errors: data.errors || {}, results: data.results }
+function mapStatus(s) {
+  if (s === 'FINISHED') return 'FT'
+  if (s === 'IN_PLAY' || s === 'PAUSED') return 'LIVE'
+  return 'NS'
 }
 
-function mapFixture(f, comp) {
-  const home = f.teams.home
-  const away = f.teams.away
-  const score = f.score
-  const status = f.fixture.status.short
+async function fetchCompetitionMatches(code) {
+  const url = `${API_BASE}/competitions/${code}/matches?season=2025`
+  const res = await fetch(url, {
+    headers: { 'X-Auth-Token': API_KEY }
+  })
+  const data = await res.json()
+  if (data.error || data.errorCode) {
+    console.error(`football-data.org error for ${code}:`, JSON.stringify(data))
+    return []
+  }
+  return data.matches || []
+}
+
+function mapMatch(m, comp) {
+  const status = mapStatus(m.status)
   let uitslag = null
-  if (['FT','AET','PEN'].includes(status)) {
-    uitslag = { home: score.fulltime.home, away: score.fulltime.away, status: 'FT' }
-  } else if (['1H','HT','2H','ET','BT'].includes(status)) {
-    uitslag = { home: score.halftime.home ?? 0, away: score.halftime.away ?? 0, status: 'LIVE' }
+  if (status === 'FT') {
+    uitslag = { home: m.score.fullTime.home, away: m.score.fullTime.away, status: 'FT' }
+  } else if (status === 'LIVE') {
+    uitslag = { home: m.score.fullTime.home ?? 0, away: m.score.fullTime.away ?? 0, status: 'LIVE' }
   }
   return {
-    matchId: f.fixture.id, competitie: comp,
-    thuis: teamAfkorting(home.name), thuisNaam: home.name, thuisLogo: home.logo, thuisId: home.id,
-    uit: teamAfkorting(away.name), uitNaam: away.name, uitLogo: away.logo, uitId: away.id,
-    dag: dagAfkorting(f.fixture.date), datum: formatDatum(f.fixture.date),
-    datumISO: f.fixture.date, status, uitslag,
+    matchId: m.id, competitie: comp,
+    thuis: teamAfkorting(m.homeTeam.name), thuisNaam: m.homeTeam.name,
+    thuisLogo: m.homeTeam.crest, thuisId: m.homeTeam.id,
+    uit: teamAfkorting(m.awayTeam.name), uitNaam: m.awayTeam.name,
+    uitLogo: m.awayTeam.crest, uitId: m.awayTeam.id,
+    dag: dagAfkorting(m.utcDate), datum: formatDatum(m.utcDate),
+    datumISO: m.utcDate, status, uitslag,
   }
 }
 
@@ -87,22 +87,20 @@ export default async function handler(req, res) {
     if (ageMin < CACHE_TTL / 60) return res.status(200).json({ source: 'cache', fixtures: cached.fixtures })
   }
 
-  if (!API_KEY) return res.status(500).json({ error: 'API_FOOTBALL_KEY niet ingesteld' })
+  if (!API_KEY) return res.status(500).json({ error: 'FOOTBALL_DATA_KEY niet ingesteld' })
 
   try {
-    const leagueIds = Object.keys(COMPETITIONS)
-    const results = await Promise.allSettled(
-      leagueIds.map(async (leagueId) => {
-        const comp = COMPETITIONS[leagueId]
-        const { fixtures, errors, results: apiResults } = await fetchFromAPI(leagueId)
-        return { mapped: fixtures.map(f => mapFixture(f, comp)), errors, apiResults }
-      })
-    )
-
+    const PSV_NAMES = ['PSV', 'PSV Eindhoven']
     let allFixtures = []
-    for (const r of results) {
-      if (r.status === 'fulfilled') allFixtures = allFixtures.concat(r.value.mapped)
+
+    for (const [code, comp] of Object.entries(COMPETITIONS)) {
+      const matches = await fetchCompetitionMatches(code)
+      const psvMatches = matches.filter(m =>
+        PSV_NAMES.includes(m.homeTeam.name) || PSV_NAMES.includes(m.awayTeam.name)
+      )
+      allFixtures = allFixtures.concat(psvMatches.map(m => mapMatch(m, comp)))
     }
+
     const seen = new Set()
     allFixtures = allFixtures.filter(f => {
       if (seen.has(f.matchId)) return false
@@ -114,16 +112,7 @@ export default async function handler(req, res) {
     const payload = { fixtures: allFixtures, cached_at: new Date().toISOString() }
     await kvSet(CACHE_KEY, payload, CACHE_TTL)
 
-    const debugInfo = results.map((r, i) => ({
-      league: leagueIds[i],
-      status: r.status,
-      reason: r.status === 'rejected' ? r.reason?.message : undefined,
-      count: r.status === 'fulfilled' ? r.value.mapped.length : 0,
-      apiResults: r.status === 'fulfilled' ? r.value.apiResults : undefined,
-      errors: r.status === 'fulfilled' ? r.value.errors : undefined,
-    }))
-
-    return res.status(200).json({ source: 'fetched', fixtures: allFixtures, debug: debugInfo, season: SEASON })
+    return res.status(200).json({ source: 'fetched', fixtures: allFixtures })
   } catch (err) {
     if (cached) return res.status(200).json({ source: 'cache-fallback', fixtures: cached.fixtures })
     return res.status(500).json({ error: err.message })
