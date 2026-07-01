@@ -1,4 +1,5 @@
 import { kvGet, kvSet } from './_kv.js'
+import { berekenPunten, totoLabel } from './_scoring.js'
 
 const API_KEY = process.env.FOOTBALL_DATA_KEY
 const API_BASE = 'https://api.football-data.org/v4'
@@ -94,34 +95,6 @@ function mapMatch(m, comp) {
     dag: dagAfkorting(m.utcDate), datum: formatDatum(m.utcDate),
     datumISO: m.utcDate, status, uitslag,
   }
-}
-
-function berekenPunten(pred, uitslag) {
-  if (!pred || !uitslag) return 0
-
-  // Toto: 5 punten als de winnaar/gelijkspel goed voorspeld is, anders 0
-  const predToto = Math.sign(pred.home - pred.away)
-  const uitsToto = Math.sign(uitslag.home - uitslag.away)
-  const totoPunten = predToto === uitsToto ? 5 : 0
-
-  // Score: 5 punten voor exacte uitslag, 2 punten als één team exact goed is, anders 0
-  let scorePunten = 0
-  if (pred.home === uitslag.home && pred.away === uitslag.away) {
-    scorePunten = 5
-  } else if (pred.home === uitslag.home || pred.away === uitslag.away) {
-    scorePunten = 2
-  }
-
-  // Toto en score tellen onafhankelijk van elkaar mee, max 10 punten
-  return totoPunten + scorePunten
-}
-
-function totoLabel(pred) {
-  if (!pred) return null
-  const diff = pred.home - pred.away
-  if (diff > 0) return '1'
-  if (diff < 0) return '2'
-  return 'X'
 }
 
 async function verwerkUitslag(fixture, uitslag) {
