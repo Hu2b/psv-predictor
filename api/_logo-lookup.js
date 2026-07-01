@@ -1,35 +1,24 @@
 import { kvGet, kvSet } from './_kv.js'
 import { TEAMS } from '../shared/teams.js'
 
-const API_KEY = process.env.FOOTBALL_DATA_KEY
-const API_BASE = 'https://api.football-data.org/v4'
-
-export async function zoekLogoVoorTeam(teamNaam, teamCode) {
+// Slaat het logo van een team permanent op, maar alleen de EERSTE keer.
+// Wordt aangeroepen met logo's die al geverifieerd zijn (afkomstig van
+// football-data.org bij automatisch opgehaalde wedstrijden).
+export async function bewaarLogoAlsNieuw(teamCode, logoUrl) {
+  if (!teamCode || !logoUrl) return
   const cacheKey = `logo:${teamCode}`
+  const bestaand = await kvGet(cacheKey)
+  if (bestaand) return // al eerder opgeslagen, nooit overschrijven
+  await kvSet(cacheKey, logoUrl)
+}
 
-  // 1. Al eerder opgezocht en permanent opgeslagen?
-  const cached = await kvGet(cacheKey)
-  if (cached) return cached
-
-  // 2. Geverifieerde crest ophalen via football-data.org's teamzoekfunctie
-  if (API_KEY && teamNaam) {
-    try {
-      const res = await fetch(`${API_BASE}/teams?name=${encodeURIComponent(teamNaam)}`, {
-        headers: { 'X-Auth-Token': API_KEY }
-      })
-      const data = await res.json()
-      const match = data.teams?.[0]
-      if (match?.crest) {
-        await kvSet(cacheKey, match.crest)
-        return match.crest
-      }
-    } catch (e) {
-      console.error('Logo-opzoeken via football-data.org mislukt:', e)
-    }
-  }
-
-  // 3. Laatste redmiddel: statische fallback-lijst uit shared/teams.js
-  const fallback = TEAMS[teamCode]?.logo || null
-  if (fallback) await kvSet(cacheKey, fallback)
-  return fallback
+// Haalt het opgeslagen logo op voor een team. Valt terug op de statische
+// lijst als er nog nooit een automatische wedstrijd met dit team is gezien.
+// Geeft null terug als er niets bekend is; de frontend toont dan een
+// transparant vlak van dezelfde afmeting (geen kapot plaatje, geen sprong
+// in de layout).
+export async function zoekLogo(teamCode) {
+  const opgeslagen = await kvGet(`logo:${teamCode}`)
+  if (opgeslagen) return opgeslagen
+  return TEAMS[teamCode]?.logo || null
 }
