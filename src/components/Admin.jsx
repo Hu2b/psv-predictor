@@ -41,6 +41,8 @@ export default function Admin({ fixtures }) {
 
   const alleWedstrijden = [...fixtures, ...handmatig]
     .sort((a, b) => new Date(a.datumISO) - new Date(b.datumISO))
+    .map((f, i) => ({ ...f, volgnummerBerekend: i + 1 }))
+
   const gekozen = alleWedstrijden.find(f => String(f.matchId) === String(gekozenMatch))
 
   function handleThuisAfkorting(val) {
@@ -67,7 +69,10 @@ export default function Admin({ fixtures }) {
         matchId: gekozen.matchId,
         homeScore: parseInt(homeScore),
         awayScore: parseInt(awayScore),
-        matchInfo: { datumISO: gekozen.datumISO, datum: gekozen.datum, competitie: gekozen.competitie, thuis: gekozen.thuis, uit: gekozen.uit }
+        matchInfo: {
+          datumISO: gekozen.datumISO, datum: gekozen.datum,
+          competitie: gekozen.competitie, thuis: gekozen.thuis, uit: gekozen.uit
+        }
       })
     })
     const data = await r.json()
@@ -84,11 +89,18 @@ export default function Admin({ fixtures }) {
       setMelding({ type: 'fout', tekst: 'Vul alle velden in' }); return
     }
     const datumISO = new Date(datum).toISOString()
-    const datumLabel = new Date(datum).toLocaleDateString('nl-NL', { weekday:'short', day:'numeric', month:'short', year:'numeric' })
+    const datumLabel = new Date(datum).toLocaleDateString('nl-NL', {
+      weekday:'short', day:'numeric', month:'short', year:'numeric'
+    })
     const r = await fetch('/api/admin', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'toevoegen', competitie: comp, thuis: thuis.substring(0,3), thuisNaam: thuisNaam || thuis, uit: uit.substring(0,3), uitNaam: uitNaam || uit, datum: datumLabel, datumISO })
+      body: JSON.stringify({
+        action: 'toevoegen', competitie: comp,
+        thuis: thuis.substring(0,3), thuisNaam: thuisNaam || thuis,
+        uit: uit.substring(0,3), uitNaam: uitNaam || uit,
+        datum: datumLabel, datumISO
+      })
     })
     const data = await r.json()
     if (data.success) {
@@ -126,7 +138,8 @@ export default function Admin({ fixtures }) {
             <option value="">— Kies wedstrijd —</option>
             {alleWedstrijden.map(f => (
               <option key={f.matchId} value={f.matchId}>
-                {f.datum} — {f.thuis} vs {f.uit} ({f.competitie}){f.uitslag ? ` [${f.uitslag.home}-${f.uitslag.away}]` : ''}
+                #{f.volgnummerBerekend} {f.datum} — {f.thuis} vs {f.uit} ({f.competitie})
+                {f.uitslag ? ` [${f.uitslag.home}-${f.uitslag.away}]` : ''}
               </option>
             ))}
           </select>
@@ -139,15 +152,21 @@ export default function Admin({ fixtures }) {
               <div className={styles.scoreRij}>
                 <div className={styles.scoreBlok}>
                   <label className={styles.scoreLabel}>{gekozen.thuis}</label>
-                  <input type="number" min="0" max="20" value={homeScore} onChange={e => setHomeScore(e.target.value)} className={styles.scoreInput} placeholder="0" inputMode="numeric" />
+                  <input type="number" min="0" max="20" value={homeScore}
+                    onChange={e => setHomeScore(e.target.value)}
+                    className={styles.scoreInput} placeholder="0" inputMode="numeric" />
                 </div>
                 <span className={styles.scoreDash}>–</span>
                 <div className={styles.scoreBlok}>
                   <label className={styles.scoreLabel}>{gekozen.uit}</label>
-                  <input type="number" min="0" max="20" value={awayScore} onChange={e => setAwayScore(e.target.value)} className={styles.scoreInput} placeholder="0" inputMode="numeric" />
+                  <input type="number" min="0" max="20" value={awayScore}
+                    onChange={e => setAwayScore(e.target.value)}
+                    className={styles.scoreInput} placeholder="0" inputMode="numeric" />
                 </div>
               </div>
-              <button className={styles.btn} onClick={handleUitslag}>Uitslag opslaan & punten berekenen</button>
+              <button className={styles.btn} onClick={handleUitslag}>
+                Uitslag opslaan & punten berekenen
+              </button>
               {resultaat && (
                 <div className={styles.resultaatBlok}>
                   <div className={styles.resultaatRij}>
@@ -174,17 +193,22 @@ export default function Admin({ fixtures }) {
             {COMPETITIES.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
           <label className={styles.label}>Datum & tijd</label>
-          <input type="datetime-local" className={styles.inputDatum} value={datum} onChange={e => setDatum(e.target.value)} />
+          <input type="datetime-local" className={styles.inputDatum}
+            value={datum} onChange={e => setDatum(e.target.value)} />
           <div className={styles.teamRij}>
             <div className={styles.teamBlok}>
               <label className={styles.label}>Thuis</label>
-              <input className={styles.input} value={thuis} onChange={e => handleThuisAfkorting(e.target.value)} placeholder="PSV" maxLength={3} />
-              <input className={styles.input} value={thuisNaam} onChange={e => setThuisNaam(e.target.value)} placeholder="PSV Eindhoven" />
+              <input className={styles.input} value={thuis}
+                onChange={e => handleThuisAfkorting(e.target.value)} placeholder="PSV" maxLength={3} />
+              <input className={styles.input} value={thuisNaam}
+                onChange={e => setThuisNaam(e.target.value)} placeholder="PSV Eindhoven" />
             </div>
             <div className={styles.teamBlok}>
               <label className={styles.label}>Uit</label>
-              <input className={styles.input} value={uit} onChange={e => handleUitAfkorting(e.target.value)} placeholder="AJX" maxLength={3} />
-              <input className={styles.input} value={uitNaam} onChange={e => setUitNaam(e.target.value)} placeholder="Ajax" />
+              <input className={styles.input} value={uit}
+                onChange={e => handleUitAfkorting(e.target.value)} placeholder="AJX" maxLength={3} />
+              <input className={styles.input} value={uitNaam}
+                onChange={e => setUitNaam(e.target.value)} placeholder="Ajax" />
             </div>
           </div>
           <button className={styles.btn} onClick={handleToevoegen}>Wedstrijd toevoegen</button>
@@ -192,7 +216,12 @@ export default function Admin({ fixtures }) {
       )}
 
       {tab === 'beheer' && (
-        <AdminBeheer handmatig={handmatig} setHandmatig={setHandmatig} setMelding={setMelding} />
+        <AdminBeheer
+          handmatig={handmatig}
+          setHandmatig={setHandmatig}
+          setMelding={setMelding}
+          alleWedstrijden={alleWedstrijden}
+        />
       )}
     </div>
   )
