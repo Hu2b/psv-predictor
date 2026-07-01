@@ -9,6 +9,7 @@ export default function PredictionForm({ fixture, speler }) {
   const [anderePred, setAnderePred] = useState(null)
   const [beideBevest, setBeideBevest] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
+  const [wijzigenModus, setWijzigenModus] = useState(false)
 
   const andere = speler === 'niek' ? 'huub' : 'niek'
   const isAfgelopen = ['FT','AET','PEN'].includes(fixture.status)
@@ -16,6 +17,8 @@ export default function PredictionForm({ fixture, speler }) {
   const isSluiting = isAfgelopen || isBezig
 
   useEffect(() => {
+    setWijzigenModus(false)
+    setErrorMsg('')
     async function laad() {
       try {
         const r = await fetch(`/api/prediction?matchId=${fixture.matchId}`)
@@ -27,10 +30,18 @@ export default function PredictionForm({ fixture, speler }) {
           setStatus('confirmed')
           setHomeScore(String(mijn.home))
           setAwayScore(String(mijn.away))
+        } else {
+          setMijnPred(null)
+          setStatus('idle')
+          setHomeScore('')
+          setAwayScore('')
         }
         if (data.beideBevest) {
           setBeideBevest(true)
           setAnderePred(andere_)
+        } else {
+          setBeideBevest(false)
+          setAnderePred(null)
         }
       } catch (e) {}
     }
@@ -52,13 +63,26 @@ export default function PredictionForm({ fixture, speler }) {
         })
       })
       const data = await r.json()
-      if (!r.ok || !data.success) { setErrorMsg(data.error || 'Opslaan mislukt'); setStatus('idle'); return }
+      if (!r.ok || !data.success) {
+        setErrorMsg(data.error || 'Opslaan mislukt')
+        setStatus(mijnPred ? 'confirmed' : 'idle')
+        return
+      }
       setMijnPred(data.prediction)
       setStatus('confirmed')
-      const check = await fetch(`/api/prediction?matchId=${fixture.matchId}`)
-      const checkData = await check.json()
-      if (checkData.beideBevest) { setBeideBevest(true); setAnderePred(checkData[andere]) }
-    } catch (e) { setErrorMsg('Netwerkfout, probeer opnieuw'); setStatus('idle') }
+      setWijzigenModus(false)
+      if (data.beideBevest) {
+        const check = await fetch(`/api/prediction?matchId=${fixture.matchId}`)
+        const checkData = await check.json()
+        setBeideBevest(true)
+        setAnderePred(checkData[andere])
+      }
+    } catch (e) { setErrorMsg('Netwerkfout'); setStatus(mijnPred ? 'confirmed' : 'idle') }
+  }
+
+  function handleWijzigen() {
+    setWijzigenModus(true)
+    setStatus('idle')
   }
 
   function totoLabel(home, away) {
@@ -80,40 +104,45 @@ export default function PredictionForm({ fixture, speler }) {
     )
   }
 
+  const toonInvoer = status !== 'confirmed' || wijzigenModus
+
   return (
     <div className={styles.card}>
       <h2 className={styles.titel}>
         Jouw voorspelling
         <span className={styles.spelerBadge}>{speler === 'niek' ? 'Niek' : 'Huub'}</span>
       </h2>
-      {status !== 'confirmed' && !isSluiting && (
+
+      {toonInvoer && !isSluiting && (
         <div className={styles.invoer}>
           <div className={styles.scoreRij}>
             <div className={styles.scoreBlok}>
               <label className={styles.scoreLabel}>{fixture.thuis}</label>
-              <input
-                type="number" min="0" max="20"
+              <input type="number" min="0" max="20"
                 value={homeScore} onChange={e => setHomeScore(e.target.value)}
-                className={styles.scoreInput} placeholder="0" inputMode="numeric"
-              />
+                className={styles.scoreInput} placeholder="0" inputMode="numeric" />
             </div>
             <div className={styles.scoreDash}>-</div>
             <div className={styles.scoreBlok}>
               <label className={styles.scoreLabel}>{fixture.uit}</label>
-              <input
-                type="number" min="0" max="20"
+              <input type="number" min="0" max="20"
                 value={awayScore} onChange={e => setAwayScore(e.target.value)}
-                className={styles.scoreInput} placeholder="0" inputMode="numeric"
-              />
+                className={styles.scoreInput} placeholder="0" inputMode="numeric" />
             </div>
           </div>
           {errorMsg && <p className={styles.fout}>{errorMsg}</p>}
           <button className={styles.bevestigBtn} onClick={handleBevestigen} disabled={status === 'loading'}>
             {status === 'loading' ? <span className={styles.btnSpinner} /> : 'Voorspelling bevestigen'}
           </button>
+          {wijzigenModus && (
+            <button className={styles.annuleerBtn} onClick={() => { setWijzigenModus(false); setStatus('confirmed') }}>
+              Annuleren
+            </button>
+          )}
         </div>
       )}
-      {status === 'confirmed' && mijnPred && (
+
+      {status === 'confirmed' && mijnPred && !wijzigenModus && (
         <div className={styles.bevestigd}>
           <div className={styles.bevestigdScore}>
             <span className={styles.bevestigdGetal}>{mijnPred.home}</span>
@@ -121,12 +150,19 @@ export default function PredictionForm({ fixture, speler }) {
             <span className={styles.bevestigdGetal}>{mijnPred.away}</span>
           </div>
           <div className={styles.toto}>Toto: <strong>{totoLabel(mijnPred.home, mijnPred.away)}</strong></div>
-          <div className={styles.bevestigdCheck}>Bevestigd</div>
+          <div className={styles.bevestigdCheck}>✓ Bevestigd</div>
           {!beideBevest && !isSluiting && (
-            <p className={styles.wacht}>Wachten op {andere === 'niek' ? 'Niek' : 'Huub'}...</p>
+            <>
+              <p className={styles.wacht}>Wachten op {andere === 'niek' ? 'Niek' : 'Huub'}…</p>
+              <button className={styles.wijzigenBtn} onClick={handleWijzigen}>Wijzigen</button>
+            </>
+          )}
+          {beideBevest && (
+            <p className={styles.vergrendeld}>🔒 Beide spelers hebben voorspeld</p>
           )}
         </div>
       )}
+
       {beideBevest && anderePred && (
         <div className={styles.andereWrap}>
           <div className={styles.scheidingslijn} />
