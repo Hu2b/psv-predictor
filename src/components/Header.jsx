@@ -5,7 +5,7 @@ export default function Header({ speler, onWissel }) {
     <header className={styles.header}>
       <div className={styles.left}>
         <span className={styles.logo}>PSV</span>
-        <span className={styles.appName}>Predictor</span>
+        <span className={styles.appName}>Poule</span>
       </div>
       <button className={styles.spelerBtn} onClick={onWissel}>
         <span className={styles.spelerLabel}>
