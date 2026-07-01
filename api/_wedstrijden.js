@@ -1,5 +1,7 @@
 import { kvGet, kvSet } from './_kv.js'
 import { berekenPunten, totoLabel } from './_scoring.js'
+import { zoekAfkorting } from '../shared/teams.js'
+import { zoekLogoVoorTeam } from './_logo-lookup.js'
 
 const API_KEY = process.env.FOOTBALL_DATA_KEY
 const API_BASE = 'https://api.football-data.org/v4'
@@ -47,23 +49,6 @@ function formatDatum(dateStr) {
   return `${dagAfkorting(dateStr)} ${d.getDate()} ${maanden[d.getMonth()]} ${d.getFullYear()}`
 }
 
-function teamAfkorting(naam) {
-  const mapping = {
-    'PSV Eindhoven':'PSV','PSV':'PSV','Ajax':'AJX','AFC Ajax':'AJX',
-    'Feyenoord':'FEY','Feyenoord Rotterdam':'FEY',
-    'AZ':'AZ ','AZ Alkmaar':'AZ ','FC Utrecht':'UTR','FC Twente':'TWE',
-    'FC Twente Enschede':'TWE','NEC':'NEC','NEC Nijmegen':'NEC',
-    'sc Heerenveen':'HEE','FC Groningen':'GRO','Almere City FC':'ALM',
-    'Sparta Rotterdam':'SPA','Go Ahead Eagles':'GAE','RKC Waalwijk':'RKC',
-    'PEC Zwolle':'PEC','Fortuna Sittard':'FOR','Willem II':'WIL',
-    'NAC Breda':'NAC','Heracles Almelo':'HER','Excelsior':'EXC',
-    'SC Cambuur':'CAM','FC Volendam':'VOL','Telstar 1963':'TEL',
-    'SBV Excelsior':'SBV','ADO Den Haag':'ADO',
-  }
-  if (mapping[naam]) return mapping[naam]
-  return naam.replace(/[^a-zA-Z]/g,'').substring(0,3).toUpperCase()
-}
-
 function mapStatus(s) {
   if (s === 'FINISHED') return 'FT'
   if (s === 'IN_PLAY' || s === 'PAUSED') return 'LIVE'
@@ -88,9 +73,9 @@ function mapMatch(m, comp) {
   }
   return {
     matchId: m.id, competitie: comp,
-    thuis: teamAfkorting(m.homeTeam.name), thuisNaam: m.homeTeam.name,
+    thuis: zoekAfkorting(m.homeTeam.name), thuisNaam: m.homeTeam.name,
     thuisLogo: m.homeTeam.crest, thuisId: m.homeTeam.id,
-    uit: teamAfkorting(m.awayTeam.name), uitNaam: m.awayTeam.name,
+    uit: zoekAfkorting(m.awayTeam.name), uitNaam: m.awayTeam.name,
     uitLogo: m.awayTeam.crest, uitId: m.awayTeam.id,
     dag: dagAfkorting(m.utcDate), datum: formatDatum(m.utcDate),
     datumISO: m.utcDate, status, uitslag,
@@ -145,8 +130,18 @@ export async function haalAlleWedstrijden() {
     kvGet('admin:wedstrijden'),
   ])
 
+  // Handmatige wedstrijden hebben geen logo's van football-data.org;
+  // die worden hier eenmalig opgezocht en daarna permanent uit KV gehaald.
+  const handmatigMetLogos = await Promise.all(
+    (handmatig || []).map(async f => ({
+      ...f,
+      thuisLogo: f.thuisLogo || await zoekLogoVoorTeam(f.thuisNaam, f.thuis),
+      uitLogo: f.uitLogo || await zoekLogoVoorTeam(f.uitNaam, f.uit),
+    }))
+  )
+
   const seen = new Set()
-  let alle = [...automatisch, ...(handmatig || [])].filter(f => {
+  let alle = [...automatisch, ...handmatigMetLogos].filter(f => {
     const id = String(f.matchId)
     if (seen.has(id)) return false
     seen.add(id); return true
