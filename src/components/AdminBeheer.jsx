@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import styles from './Admin.module.css'
 
 const COMPETITIES = ['JCS', 'ERE', 'KNVB', 'CL', 'UL']
@@ -8,15 +9,15 @@ const TEAM_NAMEN = {
   'ALM': 'Almere City FC', 'SPA': 'Sparta Rotterdam', 'GAE': 'Go Ahead Eagles',
   'RKC': 'RKC Waalwijk', 'PEC': 'PEC Zwolle', 'FOR': 'Fortuna Sittard',
   'WIL': 'Willem II', 'NAC': 'NAC Breda', 'HER': 'Heracles Almelo',
-  'EXC': 'Excelsior', 'CAM': 'SC Cambuur', 'VOL': 'FC Volendam',
-  'TEL': 'Telstar 1963', 'SBV': 'SBV Excelsior', 'ADO': 'ADO Den Haag',
-  'BAR': 'FC Barcelona', 'REA': 'Real Madrid', 'MCI': 'Manchester City',
-  'LIV': 'Liverpool FC', 'BAY': 'Bayern München', 'BOR': 'Borussia Dortmund',
+  'EXC': 'Excelsior', 'VOL': 'FC Volendam', 'TEL': 'Telstar 1963',
+  'ADO': 'ADO Den Haag', 'BAR': 'FC Barcelona', 'REA': 'Real Madrid',
+  'MCI': 'Manchester City', 'LIV': 'Liverpool FC', 'BAY': 'Bayern München',
+  'BOR': 'Borussia Dortmund',
 }
 
 export default function AdminBeheer({ handmatig, setHandmatig, setMelding }) {
-  const [wijzigenId, setWijzigenId] = window.React.useState(null)
-  const [wijzigenData, setWijzigenData] = window.React.useState({})
+  const [wijzigenId, setWijzigenId] = useState(null)
+  const [wijzigenData, setWijzigenData] = useState({})
 
   function toLocalInput(isoStr) {
     if (!isoStr) return ''
@@ -74,7 +75,9 @@ export default function AdminBeheer({ handmatig, setHandmatig, setMelding }) {
   return (
     <div className={styles.sectie}>
       <label className={styles.label}>Handmatig toegevoegde wedstrijden</label>
-      {handmatig.length === 0 && <p className={styles.leegTekst}>Geen handmatige wedstrijden</p>}
+      {handmatig.length === 0 && (
+        <p className={styles.leegTekst}>Geen handmatige wedstrijden</p>
+      )}
       {handmatig.map(w => (
         <div key={w.matchId} className={styles.beheerRij}>
           {wijzigenId === w.matchId ? (
@@ -88,15 +91,19 @@ export default function AdminBeheer({ handmatig, setHandmatig, setMelding }) {
                 onChange={e => setWijzigenData(p => ({...p, datumISO: e.target.value}))} />
               <div className={styles.teamRij}>
                 <div className={styles.teamBlok}>
-                  <input className={styles.input} value={wijzigenData.thuis} placeholder="PSV" maxLength={3}
+                  <input className={styles.input} value={wijzigenData.thuis}
+                    placeholder="PSV" maxLength={3}
                     onChange={e => { const v = e.target.value.toUpperCase(); setWijzigenData(p => ({...p, thuis: v, thuisNaam: TEAM_NAMEN[v] || p.thuisNaam})) }} />
-                  <input className={styles.input} value={wijzigenData.thuisNaam} placeholder="PSV Eindhoven"
+                  <input className={styles.input} value={wijzigenData.thuisNaam}
+                    placeholder="PSV Eindhoven"
                     onChange={e => setWijzigenData(p => ({...p, thuisNaam: e.target.value}))} />
                 </div>
                 <div className={styles.teamBlok}>
-                  <input className={styles.input} value={wijzigenData.uit} placeholder="AJX" maxLength={3}
+                  <input className={styles.input} value={wijzigenData.uit}
+                    placeholder="AJX" maxLength={3}
                     onChange={e => { const v = e.target.value.toUpperCase(); setWijzigenData(p => ({...p, uit: v, uitNaam: TEAM_NAMEN[v] || p.uitNaam})) }} />
-                  <input className={styles.input} value={wijzigenData.uitNaam} placeholder="Ajax"
+                  <input className={styles.input} value={wijzigenData.uitNaam}
+                    placeholder="Ajax"
                     onChange={e => setWijzigenData(p => ({...p, uitNaam: e.target.value}))} />
                 </div>
               </div>
