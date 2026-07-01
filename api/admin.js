@@ -6,10 +6,8 @@ function berekenPunten(pred, uitslag) {
   const uitsToto = Math.sign(uitslag.home - uitslag.away)
   if (predToto !== uitsToto) return 0
   let punten = 5
-  const homeExact = pred.home === uitslag.home
-  const awayExact = pred.away === uitslag.away
-  if (homeExact && awayExact) punten += 5
-  else if (homeExact || awayExact) punten += 2
+  if (pred.home === uitslag.home && pred.away === uitslag.away) punten += 5
+  else if (pred.home === uitslag.home || pred.away === uitslag.away) punten += 2
   return punten
 }
 
@@ -21,20 +19,8 @@ function totoLabel(pred) {
   return 'X'
 }
 
-// Herbereken volgnummers op basis van datum voor alle wedstrijden
-async function herberekeningVolgnummers(handmatigWedstrijden, apiFixtures) {
-  const alle = [...(apiFixtures || []), ...handmatigWedstrijden]
-  alle.sort((a, b) => new Date(a.datumISO) - new Date(b.datumISO))
-  const nummers = {}
-  alle.forEach((w, i) => { nummers[String(w.matchId)] = i + 1 })
-  
-  // Update handmatige wedstrijden met nieuwe volgnummers
-  const bijgewerkt = handmatigWedstrijden.map(w => ({
-    ...w,
-    volgnummer: nummers[String(w.matchId)] || w.volgnummer
-  }))
-  await kvSet('admin:wedstrijden', bijgewerkt)
-  return { nummers, bijgewerkt }
+async function slaHandmatigOp(wedstrijden) {
+  await kvSet('admin:wedstrijden', wedstrijden)
 }
 
 export default async function handler(req, res) {
@@ -52,7 +38,6 @@ export default async function handler(req, res) {
     return res.status(200).json({ wedstrijden })
   }
 
-  // GET voorspellingen per wedstrijd
   if (req.method === 'GET' && req.query.action === 'voorspellingen') {
     const { matchId } = req.query
     if (!matchId) return res.status(400).json({ error: 'matchId verplicht' })
@@ -76,52 +61,39 @@ export default async function handler(req, res) {
       uit, uitNaam: uitNaam || uit,
       datum, datumISO,
       status: 'NS', uitslag: null,
-      handmatig: true, volgnummer: 999,
+      handmatig: true,
     }
     wedstrijden.push(nieuw)
-    
-    // Haal API fixtures op voor volgnummer herberekening
-    const cachedFixtures = await kvGet('psv:fixtures:fd') || { fixtures: [] }
-    await herberekeningVolgnummers(wedstrijden, cachedFixtures.fixtures)
-    
-    const bijgewerkt = await kvGet('admin:wedstrijden') || []
-    const toegevoegd = bijgewerkt.find(w => w.matchId === matchId)
-    return res.status(200).json({ success: true, wedstrijd: toegevoegd || nieuw })
+    await slaHandmatigOp(wedstrijden)
+    return res.status(200).json({ success: true, wedstrijd: nieuw })
   }
 
   if (req.method === 'POST' && action === 'wijzigen') {
     const { matchId, competitie, thuis, thuisNaam, uit, uitNaam, datum, datumISO } = body
     if (!matchId) return res.status(400).json({ error: 'matchId verplicht' })
     const wedstrijden = await kvGet('admin:wedstrijden') || []
-    const idx = wedstrijden.findIndex(w => w.matchId === matchId)
+    const idx = wedstrijden.findIndex(w => String(w.matchId) === String(matchId))
     if (idx === -1) return res.status(404).json({ error: 'Wedstrijd niet gevonden' })
     wedstrijden[idx] = {
       ...wedstrijden[idx],
-      competitie: competitie || wedstrijden[idx].competitie,
-      thuis: thuis || wedstrijden[idx].thuis,
-      thuisNaam: thuisNaam || wedstrijden[idx].thuisNaam,
-      uit: uit || wedstrijden[idx].uit,
-      uitNaam: uitNaam || wedstrijden[idx].uitNaam,
-      datum: datum || wedstrijden[idx].datum,
-      datumISO: datumISO || wedstrijden[idx].datumISO,
+      ...(competitie && { competitie }),
+      ...(thuis && { thuis }),
+      ...(thuisNaam && { thuisNaam }),
+      ...(uit && { uit }),
+      ...(uitNaam && { uitNaam }),
+      ...(datum && { datum }),
+      ...(datumISO && { datumISO }),
     }
-    
-    const cachedFixtures = await kvGet('psv:fixtures:fd') || { fixtures: [] }
-    await herberekeningVolgnummers(wedstrijden, cachedFixtures.fixtures)
-    
-    const bijgewerkt = await kvGet('admin:wedstrijden') || []
-    return res.status(200).json({ success: true, wedstrijd: bijgewerkt[idx] })
+    await slaHandmatigOp(wedstrijden)
+    return res.status(200).json({ success: true, wedstrijd: wedstrijden[idx] })
   }
 
   if (req.method === 'POST' && action === 'verwijderen') {
     const { matchId } = body
     if (!matchId) return res.status(400).json({ error: 'matchId verplicht' })
     const wedstrijden = await kvGet('admin:wedstrijden') || []
-    const nieuw = wedstrijden.filter(w => w.matchId !== matchId)
-    
-    const cachedFixtures = await kvGet('psv:fixtures:fd') || { fixtures: [] }
-    await herberekeningVolgnummers(nieuw, cachedFixtures.fixtures)
-    
+    const nieuw = wedstrijden.filter(w => String(w.matchId) !== String(matchId))
+    await slaHandmatigOp(nieuw)
     return res.status(200).json({ success: true })
   }
 
@@ -149,11 +121,9 @@ export default async function handler(req, res) {
     const puntHuub = berekenPunten(predHuub, uitslag)
     const vorigeResult = await kvGet(`result:${matchId}`)
     const totals = await kvGet('totals') || { niek: 0, huub: 0 }
-    const vorigeNiek = vorigeResult?.puntNiek || 0
-    const vorigeHuub = vorigeResult?.puntHuub || 0
     const nieuweTotals = {
-      niek: totals.niek - vorigeNiek + puntNiek,
-      huub: totals.huub - vorigeHuub + puntHuub,
+      niek: totals.niek - (vorigeResult?.puntNiek || 0) + puntNiek,
+      huub: totals.huub - (vorigeResult?.puntHuub || 0) + puntHuub,
     }
     const result = {
       matchId, uitslag,
@@ -176,11 +146,16 @@ export default async function handler(req, res) {
       index.push(String(matchId))
       await kvSet('results:index', index)
     }
+    // Update status in handmatige wedstrijden
     const wedstrijden = await kvGet('admin:wedstrijden') || []
-    const idx = wedstrijden.findIndex(w => w.matchId === matchId)
+    const idx = wedstrijden.findIndex(w => String(w.matchId) === String(matchId))
     if (idx !== -1) {
       wedstrijden[idx].uitslag = uitslag
       wedstrijden[idx].status = 'FT'
-      await kvSet('admin:wedstrijden', wedstrijden)
+      await slaHandmatigOp(wedstrijden)
     }
-    return res.status(200).json({ success: true, result, tot
+    return res.status(200).json({ success: true, result, totals: nieuweTotals, punten: { niek: puntNiek, huub: puntHuub } })
+  }
+
+  return res.status(400).json({ error: 'Onbekende actie' })
+}
