@@ -1,22 +1,12 @@
 import { useState } from 'react'
 import styles from './Admin.module.css'
 import AdminVoorspellingen from './AdminVoorspellingen.jsx'
+import { teamNamenObject } from '../../shared/teams.js'
 
 const COMPETITIES = ['JCS', 'ERE', 'KNVB', 'CL', 'UL']
-const TEAM_NAMEN = {
-  'PSV': 'PSV Eindhoven', 'AJX': 'Ajax', 'FEY': 'Feyenoord',
-  'AZ': 'AZ Alkmaar', 'UTR': 'FC Utrecht', 'TWE': 'FC Twente',
-  'NEC': 'NEC Nijmegen', 'HEE': 'sc Heerenveen', 'GRO': 'FC Groningen',
-  'ALM': 'Almere City FC', 'SPA': 'Sparta Rotterdam', 'GAE': 'Go Ahead Eagles',
-  'RKC': 'RKC Waalwijk', 'PEC': 'PEC Zwolle', 'FOR': 'Fortuna Sittard',
-  'WIL': 'Willem II', 'NAC': 'NAC Breda', 'HER': 'Heracles Almelo',
-  'EXC': 'Excelsior', 'VOL': 'FC Volendam', 'TEL': 'Telstar 1963',
-  'ADO': 'ADO Den Haag', 'BAR': 'FC Barcelona', 'REA': 'Real Madrid',
-  'MCI': 'Manchester City', 'LIV': 'Liverpool FC', 'BAY': 'Bayern München',
-  'BOR': 'Borussia Dortmund',
-}
+const TEAM_NAMEN = teamNamenObject()
 
-export default function AdminBeheer({ handmatig, setHandmatig, setMelding, alleWedstrijden }) {
+export default function AdminBeheer({ handmatig, setHandmatig, setMelding, alleWedstrijden, onWedstrijdenGewijzigd }) {
   const [wijzigenId, setWijzigenId] = useState(null)
   const [wijzigenData, setWijzigenData] = useState({})
 
@@ -54,6 +44,7 @@ export default function AdminBeheer({ handmatig, setHandmatig, setMelding, alleW
       setHandmatig(prev => prev.map(w => String(w.matchId) === String(wijzigenId) ? data.wedstrijd : w))
       setWijzigenId(null)
       setMelding({ type: 'ok', tekst: 'Wedstrijd gewijzigd!' })
+      if (onWedstrijdenGewijzigd) onWedstrijdenGewijzigd()
     } else {
       setMelding({ type: 'fout', tekst: data.error })
     }
@@ -70,6 +61,7 @@ export default function AdminBeheer({ handmatig, setHandmatig, setMelding, alleW
     if (data.success) {
       setHandmatig(prev => prev.filter(w => String(w.matchId) !== String(matchId)))
       setMelding({ type: 'ok', tekst: 'Wedstrijd verwijderd' })
+      if (onWedstrijdenGewijzigd) onWedstrijdenGewijzigd()
     }
   }
 
