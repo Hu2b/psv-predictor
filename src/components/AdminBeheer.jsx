@@ -73,12 +73,14 @@ export default function AdminBeheer({ handmatig, setHandmatig, setMelding, alleW
     }
   }
 
+  const gesorteerdHandmatig = [...handmatig].sort((a, b) => new Date(a.datumISO) - new Date(b.datumISO))
+
   return (
     <>
       <div className={styles.sectie}>
         <label className={styles.label}>Handmatig toegevoegde wedstrijden</label>
         {handmatig.length === 0 && <p className={styles.leegTekst}>Geen handmatige wedstrijden</p>}
-        {handmatig.map(w => (
+        {gesorteerdHandmatig.map(w => (
           <div key={w.matchId} className={styles.beheerRij}>
             {wijzigenId === w.matchId ? (
               <div className={styles.wijzigenForm}>
