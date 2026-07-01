@@ -1,21 +1,12 @@
 import { useState, useEffect } from 'react'
 import styles from './Admin.module.css'
 import AdminBeheer from './AdminBeheer.jsx'
+import { teamNamenObject } from '../../shared/teams.js'
 
 const COMPETITIES = ['JCS', 'ERE', 'KNVB', 'CL', 'UL']
-const TEAM_NAMEN = {
-  'PSV': 'PSV Eindhoven', 'AJX': 'Ajax', 'FEY': 'Feyenoord',
-  'AZ': 'AZ Alkmaar', 'UTR': 'FC Utrecht', 'TWE': 'FC Twente',
-  'NEC': 'NEC Nijmegen', 'HEE': 'sc Heerenveen', 'GRO': 'FC Groningen',
-  'ALM': 'Almere City FC', 'SPA': 'Sparta Rotterdam', 'GAE': 'Go Ahead Eagles',
-  'RKC': 'RKC Waalwijk', 'PEC': 'PEC Zwolle', 'FOR': 'Fortuna Sittard',
-  'WIL': 'Willem II', 'NAC': 'NAC Breda', 'HER': 'Heracles Almelo',
-  'EXC': 'Excelsior', 'VOL': 'FC Volendam', 'TEL': 'Telstar 1963',
-  'ADO': 'ADO Den Haag', 'BAR': 'FC Barcelona', 'REA': 'Real Madrid',
-  'MCI': 'Manchester City', 'LIV': 'Liverpool FC', 'BAY': 'Bayern München',
-}
+const TEAM_NAMEN = teamNamenObject()
 
-export default function Admin({ fixtures }) {
+export default function Admin({ fixtures, onWedstrijdenGewijzigd }) {
   const [tab, setTab] = useState('uitslag')
   const [handmatig, setHandmatig] = useState([])
   const [melding, setMelding] = useState(null)
@@ -30,9 +21,6 @@ export default function Admin({ fixtures }) {
   const [uitNaam, setUitNaam] = useState('')
   const [datum, setDatum] = useState('')
 
-  // handmatig is alleen nodig voor het Beheer-tabblad (wijzigen/verwijderen van
-  // eigen handmatige wedstrijden). De volledige, genummerde lijst komt via de
-  // fixtures-prop, die al gemerged en gesorteerd is in api/_wedstrijden.js.
   useEffect(() => {
     async function laad() {
       const r = await fetch('/api/admin?action=wedstrijden')
@@ -80,6 +68,7 @@ export default function Admin({ fixtures }) {
     if (data.success) {
       setResultaat(data)
       setMelding({ type: 'ok', tekst: `Opgeslagen! Niek: ${data.punten.niek}pt, Huub: ${data.punten.huub}pt` })
+      if (onWedstrijdenGewijzigd) onWedstrijdenGewijzigd()
     } else {
       setMelding({ type: 'fout', tekst: data.error || 'Fout' })
     }
@@ -111,6 +100,7 @@ export default function Admin({ fixtures }) {
       setHomeScore(''); setAwayScore(''); setResultaat(null)
       setMelding({ type: 'ok', tekst: 'Wedstrijd toegevoegd!' })
       setTab('uitslag')
+      if (onWedstrijdenGewijzigd) onWedstrijdenGewijzigd()
     } else {
       setMelding({ type: 'fout', tekst: data.error || 'Fout' })
     }
@@ -222,6 +212,7 @@ export default function Admin({ fixtures }) {
           setHandmatig={setHandmatig}
           setMelding={setMelding}
           alleWedstrijden={alleWedstrijden}
+          onWedstrijdenGewijzigd={onWedstrijdenGewijzigd}
         />
       )}
     </div>
