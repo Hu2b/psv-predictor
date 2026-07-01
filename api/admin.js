@@ -1,5 +1,6 @@
 import { kvGet, kvSet } from './_kv.js'
 import { berekenPunten, totoLabel } from './_scoring.js'
+import { zoekVolgnummer } from './_wedstrijden.js'
 
 async function slaHandmatigOp(wedstrijden) {
   await kvSet('admin:wedstrijden', wedstrijden)
@@ -128,9 +129,10 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'matchId, homeScore en awayScore verplicht' })
     }
     const uitslag = { home: parseInt(homeScore), away: parseInt(awayScore) }
-    const [predNiek, predHuub] = await Promise.all([
+    const [predNiek, predHuub, volgnummer] = await Promise.all([
       kvGet(`prediction:${matchId}:niek`),
       kvGet(`prediction:${matchId}:huub`),
+      zoekVolgnummer(matchId),
     ])
     const puntNiek = berekenPunten(predNiek, uitslag)
     const puntHuub = berekenPunten(predHuub, uitslag)
@@ -141,7 +143,7 @@ export default async function handler(req, res) {
       huub: totals.huub - (vorigeResult?.puntHuub || 0) + puntHuub,
     }
     const result = {
-      matchId, uitslag,
+      matchId, uitslag, volgnummer,
       predNiek: predNiek ? { home: predNiek.home, away: predNiek.away } : null,
       predHuub: predHuub ? { home: predHuub.home, away: predHuub.away } : null,
       totoNiek: totoLabel(predNiek), totoHuub: totoLabel(predHuub),
