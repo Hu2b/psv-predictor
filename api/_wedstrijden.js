@@ -1,7 +1,7 @@
 import { kvGet, kvSet } from './_kv.js'
 import { berekenPunten, totoLabel } from './_scoring.js'
 import { zoekAfkorting } from '../shared/teams.js'
-import { zoekLogoVoorTeam } from './_logo-lookup.js'
+import { bewaarLogoAlsNieuw, zoekLogo } from './_logo-lookup.js'
 
 const API_KEY = process.env.FOOTBALL_DATA_KEY
 const API_BASE = 'https://api.football-data.org/v4'
@@ -130,13 +130,21 @@ export async function haalAlleWedstrijden() {
     kvGet('admin:wedstrijden'),
   ])
 
-  // Handmatige wedstrijden hebben geen logo's van football-data.org;
-  // die worden hier eenmalig opgezocht en daarna permanent uit KV gehaald.
+  // Elk automatisch opgehaald logo is geverifieerd (rechtstreeks van
+  // football-data.org). Sla dat één keer per team permanent op, zodat
+  // handmatige wedstrijden met datzelfde team er ook gebruik van kunnen maken.
+  await Promise.all(
+    automatisch.flatMap(f => [
+      bewaarLogoAlsNieuw(f.thuis, f.thuisLogo),
+      bewaarLogoAlsNieuw(f.uit, f.uitLogo),
+    ])
+  )
+
   const handmatigMetLogos = await Promise.all(
     (handmatig || []).map(async f => ({
       ...f,
-      thuisLogo: f.thuisLogo || await zoekLogoVoorTeam(f.thuisNaam, f.thuis),
-      uitLogo: f.uitLogo || await zoekLogoVoorTeam(f.uitNaam, f.uit),
+      thuisLogo: f.thuisLogo || await zoekLogo(f.thuis),
+      uitLogo: f.uitLogo || await zoekLogo(f.uit),
     }))
   )
 
