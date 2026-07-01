@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import H2H from './H2H.jsx'
 import PredictionForm from './PredictionForm.jsx'
 import LiveScore from './LiveScore.jsx'
@@ -12,8 +12,12 @@ const COMP_LABELS = {
   UL: 'UEFA League',
 }
 
+const SWIPE_DREMPEL = 50 // minimale swipe-afstand in pixels
+
 export default function NextMatch({ fixture, fixtures, speler }) {
   const [gekozenId, setGekozenId] = useState(null)
+  const [randMelding, setRandMelding] = useState(null)
+  const touchStartX = useRef(null)
 
   const alleWedstrijden = [...fixtures].sort((a, b) => new Date(a.datumISO) - new Date(b.datumISO))
 
@@ -27,6 +31,46 @@ export default function NextMatch({ fixture, fixtures, speler }) {
   const getoond = gekozenId !== null
     ? alleWedstrijden.find(f => String(f.matchId) === String(gekozenId)) || standaard
     : standaard
+
+  const huidigeIndex = alleWedstrijden.findIndex(f => String(f.matchId) === String(getoond.matchId))
+
+  function toonRandMelding(tekst) {
+    setRandMelding(tekst)
+    setTimeout(() => setRandMelding(null), 1500)
+  }
+
+  function gaNaarVolgende() {
+    if (huidigeIndex === -1) return
+    if (huidigeIndex >= alleWedstrijden.length - 1) {
+      toonRandMelding('Dit is de laatste wedstrijd')
+      return
+    }
+    setGekozenId(alleWedstrijden[huidigeIndex + 1].matchId)
+  }
+
+  function gaNaarVorige() {
+    if (huidigeIndex === -1) return
+    if (huidigeIndex <= 0) {
+      toonRandMelding('Dit is de eerste wedstrijd')
+      return
+    }
+    setGekozenId(alleWedstrijden[huidigeIndex - 1].matchId)
+  }
+
+  function handleTouchStart(e) {
+    touchStartX.current = e.touches[0].clientX
+  }
+
+  function handleTouchEnd(e) {
+    if (touchStartX.current === null) return
+    const diff = e.changedTouches[0].clientX - touchStartX.current
+    if (diff > SWIPE_DREMPEL) {
+      gaNaarVolgende() // swipe naar rechts → volgende wedstrijd
+    } else if (diff < -SWIPE_DREMPEL) {
+      gaNaarVorige() // swipe naar links → vorige wedstrijd
+    }
+    touchStartX.current = null
+  }
 
   const isAfgelopen = ['FT','AET','PEN'].includes(getoond.status)
   const isLive = ['1H','HT','2H','ET','BT','LIVE'].includes(getoond.status)
@@ -53,7 +97,14 @@ export default function NextMatch({ fixture, fixtures, speler }) {
         </select>
       </div>
 
-      <div className={styles.card}>
+      <div
+        className={styles.card}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+      >
+        {randMelding && (
+          <div className={styles.randMelding}>{randMelding}</div>
+        )}
         <div className={styles.compRow}>
           <span className={styles.compBadge}>{COMP_LABELS[getoond.competitie] || getoond.competitie}</span>
           <span className={styles.volgnr}>#{getoond.volgnummer || '—'}</span>
