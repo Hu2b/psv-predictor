@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import PlayerSelect from './components/PlayerSelect.jsx'
 import NextMatch from './components/NextMatch.jsx'
 import Header from './components/Header.jsx'
@@ -18,23 +18,27 @@ export default function App() {
   const [speler, setSpeler] = useState(() => localStorage.getItem('psv_speler') || null)
   const [tab, setTab] = useState('wedstrijd')
   const [fixtures, setFixtures] = useState([])
+  const [season, setSeason] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
-  useEffect(() => {
-    async function laadWedstrijden() {
-      try {
-        const r = await fetch('/api/fixtures')
-        const data = await r.json()
-        if (data.fixtures) setFixtures(data.fixtures)
-      } catch (e) {
-        setError('Kan wedstrijden niet laden.')
-      } finally {
-        setLoading(false)
-      }
+  const laadWedstrijden = useCallback(async () => {
+    try {
+      const r = await fetch('/api/fixtures')
+      const data = await r.json()
+      if (data.fixtures) setFixtures(data.fixtures)
+      if (data.season) setSeason(data.season)
+      setError(null)
+    } catch (e) {
+      setError('Kan wedstrijden niet laden.')
+    } finally {
+      setLoading(false)
     }
-    laadWedstrijden()
   }, [])
+
+  useEffect(() => {
+    laadWedstrijden()
+  }, [laadWedstrijden])
 
   function handleSpelerKeuze(naam) {
     localStorage.setItem('psv_speler', naam)
@@ -59,7 +63,7 @@ export default function App() {
 
   return (
     <div className={styles.app}>
-      <Header speler={speler} onWissel={handleWisselSpeler} />
+      <Header speler={speler} onWissel={handleWisselSpeler} season={season} />
       <nav className={styles.tabs}>
         <button
           className={`${styles.tab} ${tab === 'wedstrijd' ? styles.tabActive : ''}`}
@@ -98,7 +102,7 @@ export default function App() {
         ) : tab === 'totaal' ? (
           <StandingsLazy fixtures={fixtures} speler={speler} />
         ) : (
-          <Admin fixtures={fixtures} />
+          <Admin fixtures={fixtures} onWedstrijdenGewijzigd={laadWedstrijden} />
         )}
       </main>
     </div>
