@@ -98,13 +98,22 @@ function mapMatch(m, comp) {
 
 function berekenPunten(pred, uitslag) {
   if (!pred || !uitslag) return 0
+
+  // Toto: 5 punten als de winnaar/gelijkspel goed voorspeld is, anders 0
   const predToto = Math.sign(pred.home - pred.away)
   const uitsToto = Math.sign(uitslag.home - uitslag.away)
-  if (predToto !== uitsToto) return 0
-  let punten = 5
-  if (pred.home === uitslag.home && pred.away === uitslag.away) punten += 5
-  else if (pred.home === uitslag.home || pred.away === uitslag.away) punten += 2
-  return punten
+  const totoPunten = predToto === uitsToto ? 5 : 0
+
+  // Score: 5 punten voor exacte uitslag, 2 punten als één team exact goed is, anders 0
+  let scorePunten = 0
+  if (pred.home === uitslag.home && pred.away === uitslag.away) {
+    scorePunten = 5
+  } else if (pred.home === uitslag.home || pred.away === uitslag.away) {
+    scorePunten = 2
+  }
+
+  // Toto en score tellen onafhankelijk van elkaar mee, max 10 punten
+  return totoPunten + scorePunten
 }
 
 function totoLabel(pred) {
