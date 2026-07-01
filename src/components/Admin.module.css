@@ -1,332 +1,43 @@
-.wrapper {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  padding-bottom: 32px;
-}
-
-.titel {
-  font-family: var(--font-display);
-  font-size: 24px;
-  font-weight: 900;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--psv-white);
-}
-
-.tabBar {
-  display: flex;
-  gap: 8px;
-}
-
-.tabBtn {
-  flex: 1;
-  padding: 10px 6px;
-  background: var(--psv-surface);
-  border: 1px solid var(--psv-border);
-  border-radius: var(--radius-sm);
-  color: var(--psv-gray-lt);
-  font-size: 12px;
-  font-weight: 600;
-  transition: all 0.15s;
-}
-
-.tabActief {
-  background: var(--psv-red);
-  border-color: var(--psv-red);
-  color: white;
-}
-
-.melding {
-  padding: 12px 16px;
-  border-radius: var(--radius-sm);
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.meldingOk {
-  background: rgba(34,197,94,0.1);
-  border: 1px solid rgba(34,197,94,0.3);
-  color: var(--green);
-}
-
-.meldingFout {
-  background: rgba(255,107,107,0.1);
-  border: 1px solid rgba(255,107,107,0.3);
-  color: #FF6B6B;
-}
-
-.sectie {
-  background: var(--psv-surface);
-  border: 1px solid var(--psv-border);
-  border-radius: var(--radius-lg);
-  padding: 16px;
+.predBlok {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  margin-top: 4px;
 }
 
-.label {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--psv-gray-lt);
-}
-
-.select {
-  background: var(--psv-gray);
-  border: 1px solid var(--psv-border);
-  border-radius: var(--radius-sm);
-  color: var(--psv-white);
-  padding: 10px 12px;
-  font-size: 13px;
-  font-family: var(--font-body);
-  width: 100%;
-  appearance: none;
-  -webkit-appearance: none;
-}
-
-.input {
-  background: var(--psv-gray);
-  border: 1px solid var(--psv-border);
-  border-radius: var(--radius-sm);
-  color: var(--psv-white);
-  padding: 10px 12px;
-  font-size: 14px;
-  font-family: var(--font-body);
-  width: 100%;
-}
-
-.input:focus {
-  border-color: var(--psv-red);
-  outline: none;
-}
-
-.inputDatum {
-  background: var(--psv-gray);
-  border: 1px solid var(--psv-border);
-  border-radius: var(--radius-sm);
-  color: var(--psv-white);
-  padding: 10px 12px;
-  font-size: 14px;
-  font-family: var(--font-body);
-  width: 100%;
-  max-width: 100%;
-  box-sizing: border-box;
-}
-
-.inputDatum:focus {
-  border-color: var(--psv-red);
-  outline: none;
-}
-
-.matchInfo {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.compTag {
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--psv-red);
-  background: rgba(225,0,14,0.1);
-  border-radius: 3px;
-  padding: 2px 6px;
-  white-space: nowrap;
-}
-
-.matchNaam {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--psv-white);
-}
-
-.scoreRij {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  gap: 12px;
-  align-items: center;
-}
-
-.scoreBlok {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  align-items: center;
-}
-
-.scoreLabel {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--psv-gray-lt);
-}
-
-.scoreInput {
-  width: 100%;
-  background: var(--psv-gray);
-  border: 2px solid var(--psv-border);
-  border-radius: var(--radius-sm);
-  color: var(--psv-white);
-  font-size: 36px;
-  font-family: var(--font-display);
-  font-weight: 900;
-  text-align: center;
-  padding: 12px 8px;
-  -moz-appearance: textfield;
-}
-
-.scoreInput::-webkit-inner-spin-button,
-.scoreInput::-webkit-outer-spin-button { -webkit-appearance: none; }
-.scoreInput:focus { border-color: var(--psv-red); outline: none; }
-
-.scoreDash {
-  font-family: var(--font-display);
-  font-size: 28px;
-  font-weight: 900;
-  color: var(--psv-gray-md);
-  margin-top: 20px;
-}
-
-.btn {
-  width: 100%;
-  background: var(--psv-red);
-  color: white;
-  padding: 14px;
-  border-radius: var(--radius);
-  font-size: 15px;
-  font-weight: 700;
-  font-family: var(--font-body);
-  transition: background 0.15s;
-}
-
-.btn:active { background: var(--psv-red-dk); }
-
-.resultaatBlok {
-  background: var(--psv-gray);
-  border-radius: var(--radius-sm);
-  padding: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.resultaatRij {
+.predRij {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 13px;
-  color: var(--psv-white);
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--psv-gray);
+  border-radius: var(--radius-sm);
 }
 
-.punten {
+.predInfo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+}
+
+.predNaam {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--psv-white);
+  min-width: 40px;
+}
+
+.predScore {
+  font-family: var(--font-display);
+  font-size: 18px;
   font-weight: 800;
   color: var(--gold);
 }
 
-.totaal {
+.predLeeg {
   font-size: 12px;
   color: var(--psv-gray-lt);
-}
-
-.teamRij {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
-
-.teamBlok {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.leegTekst {
-  font-size: 13px;
-  color: var(--psv-gray-lt);
-  text-align: center;
-  padding: 16px 0;
-}
-
-.beheerRij {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 10px 0;
-  border-bottom: 1px solid var(--psv-border);
-}
-
-.beheerRij:last-child { border-bottom: none; }
-
-.beheerInfo {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex: 1;
-  flex-wrap: wrap;
-}
-
-.beheerNaam {
-  font-size: 12px;
-  color: var(--psv-white);
-  font-weight: 500;
-}
-
-.beheerUitslag {
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--green);
-  background: rgba(34,197,94,0.1);
-  border-radius: 3px;
-  padding: 1px 5px;
-}
-
-.beheerBtns {
-  display: flex;
-  gap: 6px;
-  flex-shrink: 0;
-}
-
-.btnKlein {
-  padding: 6px 10px;
-  background: var(--psv-gray);
-  border: 1px solid var(--psv-border);
-  border-radius: var(--radius-sm);
-  color: var(--psv-white);
-  font-size: 13px;
-  font-weight: 600;
-  font-family: var(--font-body);
-}
-
-.btnKleinRood {
-  padding: 6px 10px;
-  background: rgba(225,0,14,0.1);
-  border: 1px solid rgba(225,0,14,0.3);
-  border-radius: var(--radius-sm);
-  color: var(--psv-red);
-  font-size: 13px;
-  font-family: var(--font-body);
-}
-
-.btnKleinGrijs {
-  padding: 6px 10px;
-  background: var(--psv-gray);
-  border: 1px solid var(--psv-border);
-  border-radius: var(--radius-sm);
-  color: var(--psv-gray-lt);
-  font-size: 13px;
-  font-family: var(--font-body);
-}
-
-.wijzigenForm {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  width: 100%;
+  font-style: italic;
 }
