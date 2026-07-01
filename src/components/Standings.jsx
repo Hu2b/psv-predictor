@@ -71,7 +71,7 @@ export default function Standings({ fixtures, speler }) {
               <div className={styles.wedstrijdInfo}>
                 <div className={styles.wedstrijdMeta}>
                   <span className={styles.compTag}>{r.competitie}</span>
-                  <span className={styles.wedstrijdDatum}>{r.datum}</span>
+                  <span className={styles.wedstrijdDatum}>#{r.volgnummer || '—'} · {r.datum}</span>
                 </div>
                 <div className={styles.wedstrijdTeams}>
                   <span className={styles.teamCode}>{r.thuis}</span>
@@ -103,4 +103,3 @@ export default function Standings({ fixtures, speler }) {
     </div>
   )
 }
- 
