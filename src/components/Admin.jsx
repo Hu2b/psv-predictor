@@ -30,6 +30,9 @@ export default function Admin({ fixtures }) {
   const [uitNaam, setUitNaam] = useState('')
   const [datum, setDatum] = useState('')
 
+  // handmatig is alleen nodig voor het Beheer-tabblad (wijzigen/verwijderen van
+  // eigen handmatige wedstrijden). De volledige, genummerde lijst komt via de
+  // fixtures-prop, die al gemerged en gesorteerd is in api/_wedstrijden.js.
   useEffect(() => {
     async function laad() {
       const r = await fetch('/api/admin?action=wedstrijden')
@@ -39,9 +42,7 @@ export default function Admin({ fixtures }) {
     laad()
   }, [])
 
-  const alleWedstrijden = [...fixtures, ...handmatig]
-    .sort((a, b) => new Date(a.datumISO) - new Date(b.datumISO))
-    .map((f, i) => ({ ...f, volgnummerBerekend: i + 1 }))
+  const alleWedstrijden = [...fixtures].sort((a, b) => new Date(a.datumISO) - new Date(b.datumISO))
 
   const gekozen = alleWedstrijden.find(f => String(f.matchId) === String(gekozenMatch))
 
@@ -138,7 +139,7 @@ export default function Admin({ fixtures }) {
             <option value="">— Kies wedstrijd —</option>
             {alleWedstrijden.map(f => (
               <option key={f.matchId} value={f.matchId}>
-                #{f.volgnummerBerekend} {f.datum} — {f.thuis} vs {f.uit} ({f.competitie})
+                #{f.volgnummer || '—'} {f.datum} — {f.thuis} vs {f.uit} ({f.competitie})
                 {f.uitslag ? ` [${f.uitslag.home}-${f.uitslag.away}]` : ''}
               </option>
             ))}
