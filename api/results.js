@@ -1,25 +1,6 @@
 import { kvGet, kvSet } from './_kv.js'
-
-function berekenPunten(pred, uitslag) {
-  if (!pred || !uitslag) return 0
-  const predToto = Math.sign(pred.home - pred.away)
-  const uitsToto = Math.sign(uitslag.home - uitslag.away)
-  if (predToto !== uitsToto) return 0
-  let punten = 5
-  const homeExact = pred.home === uitslag.home
-  const awayExact = pred.away === uitslag.away
-  if (homeExact && awayExact) punten += 5
-  else if (homeExact || awayExact) punten += 2
-  return punten
-}
-
-function totoLabel(pred) {
-  if (!pred) return null
-  const diff = pred.home - pred.away
-  if (diff > 0) return '1'
-  if (diff < 0) return '2'
-  return 'X'
-}
+import { berekenPunten, totoLabel } from './_scoring.js'
+import { zoekVolgnummer } from './_wedstrijden.js'
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
@@ -54,16 +35,17 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'matchId, homeScore en awayScore verplicht' })
     }
     const uitslag = { home: parseInt(homeScore), away: parseInt(awayScore) }
-    const [predNiek, predHuub] = await Promise.all([
+    const [predNiek, predHuub, volgnummer] = await Promise.all([
       kvGet(`prediction:${matchId}:niek`),
       kvGet(`prediction:${matchId}:huub`),
+      zoekVolgnummer(matchId),
     ])
     const puntNiek = berekenPunten(predNiek, uitslag)
     const puntHuub = berekenPunten(predHuub, uitslag)
     const totals = await kvGet('totals') || { niek: 0, huub: 0 }
     const nieuweTotals = { niek: totals.niek + puntNiek, huub: totals.huub + puntHuub }
     const result = {
-      matchId, uitslag,
+      matchId, uitslag, volgnummer,
       predNiek: predNiek ? { home: predNiek.home, away: predNiek.away } : null,
       predHuub: predHuub ? { home: predHuub.home, away: predHuub.away } : null,
       totoNiek: totoLabel(predNiek), totoHuub: totoLabel(predHuub),
