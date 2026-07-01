@@ -21,6 +21,22 @@ function totoLabel(pred) {
   return 'X'
 }
 
+// Herbereken volgnummers op basis van datum voor alle wedstrijden
+async function herberekeningVolgnummers(handmatigWedstrijden, apiFixtures) {
+  const alle = [...(apiFixtures || []), ...handmatigWedstrijden]
+  alle.sort((a, b) => new Date(a.datumISO) - new Date(b.datumISO))
+  const nummers = {}
+  alle.forEach((w, i) => { nummers[String(w.matchId)] = i + 1 })
+  
+  // Update handmatige wedstrijden met nieuwe volgnummers
+  const bijgewerkt = handmatigWedstrijden.map(w => ({
+    ...w,
+    volgnummer: nummers[String(w.matchId)] || w.volgnummer
+  }))
+  await kvSet('admin:wedstrijden', bijgewerkt)
+  return { nummers, bijgewerkt }
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
@@ -36,6 +52,17 @@ export default async function handler(req, res) {
     return res.status(200).json({ wedstrijden })
   }
 
+  // GET voorspellingen per wedstrijd
+  if (req.method === 'GET' && req.query.action === 'voorspellingen') {
+    const { matchId } = req.query
+    if (!matchId) return res.status(400).json({ error: 'matchId verplicht' })
+    const [niek, huub] = await Promise.all([
+      kvGet(`prediction:${matchId}:niek`),
+      kvGet(`prediction:${matchId}:huub`),
+    ])
+    return res.status(200).json({ niek, huub, beideBevest: !!(niek?.confirmed && huub?.confirmed) })
+  }
+
   if (req.method === 'POST' && action === 'toevoegen') {
     const { competitie, thuis, thuisNaam, uit, uitNaam, datum, datumISO } = body
     if (!competitie || !thuis || !uit || !datumISO) {
@@ -48,14 +75,18 @@ export default async function handler(req, res) {
       thuis, thuisNaam: thuisNaam || thuis,
       uit, uitNaam: uitNaam || uit,
       datum, datumISO,
-      status: 'NS',
-      uitslag: null,
-      handmatig: true,
-      volgnummer: 999,
+      status: 'NS', uitslag: null,
+      handmatig: true, volgnummer: 999,
     }
     wedstrijden.push(nieuw)
-    await kvSet('admin:wedstrijden', wedstrijden)
-    return res.status(200).json({ success: true, wedstrijd: nieuw })
+    
+    // Haal API fixtures op voor volgnummer herberekening
+    const cachedFixtures = await kvGet('psv:fixtures:fd') || { fixtures: [] }
+    await herberekeningVolgnummers(wedstrijden, cachedFixtures.fixtures)
+    
+    const bijgewerkt = await kvGet('admin:wedstrijden') || []
+    const toegevoegd = bijgewerkt.find(w => w.matchId === matchId)
+    return res.status(200).json({ success: true, wedstrijd: toegevoegd || nieuw })
   }
 
   if (req.method === 'POST' && action === 'wijzigen') {
@@ -74,8 +105,12 @@ export default async function handler(req, res) {
       datum: datum || wedstrijden[idx].datum,
       datumISO: datumISO || wedstrijden[idx].datumISO,
     }
-    await kvSet('admin:wedstrijden', wedstrijden)
-    return res.status(200).json({ success: true, wedstrijd: wedstrijden[idx] })
+    
+    const cachedFixtures = await kvGet('psv:fixtures:fd') || { fixtures: [] }
+    await herberekeningVolgnummers(wedstrijden, cachedFixtures.fixtures)
+    
+    const bijgewerkt = await kvGet('admin:wedstrijden') || []
+    return res.status(200).json({ success: true, wedstrijd: bijgewerkt[idx] })
   }
 
   if (req.method === 'POST' && action === 'verwijderen') {
@@ -83,7 +118,20 @@ export default async function handler(req, res) {
     if (!matchId) return res.status(400).json({ error: 'matchId verplicht' })
     const wedstrijden = await kvGet('admin:wedstrijden') || []
     const nieuw = wedstrijden.filter(w => w.matchId !== matchId)
-    await kvSet('admin:wedstrijden', nieuw)
+    
+    const cachedFixtures = await kvGet('psv:fixtures:fd') || { fixtures: [] }
+    await herberekeningVolgnummers(nieuw, cachedFixtures.fixtures)
+    
+    return res.status(200).json({ success: true })
+  }
+
+  if (req.method === 'POST' && action === 'verwijderVoorspelling') {
+    const { matchId, speler } = body
+    if (!matchId) return res.status(400).json({ error: 'matchId verplicht' })
+    const teVerwijderen = speler ? [speler.toLowerCase()] : ['niek', 'huub']
+    for (const s of teVerwijderen) {
+      await kvSet(`prediction:${matchId}:${s}`, null)
+    }
     return res.status(200).json({ success: true })
   }
 
@@ -135,8 +183,4 @@ export default async function handler(req, res) {
       wedstrijden[idx].status = 'FT'
       await kvSet('admin:wedstrijden', wedstrijden)
     }
-    return res.status(200).json({ success: true, result, totals: nieuweTotals, punten: { niek: puntNiek, huub: puntHuub } })
-  }
-
-  return res.status(400).json({ error: 'Onbekende actie' })
-}
+    return res.status(200).json({ success: true, result, tot
