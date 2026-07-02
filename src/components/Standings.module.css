@@ -89,6 +89,22 @@
   color: var(--psv-gray-lt);
 }
 
+.deelBtn {
+  background: #25D366;
+  color: white;
+  border: none;
+  border-radius: var(--radius-lg);
+  padding: 12px 16px;
+  font-size: 14px;
+  font-weight: 700;
+  width: 100%;
+  cursor: pointer;
+}
+
+.deelBtn:active {
+  opacity: 0.85;
+}
+
 .resultaten {
   background: var(--psv-surface);
   border: 1px solid var(--psv-border);
