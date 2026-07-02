@@ -74,9 +74,33 @@ export default async function handler(req, res) {
   if (req.method === 'POST' && action === 'verwijderen') {
     const { matchId } = body
     if (!matchId) return res.status(400).json({ error: 'matchId verplicht' })
+
+    // Verwijder de wedstrijd zelf uit de handmatige lijst
     const wedstrijden = await kvGet('admin:wedstrijden') || []
     const nieuw = wedstrijden.filter(w => String(w.matchId) !== String(matchId))
     await slaHandmatigOp(nieuw)
+
+    // Als er al een resultaat/punten voor deze wedstrijd waren berekend,
+    // die ook verwijderen en de totalen herberekenen
+    const vorigeResult = await kvGet(`result:${matchId}`)
+    if (vorigeResult) {
+      const totals = await kvGet('totals') || { niek: 0, huub: 0 }
+      const nieuweTotals = {
+        niek: totals.niek - (vorigeResult.puntNiek || 0),
+        huub: totals.huub - (vorigeResult.puntHuub || 0),
+      }
+      await kvSet('totals', nieuweTotals)
+      await kvSet(`result:${matchId}`, null)
+
+      const index = await kvGet('results:index') || []
+      const nieuweIndex = index.filter(id => String(id) !== String(matchId))
+      await kvSet('results:index', nieuweIndex)
+    }
+
+    // Ook eventuele voorspellingen voor deze wedstrijd opruimen
+    await kvSet(`prediction:${matchId}:niek`, null)
+    await kvSet(`prediction:${matchId}:huub`, null)
+
     return res.status(200).json({ success: true })
   }
 
