@@ -64,10 +64,10 @@ export default function NextMatch({ fixture, fixtures, speler }) {
   function handleTouchEnd(e) {
     if (touchStartX.current === null) return
     const diff = e.changedTouches[0].clientX - touchStartX.current
-    if (diff > SWIPE_DREMPEL) {
-      gaNaarVolgende() // swipe naar rechts → volgende wedstrijd
-    } else if (diff < -SWIPE_DREMPEL) {
-      gaNaarVorige() // swipe naar links → vorige wedstrijd
+    if (diff < -SWIPE_DREMPEL) {
+      gaNaarVolgende() // swipe naar links → volgende wedstrijd (iPhone-standaard)
+    } else if (diff > SWIPE_DREMPEL) {
+      gaNaarVorige() // swipe naar rechts → vorige wedstrijd (iPhone-standaard)
     }
     touchStartX.current = null
   }
@@ -112,7 +112,16 @@ export default function NextMatch({ fixture, fixtures, speler }) {
         <div className={styles.datum}>{getoond.datum}</div>
         <div className={styles.teams}>
           <div className={styles.team}>
-            {getoond.thuisLogo && <img src={getoond.thuisLogo} alt="" className={styles.logo} />}
+            {getoond.thuisLogo ? (
+              <img
+                src={getoond.thuisLogo}
+                alt=""
+                className={styles.logo}
+                onError={e => { e.target.style.visibility = 'hidden' }}
+              />
+            ) : (
+              <span className={styles.logo} />
+            )}
             <span className={styles.teamCode}>{getoond.thuis}</span>
             <span className={styles.teamNaam}>{getoond.thuisNaam}</span>
           </div>
@@ -132,7 +141,16 @@ export default function NextMatch({ fixture, fixtures, speler }) {
             )}
           </div>
           <div className={`${styles.team} ${styles.teamRight}`}>
-            {getoond.uitLogo && <img src={getoond.uitLogo} alt="" className={styles.logo} />}
+            {getoond.uitLogo ? (
+              <img
+                src={getoond.uitLogo}
+                alt=""
+                className={styles.logo}
+                onError={e => { e.target.style.visibility = 'hidden' }}
+              />
+            ) : (
+              <span className={styles.logo} />
+            )}
             <span className={styles.teamCode}>{getoond.uit}</span>
             <span className={styles.teamNaam}>{getoond.uitNaam}</span>
           </div>
