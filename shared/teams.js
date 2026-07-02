@@ -5,7 +5,7 @@ export const TEAMS = {
   PSV: { naam: 'PSV Eindhoven', aliases: ['PSV Eindhoven','PSV'], logo: 'https://en.wikipedia.org/wiki/Special:FilePath/PSV_Eindhoven.svg' },
   AJX: { naam: 'Ajax', aliases: ['Ajax','AFC Ajax'], logo: 'https://en.wikipedia.org/wiki/Special:FilePath/Ajax_Amsterdam.svg' },
   FEY: { naam: 'Feyenoord', aliases: ['Feyenoord','Feyenoord Rotterdam'], logo: 'https://en.wikipedia.org/wiki/Special:FilePath/Feyenoord_logo.svg' },
-  'AZ ': { naam: 'AZ Alkmaar', aliases: ['AZ','AZ Alkmaar'], logo: 'https://en.wikipedia.org/wiki/Special:FilePath/AZ_Alkmaar_logo.svg' },
+  AZ: { naam: 'AZ Alkmaar', aliases: ['AZ','AZ Alkmaar'], logo: 'https://en.wikipedia.org/wiki/Special:FilePath/AZ_Alkmaar_logo.svg' },
   UTR: { naam: 'FC Utrecht', aliases: ['FC Utrecht'], logo: 'https://en.wikipedia.org/wiki/Special:FilePath/FC_Utrecht.svg' },
   TWE: { naam: 'FC Twente', aliases: ['FC Twente','FC Twente Enschede'], logo: 'https://en.wikipedia.org/wiki/Special:FilePath/FC_Twente_logo.svg' },
   NEC: { naam: 'NEC Nijmegen', aliases: ['NEC','NEC Nijmegen'], logo: 'https://en.wikipedia.org/wiki/Special:FilePath/NEC_Nijmegen_logo.svg' },
