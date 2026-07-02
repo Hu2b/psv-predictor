@@ -1,6 +1,28 @@
 import { useState, useEffect } from 'react'
 import styles from './Standings.module.css'
 
+function bouwWhatsAppTekst(totals, results) {
+  const regels = []
+  regels.push('🏆 *PSV Poule — Klassement*')
+  regels.push('')
+  regels.push(`Niek: *${totals.niek}* punten`)
+  regels.push(`Huub: *${totals.huub}* punten`)
+  regels.push('')
+  regels.push('_Alle wedstrijden:_')
+
+  const gesorteerd = [...results].sort((a, b) => (a.volgnummer || 0) - (b.volgnummer || 0))
+
+  for (const r of gesorteerd) {
+    regels.push('')
+    regels.push(`#${r.volgnummer || '—'} ${r.datum} — ${r.competitie}`)
+    regels.push(`${r.thuis} ${r.uitslag.home}-${r.uitslag.away} ${r.uit}`)
+    regels.push(`Niek: ${r.predNiek ? `${r.predNiek.home}-${r.predNiek.away}` : '–'} (+${r.puntNiek}pt)`)
+    regels.push(`Huub: ${r.predHuub ? `${r.predHuub.home}-${r.predHuub.away}` : '–'} (+${r.puntHuub}pt)`)
+  }
+
+  return regels.join('\n')
+}
+
 export default function Standings({ fixtures, speler }) {
   const [totals, setTotals] = useState({ niek: 0, huub: 0 })
   const [results, setResults] = useState([])
@@ -24,6 +46,12 @@ export default function Standings({ fixtures, speler }) {
     if (punt >= 7)  return styles.puntGroen
     if (punt >= 5)  return styles.puntBlauw
     return styles.puntNul
+  }
+
+  function handleDelen() {
+    const tekst = bouwWhatsAppTekst(totals, results)
+    const url = `https://wa.me/?text=${encodeURIComponent(tekst)}`
+    window.open(url, '_blank')
   }
 
   const niekLeidt = totals.niek > totals.huub
@@ -57,6 +85,12 @@ export default function Standings({ fixtures, speler }) {
           <p className={styles.geenData}>Nog geen punten gescoord</p>
         )}
       </div>
+
+      {results.length > 0 && (
+        <button className={styles.deelBtn} onClick={handleDelen}>
+          📤 Delen via WhatsApp
+        </button>
+      )}
 
       {results.length > 0 && (
         <div className={styles.resultaten}>
