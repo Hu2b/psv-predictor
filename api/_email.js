@@ -1,0 +1,53 @@
+const RESEND_API_KEY = process.env.RESEND_API_KEY
+const FROM = process.env.RESEND_FROM_EMAIL || 'PSV Poule <onboarding@resend.dev>'
+const APP_URL = process.env.APP_BASE_URL || 'https://psv-predictor.vercel.app'
+
+async function verstuurMail(to, subject, html) {
+  if (!RESEND_API_KEY) {
+    console.error('RESEND_API_KEY ontbreekt, e-mail niet verstuurd. Onderwerp:', subject, 'Naar:', to)
+    return
+  }
+  try {
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${RESEND_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ from: FROM, to, subject, html }),
+    })
+    if (!res.ok) {
+      const tekst = await res.text()
+      console.error('Resend gaf een foutstatus:', res.status, tekst)
+    }
+  } catch (err) {
+    console.error('Versturen van e-mail via Resend mislukt:', err)
+  }
+}
+
+export async function stuurVerificatieMail(email, naam, token) {
+  const link = `${APP_URL}/?verify=${token}`
+  await verstuurMail(email, 'Bevestig je PSV Poule account', `
+    <p>Hoi ${naam},</p>
+    <p>Bevestig je e-mailadres om je PSV Poule account te activeren:</p>
+    <p><a href="${link}">${link}</a></p>
+    <p>Deze link is 24 uur geldig.</p>
+  `)
+}
+
+export async function stuurResetLinkMail(email, naam, token) {
+  const link = `${APP_URL}/?reset=${token}`
+  await verstuurMail(email, 'Nieuwe pincode instellen — PSV Poule', `
+    <p>Hoi ${naam},</p>
+    <p>Klik op onderstaande link om een nieuwe pincode in te stellen:</p>
+    <p><a href="${link}">${link}</a></p>
+    <p>Deze link is 1 uur geldig. Heb je dit niet aangevraagd, negeer deze e-mail dan.</p>
+  `)
+}
+
+export async function stuurPincodeGewijzigdMail(email, naam) {
+  await verstuurMail(email, 'Je pincode is gewijzigd — PSV Poule', `
+    <p>Hoi ${naam},</p>
+    <p>Je pincode is zojuist gewijzigd. Was jij dit niet? Neem dan contact op met de beheerder.</p>
+  `)
+}
