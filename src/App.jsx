@@ -146,7 +146,7 @@ export default function App() {
             </button>
           </div>
         ) : tab === 'wedstrijd' ? (
-          <NextMatch fixture={getoondeWedstrijd} fixtures={fixtures} speler={speler.naam} />
+          <NextMatch fixture={getoondeWedstrijd} fixtures={fixtures} speler={speler} />
         ) : tab === 'totaal' ? (
           <StandingsLazy fixtures={fixtures} speler={speler.naam} />
         ) : speler.isAdmin ? (
