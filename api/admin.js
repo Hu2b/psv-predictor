@@ -1,6 +1,7 @@
 import { kvGet, kvSet } from './_kv.js'
 import { berekenPunten, totoLabel } from './_scoring.js'
 import { zoekVolgnummer } from './_wedstrijden.js'
+import { getPlayerById } from './_players.js'
 
 async function slaHandmatigOp(wedstrijden) {
   await kvSet('admin:wedstrijden', wedstrijden)
@@ -24,11 +25,14 @@ export default async function handler(req, res) {
   if (req.method === 'GET' && req.query.action === 'voorspellingen') {
     const { matchId } = req.query
     if (!matchId) return res.status(400).json({ error: 'matchId verplicht' })
-    const [niek, huub] = await Promise.all([
-      kvGet(`prediction:${matchId}:niek`),
-      kvGet(`prediction:${matchId}:huub`),
-    ])
-    return res.status(200).json({ niek, huub, beideBevest: !!(niek?.confirmed && huub?.confirmed) })
+    const index = await kvGet(`predictionIndex:${matchId}`) || []
+    const predicties = await Promise.all(index.map(async playerId => {
+      const pred = await kvGet(`prediction:${matchId}:${playerId}`)
+      if (!pred) return null
+      const speler = await getPlayerById(playerId)
+      return { playerId, naam: speler?.naam || '???', home: pred.home, away: pred.away, confirmed: pred.confirmed }
+    }))
+    return res.status(200).json({ predicties: predicties.filter(Boolean) })
   }
 
   if (req.method === 'POST' && action === 'toevoegen') {
@@ -75,19 +79,16 @@ export default async function handler(req, res) {
     const { matchId } = body
     if (!matchId) return res.status(400).json({ error: 'matchId verplicht' })
 
-    // Verwijder de wedstrijd zelf uit de handmatige lijst
     const wedstrijden = await kvGet('admin:wedstrijden') || []
     const nieuw = wedstrijden.filter(w => String(w.matchId) !== String(matchId))
     await slaHandmatigOp(nieuw)
 
-    // Als er al een resultaat/punten voor deze wedstrijd waren berekend,
-    // die ook verwijderen en de totalen herberekenen
     const vorigeResult = await kvGet(`result:${matchId}`)
     if (vorigeResult) {
-      const totals = await kvGet('totals') || { niek: 0, huub: 0 }
-      const nieuweTotals = {
-        niek: totals.niek - (vorigeResult.puntNiek || 0),
-        huub: totals.huub - (vorigeResult.puntHuub || 0),
+      const totals = await kvGet('totals') || {}
+      const nieuweTotals = { ...totals }
+      for (const [playerId, punten] of Object.entries(vorigeResult.punten || {})) {
+        nieuweTotals[playerId] = (nieuweTotals[playerId] || 0) - punten
       }
       await kvSet('totals', nieuweTotals)
       await kvSet(`result:${matchId}`, null)
@@ -97,47 +98,58 @@ export default async function handler(req, res) {
       await kvSet('results:index', nieuweIndex)
     }
 
-    // Ook eventuele voorspellingen voor deze wedstrijd opruimen
-    await kvSet(`prediction:${matchId}:niek`, null)
-    await kvSet(`prediction:${matchId}:huub`, null)
+    const predictionIndex = await kvGet(`predictionIndex:${matchId}`) || []
+    for (const playerId of predictionIndex) {
+      await kvSet(`prediction:${matchId}:${playerId}`, null)
+    }
+    await kvSet(`predictionIndex:${matchId}`, null)
 
     return res.status(200).json({ success: true })
   }
 
   if (req.method === 'POST' && action === 'verwijderVoorspelling') {
-    const { matchId, speler } = body
+    const { matchId, playerId } = body
     if (!matchId) return res.status(400).json({ error: 'matchId verplicht' })
 
-    // Verwijder voorspelling(en)
-    const teVerwijderen = speler ? [speler.toLowerCase()] : ['niek', 'huub']
-    for (const s of teVerwijderen) {
-      await kvSet(`prediction:${matchId}:${s}`, null)
-    }
+    const predictionIndex = await kvGet(`predictionIndex:${matchId}`) || []
+    const teVerwijderen = playerId ? [playerId] : predictionIndex
 
-    // Herbereken punten als er al een result was
+    for (const id of teVerwijderen) {
+      await kvSet(`prediction:${matchId}:${id}`, null)
+    }
+    const nieuweIndex = predictionIndex.filter(id => !teVerwijderen.includes(id))
+    await kvSet(`predictionIndex:${matchId}`, nieuweIndex)
+
     const vorigeResult = await kvGet(`result:${matchId}`)
     if (vorigeResult) {
-      const [predNiek, predHuub] = await Promise.all([
-        kvGet(`prediction:${matchId}:niek`),
-        kvGet(`prediction:${matchId}:huub`),
-      ])
-      const uitslag = vorigeResult.uitslag
-      const puntNiek = berekenPunten(predNiek, uitslag)
-      const puntHuub = berekenPunten(predHuub, uitslag)
-      const totals = await kvGet('totals') || { niek: 0, huub: 0 }
-      const nieuweTotals = {
-        niek: totals.niek - (vorigeResult.puntNiek || 0) + puntNiek,
-        huub: totals.huub - (vorigeResult.puntHuub || 0) + puntHuub,
+      const totals = await kvGet('totals') || {}
+      const nieuweTotals = { ...totals }
+
+      for (const id of teVerwijderen) {
+        const oud = vorigeResult.punten?.[id] || 0
+        nieuweTotals[id] = (nieuweTotals[id] || 0) - oud
       }
+
+      const nieuwePunten = { ...vorigeResult.punten }
+      const nieuweToto = { ...vorigeResult.toto }
+      const nieuwePredicties = { ...vorigeResult.predicties }
+      for (const id of teVerwijderen) {
+        delete nieuwePunten[id]
+        delete nieuweToto[id]
+        delete nieuwePredicties[id]
+      }
+
+      const nieuwTotalenVeld = {}
+      for (const id of Object.keys(nieuwePunten)) {
+        nieuwTotalenVeld[id] = nieuweTotals[id]
+      }
+
       const nieuwResult = {
         ...vorigeResult,
-        predNiek: predNiek ? { home: predNiek.home, away: predNiek.away } : null,
-        predHuub: predHuub ? { home: predHuub.home, away: predHuub.away } : null,
-        totoNiek: totoLabel(predNiek),
-        totoHuub: totoLabel(predHuub),
-        puntNiek, puntHuub,
-        totaalNiek: nieuweTotals.niek,
-        totaalHuub: nieuweTotals.huub,
+        predicties: nieuwePredicties,
+        toto: nieuweToto,
+        punten: nieuwePunten,
+        totalen: nieuwTotalenVeld,
         verwerktOp: new Date().toISOString(),
       }
       await kvSet(`result:${matchId}`, nieuwResult)
@@ -153,26 +165,46 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'matchId, homeScore en awayScore verplicht' })
     }
     const uitslag = { home: parseInt(homeScore), away: parseInt(awayScore) }
-    const [predNiek, predHuub, volgnummer] = await Promise.all([
-      kvGet(`prediction:${matchId}:niek`),
-      kvGet(`prediction:${matchId}:huub`),
+
+    const [predictionIndex, volgnummer] = await Promise.all([
+      kvGet(`predictionIndex:${matchId}`),
       zoekVolgnummer(matchId),
     ])
-    const puntNiek = berekenPunten(predNiek, uitslag)
-    const puntHuub = berekenPunten(predHuub, uitslag)
-    const vorigeResult = await kvGet(`result:${matchId}`)
-    const totals = await kvGet('totals') || { niek: 0, huub: 0 }
-    const nieuweTotals = {
-      niek: totals.niek - (vorigeResult?.puntNiek || 0) + puntNiek,
-      huub: totals.huub - (vorigeResult?.puntHuub || 0) + puntHuub,
+
+    const spelersMetVoorspelling = predictionIndex || []
+    const predicties = {}
+    const nieuwePunten = {}
+    const nieuweToto = {}
+
+    for (const playerId of spelersMetVoorspelling) {
+      const pred = await kvGet(`prediction:${matchId}:${playerId}`)
+      if (!pred) continue
+      predicties[playerId] = { home: pred.home, away: pred.away }
+      nieuwePunten[playerId] = berekenPunten(pred, uitslag)
+      nieuweToto[playerId] = totoLabel(pred)
     }
+
+    const vorigeResult = await kvGet(`result:${matchId}`)
+    const totals = await kvGet('totals') || {}
+    const nieuweTotals = { ...totals }
+
+    if (vorigeResult) {
+      for (const [playerId, oud] of Object.entries(vorigeResult.punten || {})) {
+        nieuweTotals[playerId] = (nieuweTotals[playerId] || 0) - oud
+      }
+    }
+    for (const [playerId, nieuw] of Object.entries(nieuwePunten)) {
+      nieuweTotals[playerId] = (nieuweTotals[playerId] || 0) + nieuw
+    }
+
+    const totalen = {}
+    for (const playerId of Object.keys(nieuwePunten)) {
+      totalen[playerId] = nieuweTotals[playerId]
+    }
+
     const result = {
       matchId, uitslag, volgnummer,
-      predNiek: predNiek ? { home: predNiek.home, away: predNiek.away } : null,
-      predHuub: predHuub ? { home: predHuub.home, away: predHuub.away } : null,
-      totoNiek: totoLabel(predNiek), totoHuub: totoLabel(predHuub),
-      puntNiek, puntHuub,
-      totaalNiek: nieuweTotals.niek, totaalHuub: nieuweTotals.huub,
+      predicties, toto: nieuweToto, punten: nieuwePunten, totalen,
       datumISO: matchInfo?.datumISO || new Date().toISOString(),
       datum: matchInfo?.datum || '',
       competitie: matchInfo?.competitie || '',
@@ -182,11 +214,13 @@ export default async function handler(req, res) {
     }
     await kvSet(`result:${matchId}`, result)
     await kvSet('totals', nieuweTotals)
+
     const index = await kvGet('results:index') || []
     if (!index.includes(String(matchId))) {
       index.push(String(matchId))
       await kvSet('results:index', index)
     }
+
     const wedstrijden = await kvGet('admin:wedstrijden') || []
     const idx = wedstrijden.findIndex(w => String(w.matchId) === String(matchId))
     if (idx !== -1) {
@@ -194,7 +228,8 @@ export default async function handler(req, res) {
       wedstrijden[idx].status = 'FT'
       await slaHandmatigOp(wedstrijden)
     }
-    return res.status(200).json({ success: true, result, totals: nieuweTotals, punten: { niek: puntNiek, huub: puntHuub } })
+
+    return res.status(200).json({ success: true, result, totals: nieuweTotals, punten: nieuwePunten })
   }
 
   return res.status(400).json({ error: 'Onbekende actie' })
