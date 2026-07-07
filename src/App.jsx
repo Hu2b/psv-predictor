@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import PlayerSelect from './components/PlayerSelect.jsx'
+import AuthScreen from './components/AuthScreen.jsx'
 import NextMatch from './components/NextMatch.jsx'
 import Header from './components/Header.jsx'
 import Admin from './components/Admin.jsx'
@@ -14,13 +14,40 @@ const StandingsLazy = ({ fixtures, speler }) => {
   return <Comp fixtures={fixtures} speler={speler} />
 }
 
+const SESSION_KEY = 'psv_session_token'
+
 export default function App() {
-  const [speler, setSpeler] = useState(() => localStorage.getItem('psv_speler') || null)
+  const [speler, setSpeler] = useState(null)
+  const [sessieControleGedaan, setSessieControleGedaan] = useState(false)
   const [tab, setTab] = useState('wedstrijd')
   const [fixtures, setFixtures] = useState([])
   const [season, setSeason] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+
+  useEffect(() => {
+    async function controleerSessie() {
+      const token = localStorage.getItem(SESSION_KEY)
+      if (!token) {
+        setSessieControleGedaan(true)
+        return
+      }
+      try {
+        const r = await fetch(`/api/auth?action=sessie&sessionToken=${encodeURIComponent(token)}`)
+        const data = await r.json()
+        if (data.success) {
+          setSpeler(data.speler)
+        } else {
+          localStorage.removeItem(SESSION_KEY)
+        }
+      } catch (e) {
+        localStorage.removeItem(SESSION_KEY)
+      } finally {
+        setSessieControleGedaan(true)
+      }
+    }
+    controleerSessie()
+  }, [])
 
   const laadWedstrijden = useCallback(async () => {
     try {
@@ -37,17 +64,28 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    laadWedstrijden()
-  }, [laadWedstrijden])
+    if (speler) laadWedstrijden()
+  }, [speler, laadWedstrijden])
 
-  function handleSpelerKeuze(naam) {
-    localStorage.setItem('psv_speler', naam)
-    setSpeler(naam)
+  function handleIngelogd(nieuweSpeler, sessionToken) {
+    localStorage.setItem(SESSION_KEY, sessionToken)
+    setSpeler(nieuweSpeler)
   }
 
-  function handleWisselSpeler() {
-    localStorage.removeItem('psv_speler')
+  async function handleUitloggen() {
+    const token = localStorage.getItem(SESSION_KEY)
+    if (token) {
+      try {
+        await fetch('/api/auth', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'uitloggen', sessionToken: token })
+        })
+      } catch (e) {}
+    }
+    localStorage.removeItem(SESSION_KEY)
     setSpeler(null)
+    setTab('wedstrijd')
   }
 
   function bepaalGetoondeWedstrijd() {
@@ -59,11 +97,19 @@ export default function App() {
 
   const getoondeWedstrijd = bepaalGetoondeWedstrijd()
 
-  if (!speler) return <PlayerSelect onKeuze={handleSpelerKeuze} />
+  if (!sessieControleGedaan) {
+    return (
+      <div className={styles.loadingState}>
+        <div className="spinner" />
+      </div>
+    )
+  }
+
+  if (!speler) return <AuthScreen onIngelogd={handleIngelogd} />
 
   return (
     <div className={styles.app}>
-      <Header speler={speler} onWissel={handleWisselSpeler} season={season} />
+      <Header speler={speler} onUitloggen={handleUitloggen} season={season} />
       <nav className={styles.tabs}>
         <button
           className={`${styles.tab} ${tab === 'wedstrijd' ? styles.tabActive : ''}`}
@@ -77,12 +123,14 @@ export default function App() {
         >
           🏆 Totaal
         </button>
-        <button
-          className={`${styles.tab} ${tab === 'admin' ? styles.tabActive : ''}`}
-          onClick={() => setTab('admin')}
-        >
-          ⚙️ Admin
-        </button>
+        {speler.isAdmin && (
+          <button
+            className={`${styles.tab} ${tab === 'admin' ? styles.tabActive : ''}`}
+            onClick={() => setTab('admin')}
+          >
+            ⚙️ Admin
+          </button>
+        )}
       </nav>
       <main className={styles.main}>
         {loading ? (
@@ -98,12 +146,12 @@ export default function App() {
             </button>
           </div>
         ) : tab === 'wedstrijd' ? (
-          <NextMatch fixture={getoondeWedstrijd} fixtures={fixtures} speler={speler} />
+          <NextMatch fixture={getoondeWedstrijd} fixtures={fixtures} speler={speler.naam} />
         ) : tab === 'totaal' ? (
-          <StandingsLazy fixtures={fixtures} speler={speler} />
-        ) : (
+          <StandingsLazy fixtures={fixtures} speler={speler.naam} />
+        ) : speler.isAdmin ? (
           <Admin fixtures={fixtures} onWedstrijdenGewijzigd={laadWedstrijden} />
-        )}
+        ) : null}
       </main>
     </div>
   )
