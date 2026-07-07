@@ -82,7 +82,6 @@ function mapMatch(m, comp) {
   }
 }
 
-// Haalt alleen de automatische (football-data.org) wedstrijden op, met cache
 async function haalAutomatischeWedstrijden() {
   const datumKey = getNLDatumKey()
   const venster = getTijdvenster()
@@ -123,16 +122,12 @@ async function haalAutomatischeWedstrijden() {
   }
 }
 
-// Centrale, enige plek waar automatisch + handmatig samenkomen, gesorteerd en genummerd worden
 export async function haalAlleWedstrijden() {
   const [automatisch, handmatig] = await Promise.all([
     haalAutomatischeWedstrijden(),
     kvGet('admin:wedstrijden'),
   ])
 
-  // Elk automatisch opgehaald logo is geverifieerd (rechtstreeks van
-  // football-data.org). Sla dat één keer per team permanent op, zodat
-  // handmatige wedstrijden met datzelfde team er ook gebruik van kunnen maken.
   await Promise.all(
     automatisch.flatMap(f => [
       bewaarLogoAlsNieuw(f.thuis, f.thuisLogo),
@@ -161,7 +156,6 @@ export async function haalAlleWedstrijden() {
   return alle
 }
 
-// Zoek het vastgestelde volgnummer voor één wedstrijd (voor gebruik bij het opslaan van uitslagen)
 export async function zoekVolgnummer(matchId) {
   const alle = await haalAlleWedstrijden()
   const f = alle.find(w => String(w.matchId) === String(matchId))
@@ -171,29 +165,35 @@ export async function zoekVolgnummer(matchId) {
 async function verwerkUitslag(fixture, uitslag) {
   const matchId = fixture.matchId
   const bestaand = await kvGet(`result:${matchId}`)
-  if (bestaand) return // Al verwerkt
+  if (bestaand) return
 
-  const [predNiek, predHuub] = await Promise.all([
-    kvGet(`prediction:${matchId}:niek`),
-    kvGet(`prediction:${matchId}:huub`),
-  ])
+  const predictionIndex = await kvGet(`predictionIndex:${matchId}`) || []
+  const predicties = {}
+  const punten = {}
+  const toto = {}
 
-  const puntNiek = berekenPunten(predNiek, uitslag)
-  const puntHuub = berekenPunten(predHuub, uitslag)
-  const totals = await kvGet('totals') || { niek: 0, huub: 0 }
+  for (const playerId of predictionIndex) {
+    const pred = await kvGet(`prediction:${matchId}:${playerId}`)
+    if (!pred) continue
+    predicties[playerId] = { home: pred.home, away: pred.away }
+    punten[playerId] = berekenPunten(pred, uitslag)
+    toto[playerId] = totoLabel(pred)
+  }
 
-  const nieuweTotals = {
-    niek: totals.niek + puntNiek,
-    huub: totals.huub + puntHuub,
+  const totals = await kvGet('totals') || {}
+  const nieuweTotals = { ...totals }
+  for (const [playerId, p] of Object.entries(punten)) {
+    nieuweTotals[playerId] = (nieuweTotals[playerId] || 0) + p
+  }
+
+  const totalen = {}
+  for (const playerId of Object.keys(punten)) {
+    totalen[playerId] = nieuweTotals[playerId]
   }
 
   const result = {
     matchId, uitslag, volgnummer: fixture.volgnummer,
-    predNiek: predNiek ? { home: predNiek.home, away: predNiek.away } : null,
-    predHuub: predHuub ? { home: predHuub.home, away: predHuub.away } : null,
-    totoNiek: totoLabel(predNiek), totoHuub: totoLabel(predHuub),
-    puntNiek, puntHuub,
-    totaalNiek: nieuweTotals.niek, totaalHuub: nieuweTotals.huub,
+    predicties, toto, punten, totalen,
     datumISO: fixture.datumISO, datum: fixture.datum,
     competitie: fixture.competitie, thuis: fixture.thuis, uit: fixture.uit,
     verwerktOp: new Date().toISOString(),
@@ -214,14 +214,14 @@ export async function checkEnSlaUitslagenOp(fixtures) {
   const MIN_135 = 135 * 60 * 1000
 
   for (const f of fixtures) {
-    if (f.status === 'NS') continue // Nog niet gespeeld
-    if (!f.uitslag || f.uitslag.status !== 'FT') continue // Geen eindstand
+    if (f.status === 'NS') continue
+    if (!f.uitslag || f.uitslag.status !== 'FT') continue
 
     const wedstrijdTijd = new Date(f.datumISO).getTime()
-    if (nu - wedstrijdTijd < MIN_135) continue // Nog geen 135 min verstreken
+    if (nu - wedstrijdTijd < MIN_135) continue
 
     const bestaand = await kvGet(`result:${f.matchId}`)
-    if (bestaand) continue // Al verwerkt
+    if (bestaand) continue
 
     await verwerkUitslag(f, f.uitslag)
   }
