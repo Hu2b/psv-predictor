@@ -9,7 +9,7 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end()
 
   if (req.method === 'GET' && req.query.all) {
-    const totals = await kvGet('totals') || { niek: 0, huub: 0 }
+    const totals = await kvGet('totals') || {}
     const matchIds = await kvGet('results:index') || []
     const results = await Promise.all(matchIds.map(id => kvGet(`result:${id}`)))
     return res.status(200).json({
@@ -27,30 +27,41 @@ export default async function handler(req, res) {
 
   if (req.method === 'POST') {
     let body = req.body
-    if (typeof body === 'string') {
-      try { body = JSON.parse(body) } catch (_) {}
-    }
+    if (typeof body === 'string') { try { body = JSON.parse(body) } catch (_) {} }
     const { matchId, homeScore, awayScore, matchInfo } = body || {}
     if (!matchId || homeScore === undefined || awayScore === undefined) {
       return res.status(400).json({ error: 'matchId, homeScore en awayScore verplicht' })
     }
     const uitslag = { home: parseInt(homeScore), away: parseInt(awayScore) }
-    const [predNiek, predHuub, volgnummer] = await Promise.all([
-      kvGet(`prediction:${matchId}:niek`),
-      kvGet(`prediction:${matchId}:huub`),
+
+    const [predictionIndex, volgnummer] = await Promise.all([
+      kvGet(`predictionIndex:${matchId}`),
       zoekVolgnummer(matchId),
     ])
-    const puntNiek = berekenPunten(predNiek, uitslag)
-    const puntHuub = berekenPunten(predHuub, uitslag)
-    const totals = await kvGet('totals') || { niek: 0, huub: 0 }
-    const nieuweTotals = { niek: totals.niek + puntNiek, huub: totals.huub + puntHuub }
+    const spelersMetVoorspelling = predictionIndex || []
+    const predicties = {}
+    const punten = {}
+    const toto = {}
+
+    for (const playerId of spelersMetVoorspelling) {
+      const pred = await kvGet(`prediction:${matchId}:${playerId}`)
+      if (!pred) continue
+      predicties[playerId] = { home: pred.home, away: pred.away }
+      punten[playerId] = berekenPunten(pred, uitslag)
+      toto[playerId] = totoLabel(pred)
+    }
+
+    const totals = await kvGet('totals') || {}
+    const nieuweTotals = { ...totals }
+    for (const [playerId, p] of Object.entries(punten)) {
+      nieuweTotals[playerId] = (nieuweTotals[playerId] || 0) + p
+    }
+    const totalen = {}
+    for (const playerId of Object.keys(punten)) totalen[playerId] = nieuweTotals[playerId]
+
     const result = {
       matchId, uitslag, volgnummer,
-      predNiek: predNiek ? { home: predNiek.home, away: predNiek.away } : null,
-      predHuub: predHuub ? { home: predHuub.home, away: predHuub.away } : null,
-      totoNiek: totoLabel(predNiek), totoHuub: totoLabel(predHuub),
-      puntNiek, puntHuub,
-      totaalNiek: nieuweTotals.niek, totaalHuub: nieuweTotals.huub,
+      predicties, toto, punten, totalen,
       datumISO: matchInfo?.datumISO || new Date().toISOString(),
       datum: matchInfo?.datum || '', competitie: matchInfo?.competitie || '',
       thuis: matchInfo?.thuis || '', uit: matchInfo?.uit || '',
