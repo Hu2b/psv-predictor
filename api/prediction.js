@@ -1,6 +1,5 @@
 import { kvGet, kvSet } from './_kv.js'
-
-const SPELERS = ['niek', 'huub']
+import { getPlayerById } from './_players.js'
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
@@ -9,68 +8,66 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end()
 
   if (req.method === 'GET') {
-    const { matchId, speler } = req.query
+    const { matchId, playerId, datumISO } = req.query
     if (!matchId) return res.status(400).json({ error: 'matchId verplicht' })
-    if (speler) {
-      const pred = await kvGet(`prediction:${matchId}:${speler.toLowerCase()}`)
-      return res.status(200).json({ prediction: pred })
+
+    const index = await kvGet(`predictionIndex:${matchId}`) || []
+    const alle = await Promise.all(index.map(id => kvGet(`prediction:${matchId}:${id}`)))
+    const geldig = alle.filter(Boolean)
+
+    const mijnPrediction = playerId ? geldig.find(p => p.playerId === playerId) || null : null
+
+    const nu = Date.now()
+    const kickoff = datumISO ? new Date(datumISO).getTime() : null
+    const onthuld = kickoff ? nu >= kickoff : true
+
+    let anderePredicties = []
+    if (onthuld) {
+      const andereRows = geldig.filter(p => p.playerId !== playerId)
+      anderePredicties = await Promise.all(andereRows.map(async p => {
+        const speler = await getPlayerById(p.playerId)
+        return { playerId: p.playerId, naam: speler?.naam || '???', home: p.home, away: p.away }
+      }))
     }
-    const [niek, huub] = await Promise.all([
-      kvGet(`prediction:${matchId}:niek`),
-      kvGet(`prediction:${matchId}:huub`),
-    ])
-    return res.status(200).json({
-      niek, huub,
-      beideBevest: !!(niek?.confirmed && huub?.confirmed),
-    })
+
+    return res.status(200).json({ mijnPrediction, anderePredicties, onthuld, aantalVoorspeld: geldig.length })
   }
 
   if (req.method === 'POST') {
     let body = req.body
     if (typeof body === 'string') { try { body = JSON.parse(body) } catch (_) {} }
-    const { matchId, speler, home, away, datumISO, action } = body || {}
+    const { matchId, playerId, home, away, datumISO, action } = body || {}
 
-    // Verwijder voorspelling(en)
     if (action === 'verwijderen') {
-      if (!matchId) return res.status(400).json({ error: 'matchId verplicht' })
-      const teVerwijderen = speler ? [speler.toLowerCase()] : ['niek', 'huub']
-      for (const s of teVerwijderen) {
-        await kvSet(`prediction:${matchId}:${s}`, null)
-      }
+      if (!matchId || !playerId) return res.status(400).json({ error: 'matchId en playerId verplicht' })
+      await kvSet(`prediction:${matchId}:${playerId}`, null)
+      const index = await kvGet(`predictionIndex:${matchId}`) || []
+      const nieuweIndex = index.filter(id => id !== playerId)
+      await kvSet(`predictionIndex:${matchId}`, nieuweIndex)
       return res.status(200).json({ success: true })
     }
 
-    if (!matchId || !speler) return res.status(400).json({ error: 'matchId en speler verplicht' })
-    if (!SPELERS.includes(speler.toLowerCase())) return res.status(400).json({ error: 'Ongeldige speler' })
+    if (!matchId || !playerId) return res.status(400).json({ error: 'matchId en playerId verplicht' })
     if (home === undefined || away === undefined) return res.status(400).json({ error: 'home en away verplicht' })
 
-    // Check of beide al bevestigd hebben
-    const andere = speler.toLowerCase() === 'niek' ? 'huub' : 'niek'
-    const anderePred = await kvGet(`prediction:${matchId}:${andere}`)
-    const mijnPred = await kvGet(`prediction:${matchId}:${speler.toLowerCase()}`)
-
-    // Als beide al bevestigd: niet meer wijzigen
-    if (mijnPred?.confirmed && anderePred?.confirmed) {
-      return res.status(403).json({ error: 'Beide spelers hebben al voorspeld — wijzigen niet meer mogelijk' })
-    }
-
     if (datumISO && new Date() > new Date(datumISO)) {
-      return res.status(403).json({ error: 'Wedstrijd al begonnen' })
+      return res.status(403).json({ error: 'Wedstrijd al begonnen, wijzigen niet meer mogelijk' })
     }
 
     const prediction = {
-      matchId, speler: speler.toLowerCase(),
+      matchId, playerId,
       home: parseInt(home), away: parseInt(away),
       confirmed: true, timestamp: new Date().toISOString(),
     }
-    await kvSet(`prediction:${matchId}:${speler.toLowerCase()}`, prediction)
-    
-    // Check of nu beide bevestigd zijn
-    const check = await kvGet(`prediction:${matchId}:${andere}`)
-    return res.status(200).json({ 
-      success: true, prediction,
-      beideBevest: !!(prediction.confirmed && check?.confirmed)
-    })
+    await kvSet(`prediction:${matchId}:${playerId}`, prediction)
+
+    const index = await kvGet(`predictionIndex:${matchId}`) || []
+    if (!index.includes(playerId)) {
+      index.push(playerId)
+      await kvSet(`predictionIndex:${matchId}`, index)
+    }
+
+    return res.status(200).json({ success: true, prediction })
   }
 
   return res.status(405).json({ error: 'Method not allowed' })
