@@ -2,6 +2,7 @@ import { kvGet, kvSet } from './_kv.js'
 import { berekenPunten, totoLabel } from './_scoring.js'
 import { zoekAfkorting } from '../shared/teams.js'
 import { bewaarLogoAlsNieuw, zoekLogo } from './_logo-lookup.js'
+import { alleSpelers } from './_players.js'
 
 const API_KEY = process.env.FOOTBALL_DATA_KEY
 const API_BASE = 'https://api.football-data.org/v4'
@@ -162,26 +163,41 @@ export async function zoekVolgnummer(matchId) {
   return f ? f.volgnummer : null
 }
 
-async function verwerkUitslag(fixture, uitslag) {
-  const matchId = fixture.matchId
-  const bestaand = await kvGet(`result:${matchId}`)
-  if (bestaand) return
+// Enige, centrale plek waar een uitslag wordt verwerkt tot punten en totalen.
+// ALLE geverifieerde spelers krijgen een entry: wie niet op tijd heeft
+// voorspeld (of helemaal niet), krijgt hier expliciet 0 punten.
+// Wordt herbruikt door zowel de automatische verwerking als Admin (handmatige
+// invoer), zodat de puntenlogica nooit op twee plekken kan gaan afwijken.
+export async function berekenEnSlaResultaatOp(fixtureInfo, uitslag) {
+  const { matchId, volgnummer, datumISO, datum, competitie, thuis, uit } = fixtureInfo
 
-  const predictionIndex = await kvGet(`predictionIndex:${matchId}`) || []
+  const spelers = await alleSpelers()
   const predicties = {}
-  const punten = {}
   const toto = {}
+  const punten = {}
 
-  for (const playerId of predictionIndex) {
-    const pred = await kvGet(`prediction:${matchId}:${playerId}`)
-    if (!pred) continue
-    predicties[playerId] = { home: pred.home, away: pred.away }
-    punten[playerId] = berekenPunten(pred, uitslag)
-    toto[playerId] = totoLabel(pred)
+  for (const speler of spelers) {
+    const pred = await kvGet(`prediction:${matchId}:${speler.id}`)
+    if (pred) {
+      predicties[speler.id] = { home: pred.home, away: pred.away }
+      toto[speler.id] = totoLabel(pred)
+      punten[speler.id] = berekenPunten(pred, uitslag)
+    } else {
+      predicties[speler.id] = null
+      toto[speler.id] = null
+      punten[speler.id] = 0
+    }
   }
 
+  const vorigeResult = await kvGet(`result:${matchId}`)
   const totals = await kvGet('totals') || {}
   const nieuweTotals = { ...totals }
+
+  if (vorigeResult) {
+    for (const [playerId, oud] of Object.entries(vorigeResult.punten || {})) {
+      nieuweTotals[playerId] = (nieuweTotals[playerId] || 0) - oud
+    }
+  }
   for (const [playerId, p] of Object.entries(punten)) {
     nieuweTotals[playerId] = (nieuweTotals[playerId] || 0) + p
   }
@@ -192,10 +208,9 @@ async function verwerkUitslag(fixture, uitslag) {
   }
 
   const result = {
-    matchId, uitslag, volgnummer: fixture.volgnummer,
+    matchId, uitslag, volgnummer,
     predicties, toto, punten, totalen,
-    datumISO: fixture.datumISO, datum: fixture.datum,
-    competitie: fixture.competitie, thuis: fixture.thuis, uit: fixture.uit,
+    datumISO, datum, competitie, thuis, uit,
     verwerktOp: new Date().toISOString(),
   }
 
@@ -207,6 +222,8 @@ async function verwerkUitslag(fixture, uitslag) {
     index.push(String(matchId))
     await kvSet('results:index', index)
   }
+
+  return result
 }
 
 export async function checkEnSlaUitslagenOp(fixtures) {
@@ -223,6 +240,6 @@ export async function checkEnSlaUitslagenOp(fixtures) {
     const bestaand = await kvGet(`result:${f.matchId}`)
     if (bestaand) continue
 
-    await verwerkUitslag(f, f.uitslag)
+    await berekenEnSlaResultaatOp(f, f.uitslag)
   }
 }
