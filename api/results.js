@@ -1,6 +1,5 @@
-import { kvGet, kvSet } from './_kv.js'
-import { berekenPunten, totoLabel } from './_scoring.js'
-import { zoekVolgnummer } from './_wedstrijden.js'
+import { kvGet } from './_kv.js'
+import { zoekVolgnummer, berekenEnSlaResultaatOp } from './_wedstrijden.js'
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
@@ -33,48 +32,19 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'matchId, homeScore en awayScore verplicht' })
     }
     const uitslag = { home: parseInt(homeScore), away: parseInt(awayScore) }
+    const volgnummer = await zoekVolgnummer(matchId)
 
-    const [predictionIndex, volgnummer] = await Promise.all([
-      kvGet(`predictionIndex:${matchId}`),
-      zoekVolgnummer(matchId),
-    ])
-    const spelersMetVoorspelling = predictionIndex || []
-    const predicties = {}
-    const punten = {}
-    const toto = {}
-
-    for (const playerId of spelersMetVoorspelling) {
-      const pred = await kvGet(`prediction:${matchId}:${playerId}`)
-      if (!pred) continue
-      predicties[playerId] = { home: pred.home, away: pred.away }
-      punten[playerId] = berekenPunten(pred, uitslag)
-      toto[playerId] = totoLabel(pred)
-    }
-
-    const totals = await kvGet('totals') || {}
-    const nieuweTotals = { ...totals }
-    for (const [playerId, p] of Object.entries(punten)) {
-      nieuweTotals[playerId] = (nieuweTotals[playerId] || 0) + p
-    }
-    const totalen = {}
-    for (const playerId of Object.keys(punten)) totalen[playerId] = nieuweTotals[playerId]
-
-    const result = {
-      matchId, uitslag, volgnummer,
-      predicties, toto, punten, totalen,
+    const result = await berekenEnSlaResultaatOp({
+      matchId,
+      volgnummer,
       datumISO: matchInfo?.datumISO || new Date().toISOString(),
-      datum: matchInfo?.datum || '', competitie: matchInfo?.competitie || '',
-      thuis: matchInfo?.thuis || '', uit: matchInfo?.uit || '',
-      verwerktOp: new Date().toISOString(),
-    }
-    await kvSet(`result:${matchId}`, result)
-    await kvSet('totals', nieuweTotals)
-    const index = await kvGet('results:index') || []
-    if (!index.includes(String(matchId))) {
-      index.push(String(matchId))
-      await kvSet('results:index', index)
-    }
-    return res.status(200).json({ success: true, result, totals: nieuweTotals })
+      datum: matchInfo?.datum || '',
+      competitie: matchInfo?.competitie || '',
+      thuis: matchInfo?.thuis || '',
+      uit: matchInfo?.uit || '',
+    }, uitslag)
+
+    return res.status(200).json({ success: true, result, totals: result.totalen })
   }
 
   return res.status(405).json({ error: 'Method not allowed' })
