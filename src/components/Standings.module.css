@@ -1,263 +1,155 @@
-.wrapper {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+import { useState, useEffect } from 'react'
+import styles from './Standings.module.css'
+
+function bouwWhatsAppTekst(klassement, results, spelerNaamMap) {
+  const regels = []
+  regels.push('🏆 *PSV Poule — Klassement*')
+  regels.push('')
+  klassement.forEach((s, i) => {
+    regels.push(`${i + 1}. ${s.naam}: *${s.punten}* punten`)
+  })
+  regels.push('')
+  regels.push('_Alle wedstrijden:_')
+
+  const gesorteerd = [...results].sort((a, b) => (a.volgnummer || 0) - (b.volgnummer || 0))
+  for (const r of gesorteerd) {
+    regels.push('')
+    regels.push(`#${r.volgnummer || '—'} ${r.datum} — ${r.competitie}`)
+    regels.push(`${r.thuis} ${r.uitslag.home}-${r.uitslag.away} ${r.uit}`)
+    for (const [playerId, pred] of Object.entries(r.predicties || {})) {
+      const naam = spelerNaamMap[playerId] || '???'
+      const punten = r.punten?.[playerId] ?? 0
+      if (pred) {
+        regels.push(`${naam}: ${pred.home}-${pred.away} (+${punten}pt)`)
+      } else {
+        regels.push(`${naam}: geen voorspelling (+0pt)`)
+      }
+    }
+  }
+
+  return regels.join('\n')
 }
 
-.loadState {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 16px;
-  padding: 60px 20px;
-  color: var(--psv-gray-lt);
-  font-size: 14px;
-}
+export default function Standings({ fixtures, speler }) {
+  const [totals, setTotals] = useState({})
+  const [results, setResults] = useState([])
+  const [spelerNaamMap, setSpelerNaamMap] = useState({})
+  const [loading, setLoading] = useState(true)
 
-.klassement {
-  background: var(--psv-surface);
-  border: 1px solid var(--psv-border);
-  border-radius: var(--radius-lg);
-  padding: 20px 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
+  useEffect(() => {
+    async function laad() {
+      try {
+        const [rResults, rSpelers] = await Promise.all([
+          fetch('/api/results?all=1'),
+          fetch('/api/players'),
+        ])
+        const dataResults = await rResults.json()
+        const dataSpelers = await rSpelers.json()
 
-.klassementTitel {
-  font-family: var(--font-display);
-  font-size: 13px;
-  font-weight: 800;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--psv-gray-lt);
-}
+        setTotals(dataResults.totals || {})
+        setResults(dataResults.results || [])
 
-.scores {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  align-items: center;
-  gap: 16px;
-}
+        const map = {}
+        for (const s of dataSpelers.spelers || []) map[s.id] = s.naam
+        setSpelerNaamMap(map)
+      } catch (_) {}
+      finally { setLoading(false) }
+    }
+    laad()
+  }, [])
 
-.spelerScore {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  position: relative;
-}
+  function puntKleur(punt) {
+    if (punt >= 10) return styles.puntGoud
+    if (punt >= 7)  return styles.puntGroen
+    if (punt >= 5)  return styles.puntBlauw
+    return styles.puntNul
+  }
 
-.spelerNaam {
-  font-family: var(--font-display);
-  font-size: 18px;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--psv-gray-lt);
-}
+  const klassement = Object.entries(totals)
+    .map(([playerId, punten]) => ({ playerId, naam: spelerNaamMap[playerId] || '???', punten }))
+    .sort((a, b) => b.punten - a.punten)
 
-.leider .spelerNaam { color: var(--psv-white); }
+  function handleDelen() {
+    const tekst = bouwWhatsAppTekst(klassement, results, spelerNaamMap)
+    const url = `https://wa.me/?text=${encodeURIComponent(tekst)}`
+    window.open(url, '_blank')
+  }
 
-.spelerPunt {
-  font-family: var(--font-display);
-  font-size: 56px;
-  font-weight: 900;
-  line-height: 1;
-  color: var(--psv-white);
-}
+  if (loading) return (
+    <div className={styles.loadState}>
+      <div className="spinner" />
+      <p>Resultaten laden…</p>
+    </div>
+  )
 
-.leider .spelerPunt { color: var(--gold); }
+  return (
+    <div className={styles.wrapper}>
+      <div className={styles.klassement}>
+        <h2 className={styles.klassementTitel}>Klassement</h2>
+        {klassement.length === 0 ? (
+          <p className={styles.geenData}>Nog geen punten gescoord</p>
+        ) : (
+          <div className={styles.ranglijst}>
+            {klassement.map((s, i) => (
+              <div
+                key={s.playerId}
+                className={`${styles.ranglijstRij} ${i === 0 ? styles.leider : ''} ${s.naam === speler ? styles.jezelf : ''}`}
+              >
+                <span className={styles.ranglijstPositie}>{i + 1}</span>
+                <span className={styles.ranglijstNaam}>{s.naam}</span>
+                {i === 0 && <span className={styles.kroon}>👑</span>}
+                <span className={styles.ranglijstPunt}>{s.punten}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
-.kroon {
-  font-size: 20px;
-  position: absolute;
-  top: -12px;
-  right: 8px;
-}
+      {results.length > 0 && (
+        <button className={styles.deelBtn} onClick={handleDelen}>
+          📤 Delen via WhatsApp
+        </button>
+      )}
 
-.scheidingV {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--psv-gray-md);
-  text-transform: uppercase;
-}
+      {results.length > 0 && (
+        <div className={styles.resultaten}>
+          <h3 className={styles.resultTitel}>Alle wedstrijden</h3>
+          {results.map(r => (
+            <div key={r.matchId} className={styles.resultBlok}>
+              <div className={styles.wedstrijdMeta}>
+                <span className={styles.compTag}>{r.competitie}</span>
+                <span className={styles.wedstrijdDatum}>#{r.volgnummer || '—'} · {r.datum}</span>
+              </div>
+              <div className={styles.wedstrijdTeams}>
+                <span className={styles.teamCode}>{r.thuis}</span>
+                <span className={styles.uitslag}>{r.uitslag.home}–{r.uitslag.away}</span>
+                <span className={styles.teamCode}>{r.uit}</span>
+              </div>
+              <div className={styles.spelerLijst}>
+                {Object.entries(r.predicties || {}).map(([playerId, pred]) => (
+                  <div key={playerId} className={styles.spelerLijstRij}>
+                    <span className={styles.spelerLijstNaam}>{spelerNaamMap[playerId] || '???'}</span>
+                    {pred ? (
+                      <span className={styles.predScore}>{pred.home}–{pred.away}</span>
+                    ) : (
+                      <span className={styles.predLeeg}>geen voorspelling</span>
+                    )}
+                    <span className={`${styles.punt} ${puntKleur(r.punten?.[playerId] ?? 0)}`}>+{r.punten?.[playerId] ?? 0}</span>
+                    <span className={styles.lopendTotaal}>{r.totalen?.[playerId] ?? '—'}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
-.geenData {
-  text-align: center;
-  font-size: 13px;
-  color: var(--psv-gray-lt);
-}
-
-.deelBtn {
-  background: #25D366;
-  color: white;
-  border: none;
-  border-radius: var(--radius-lg);
-  padding: 12px 16px;
-  font-size: 14px;
-  font-weight: 700;
-  width: 100%;
-  cursor: pointer;
-}
-
-.deelBtn:active {
-  opacity: 0.85;
-}
-
-.resultaten {
-  background: var(--psv-surface);
-  border: 1px solid var(--psv-border);
-  border-radius: var(--radius-lg);
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-
-.resultTitel {
-  font-family: var(--font-display);
-  font-size: 13px;
-  font-weight: 800;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--psv-gray-lt);
-  padding: 14px 16px 10px;
-}
-
-.resultHeader {
-  display: grid;
-  grid-template-columns: 1fr 80px 80px;
-  gap: 8px;
-  padding: 8px 16px;
-  background: rgba(0,0,0,0.2);
-  border-bottom: 1px solid var(--psv-border);
-}
-
-.colWedstrijd {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--psv-gray-lt);
-}
-
-.colSpeler {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--psv-gray-lt);
-  text-align: center;
-}
-
-.resultRij {
-  display: grid;
-  grid-template-columns: 1fr 80px 80px;
-  gap: 8px;
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--psv-border);
-  align-items: center;
-}
-
-.resultRij:last-child { border-bottom: none; }
-
-.wedstrijdInfo {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.wedstrijdMeta {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.compTag {
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--psv-red);
-  background: rgba(225,0,14,0.1);
-  border-radius: 3px;
-  padding: 1px 4px;
-}
-
-.wedstrijdDatum {
-  font-size: 10px;
-  color: var(--psv-gray-lt);
-}
-
-.wedstrijdTeams {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.teamCode {
-  font-family: var(--font-display);
-  font-size: 13px;
-  font-weight: 800;
-  color: var(--psv-white);
-}
-
-.uitslag {
-  font-family: var(--font-display);
-  font-size: 14px;
-  font-weight: 900;
-  color: var(--psv-white);
-  background: var(--psv-gray);
-  border-radius: 4px;
-  padding: 1px 6px;
-}
-
-.spelerResultaat {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-}
-
-.predScore {
-  font-family: var(--font-display);
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--psv-white);
-}
-
-.punt {
-  font-size: 11px;
-  font-weight: 800;
-  border-radius: 4px;
-  padding: 1px 5px;
-}
-
-.puntGoud { color: var(--gold); background: rgba(245,184,0,0.1); }
-.puntGroen { color: var(--green); background: rgba(34,197,94,0.1); }
-.puntBlauw { color: #60A5FA; background: rgba(96,165,250,0.1); }
-.puntNul { color: var(--psv-gray-lt); }
-
-.lopendTotaal {
-  font-size: 10px;
-  color: var(--psv-gray-lt);
-  font-weight: 600;
-}
-
-.leeg {
-  background: var(--psv-surface);
-  border: 1px solid var(--psv-border);
-  border-radius: var(--radius-lg);
-  padding: 40px 20px;
-  text-align: center;
-  color: var(--psv-gray-lt);
-  font-size: 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.leegSub {
-  font-size: 12px;
-  color: var(--psv-gray-md);
+      {results.length === 0 && (
+        <div className={styles.leeg}>
+          <p>Nog geen wedstrijdresultaten.</p>
+          <p className={styles.leegSub}>Na elke wedstrijd verschijnen hier de punten.</p>
+        </div>
+      )}
+    </div>
+  )
 }
