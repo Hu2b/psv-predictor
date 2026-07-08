@@ -1,5 +1,5 @@
 import { kvGet, kvSet } from './_kv.js'
-import { getPlayerById } from './_players.js'
+import { getPlayerById, telSpelers } from './_players.js'
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
@@ -19,7 +19,13 @@ export default async function handler(req, res) {
 
     const nu = Date.now()
     const kickoff = datumISO ? new Date(datumISO).getTime() : null
-    const onthuld = kickoff ? nu >= kickoff : true
+    const kickoffVoorbij = kickoff ? nu >= kickoff : false
+
+    const totaalSpelers = await telSpelers()
+    const iedereenVoorspeld = totaalSpelers > 0 && geldig.length >= totaalSpelers
+
+    // Onthullen zodra de wedstrijd begonnen is, óf zodra alle spelers hebben voorspeld
+    const onthuld = kickoffVoorbij || iedereenVoorspeld
 
     let anderePredicties = []
     if (onthuld) {
@@ -30,7 +36,10 @@ export default async function handler(req, res) {
       }))
     }
 
-    return res.status(200).json({ mijnPrediction, anderePredicties, onthuld, aantalVoorspeld: geldig.length })
+    return res.status(200).json({
+      mijnPrediction, anderePredicties, onthuld,
+      aantalVoorspeld: geldig.length, totaalSpelers,
+    })
   }
 
   if (req.method === 'POST') {
