@@ -1,15 +1,28 @@
 import { kvGet, kvSet } from './_kv.js'
 import {
-  getPlayerByNaam, getPlayerByEmail, getPlayerById,
+  getPlayerByNaam, getSpelersByEmail, getPlayerById,
   maakSpeler, updatePlayer, telSpelers, isAdmin,
   hashPincode, verifyPincode, genereerToken,
   isGeldigeNaam, isGeldigEmail, isGeldigePincode,
+  voegToeAanEmailIndex, verwijderUitEmailIndex,
 } from './_players.js'
-import { stuurVerificatieMail, stuurResetLinkMail, stuurPincodeGewijzigdMail } from './_email.js'
+import {
+  stuurVerificatieMail, stuurResetLinkMail, stuurPincodeGewijzigdMail,
+  stuurEmailWijzigingVerificatieMail, stuurEmailGewijzigdMail,
+} from './_email.js'
 
 const MAX_SPELERS = 10
 const VERIFY_TTL_MS = 24 * 60 * 60 * 1000
 const RESET_TTL_MS = 60 * 60 * 1000
+
+async function haalSpelerViaSessie(sessionToken) {
+  if (!sessionToken) return { fout: 'sessionToken verplicht' }
+  const sessie = await kvGet(`session:${sessionToken}`)
+  if (!sessie) return { fout: 'Sessie verlopen, log opnieuw in' }
+  const speler = await getPlayerById(sessie.playerId)
+  if (!speler) return { fout: 'Speler niet gevonden' }
+  return { speler }
+}
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
@@ -35,9 +48,6 @@ export default async function handler(req, res) {
 
       const bestaandNaam = await getPlayerByNaam(naam)
       if (bestaandNaam) return res.status(409).json({ error: 'Deze spelernaam is al in gebruik' })
-
-      const bestaandEmail = await getPlayerByEmail(email)
-      if (bestaandEmail) return res.status(409).json({ error: 'Dit e-mailadres is al geregistreerd' })
 
       const aantal = await telSpelers()
       if (aantal >= MAX_SPELERS) {
@@ -114,14 +124,18 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true })
     }
 
+    // "Pincode vergeten": omdat e-mail niet meer uniek is, is naam + e-mail
+    // samen nodig om de juiste speler te vinden.
     if (req.method === 'POST' && action === 'vraag-reset-aan') {
-      const { email } = body
-      if (!isGeldigEmail(email)) return res.status(400).json({ error: 'Ongeldig e-mailadres' })
+      const { naam, email } = body
+      if (!naam || !isGeldigEmail(email)) {
+        return res.status(400).json({ error: 'Naam en e-mailadres zijn verplicht' })
+      }
 
-      const speler = await getPlayerByEmail(email)
-      // Altijd dezelfde melding, ook als het e-mailadres niet bestaat —
-      // zo lekt niet uit welke e-mailadressen wel/niet geregistreerd zijn.
-      if (speler) {
+      const speler = await getPlayerByNaam(naam)
+      // Altijd dezelfde melding, ook als de combinatie niet bestaat — zo lekt
+      // niet uit welke naam/e-mailcombinaties wel/niet geregistreerd zijn.
+      if (speler && speler.email.toLowerCase() === email.toLowerCase().trim()) {
         const token = genereerToken()
         await kvSet(`resetToken:${token}`, { playerId: speler.id, verlooptOp: Date.now() + RESET_TTL_MS })
         await stuurResetLinkMail(speler.email, speler.naam, token)
@@ -129,7 +143,7 @@ export default async function handler(req, res) {
 
       return res.status(200).json({
         success: true,
-        message: 'Als dit e-mailadres bekend is, ontvang je een link om je pincode te wijzigen.'
+        message: 'Als deze combinatie van naam en e-mailadres bekend is, ontvang je een link om je pincode te wijzigen.'
       })
     }
 
@@ -152,6 +166,77 @@ export default async function handler(req, res) {
       await stuurPincodeGewijzigdMail(speler.email, speler.naam)
 
       return res.status(200).json({ success: true, message: 'Pincode gewijzigd. Je kunt nu inloggen.' })
+    }
+
+    // Zelf pincode wijzigen (ingelogd), met huidige pincode ter bevestiging
+    if (req.method === 'POST' && action === 'wijzig-pincode') {
+      const { sessionToken, huidigePincode, nieuwePincode, nieuwePincodeHerhaal } = body
+      const check = await haalSpelerViaSessie(sessionToken)
+      if (check.fout) return res.status(401).json({ error: check.fout })
+      const speler = check.speler
+
+      if (!verifyPincode(huidigePincode || '', speler.pincodeHash)) {
+        return res.status(403).json({ error: 'Huidige pincode is onjuist' })
+      }
+      if (!isGeldigePincode(nieuwePincode)) return res.status(400).json({ error: 'Nieuwe pincode moet uit 4 cijfers bestaan' })
+      if (nieuwePincode !== nieuwePincodeHerhaal) return res.status(400).json({ error: 'Pincodes komen niet overeen' })
+
+      const pincodeHash = hashPincode(nieuwePincode)
+      await updatePlayer(speler.id, { pincodeHash })
+      await stuurPincodeGewijzigdMail(speler.email, speler.naam)
+
+      return res.status(200).json({ success: true, message: 'Pincode gewijzigd.' })
+    }
+
+    // Stap 1 van e-mail wijzigen: verificatielink naar het NIEUWE adres sturen
+    if (req.method === 'POST' && action === 'vraag-email-wijziging-aan') {
+      const { sessionToken, huidigePincode, nieuwEmail, nieuwEmailHerhaal } = body
+      const check = await haalSpelerViaSessie(sessionToken)
+      if (check.fout) return res.status(401).json({ error: check.fout })
+      const speler = check.speler
+
+      if (!verifyPincode(huidigePincode || '', speler.pincodeHash)) {
+        return res.status(403).json({ error: 'Huidige pincode is onjuist' })
+      }
+      if (!isGeldigEmail(nieuwEmail)) return res.status(400).json({ error: 'Ongeldig e-mailadres' })
+      if (nieuwEmail.toLowerCase().trim() !== (nieuwEmailHerhaal || '').toLowerCase().trim()) {
+        return res.status(400).json({ error: 'E-mailadressen komen niet overeen' })
+      }
+
+      const token = genereerToken()
+      await kvSet(`emailChangeToken:${token}`, {
+        playerId: speler.id,
+        nieuwEmail: nieuwEmail.toLowerCase().trim(),
+        verlooptOp: Date.now() + VERIFY_TTL_MS,
+      })
+      await stuurEmailWijzigingVerificatieMail(nieuwEmail, speler.naam, token)
+
+      return res.status(200).json({
+        success: true,
+        message: 'Check je nieuwe e-mailadres en klik op de link om de wijziging te bevestigen.'
+      })
+    }
+
+    // Stap 2 van e-mail wijzigen: bevestiging via de link
+    if (req.method === 'POST' && action === 'bevestig-email-wijziging') {
+      const { token } = body
+      if (!token) return res.status(400).json({ error: 'Token verplicht' })
+
+      const data = await kvGet(`emailChangeToken:${token}`)
+      if (!data) return res.status(400).json({ error: 'Ongeldige of al gebruikte link' })
+      if (Date.now() > data.verlooptOp) return res.status(400).json({ error: 'Deze link is verlopen' })
+
+      const speler = await getPlayerById(data.playerId)
+      if (!speler) return res.status(404).json({ error: 'Speler niet gevonden' })
+
+      const oudEmail = speler.email
+      await verwijderUitEmailIndex(oudEmail, speler.id)
+      await voegToeAanEmailIndex(data.nieuwEmail, speler.id)
+      await updatePlayer(speler.id, { email: data.nieuwEmail })
+      await kvSet(`emailChangeToken:${token}`, null)
+      await stuurEmailGewijzigdMail(oudEmail, data.nieuwEmail, speler.naam)
+
+      return res.status(200).json({ success: true, message: 'E-mailadres gewijzigd.' })
     }
 
     return res.status(400).json({ error: 'Onbekende actie' })
