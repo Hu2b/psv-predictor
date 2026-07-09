@@ -1,0 +1,98 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 100;
+}
+
+.modal {
+  width: 100%;
+  max-width: 340px;
+  background: var(--psv-surface);
+  border: 1px solid var(--psv-border);
+  border-radius: var(--radius-lg);
+  padding: 24px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.titel {
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--psv-white);
+  text-align: center;
+}
+
+.omschrijving {
+  font-size: 13px;
+  color: var(--psv-gray-lt);
+  text-align: center;
+  line-height: 1.4;
+}
+
+.label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--psv-gray-lt);
+  text-align: center;
+  margin-top: 4px;
+}
+
+.inputPincode {
+  background: var(--psv-gray);
+  border: 2px solid var(--psv-border);
+  border-radius: var(--radius-sm);
+  color: var(--psv-white);
+  font-size: 24px;
+  font-family: var(--font-display);
+  font-weight: 900;
+  letter-spacing: 0.5em;
+  text-align: center;
+  padding: 12px;
+  width: 100%;
+}
+
+.inputPincode:focus {
+  border-color: var(--psv-red);
+}
+
+.btnRij {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.annuleerBtn {
+  flex: 1;
+  background: transparent;
+  color: var(--psv-gray-lt);
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-weight: 600;
+  border: 1px solid var(--psv-border);
+}
+
+.bevestigBtn {
+  flex: 1;
+  background: var(--psv-red);
+  color: white;
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-weight: 700;
+  border: none;
+}
+
+.bevestigBtn:disabled,
+.annuleerBtn:disabled {
+  opacity: 0.6;
+}
