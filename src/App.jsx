@@ -3,6 +3,7 @@ import AuthScreen from './components/AuthScreen.jsx'
 import NextMatch from './components/NextMatch.jsx'
 import Header from './components/Header.jsx'
 import Admin from './components/Admin.jsx'
+import AccountInstellingen from './components/AccountInstellingen.jsx'
 import styles from './App.module.css'
 
 const StandingsLazy = ({ fixtures, speler }) => {
@@ -24,6 +25,7 @@ export default function App() {
   const [season, setSeason] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [accountOpen, setAccountOpen] = useState(false)
 
   useEffect(() => {
     async function controleerSessie() {
@@ -109,7 +111,12 @@ export default function App() {
 
   return (
     <div className={styles.app}>
-      <Header speler={speler} onUitloggen={handleUitloggen} season={season} />
+      <Header
+        speler={speler}
+        onUitloggen={handleUitloggen}
+        onAccountOpen={() => setAccountOpen(true)}
+        season={season}
+      />
       <nav className={styles.tabs}>
         <button
           className={`${styles.tab} ${tab === 'wedstrijd' ? styles.tabActive : ''}`}
@@ -153,6 +160,10 @@ export default function App() {
           <Admin fixtures={fixtures} onWedstrijdenGewijzigd={laadWedstrijden} />
         ) : null}
       </main>
+
+      {accountOpen && (
+        <AccountInstellingen speler={speler} onSluiten={() => setAccountOpen(false)} />
+      )}
     </div>
   )
 }
