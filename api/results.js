@@ -8,12 +8,27 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end()
 
   if (req.method === 'GET' && req.query.all) {
-    const totals = await kvGet('totals') || {}
     const matchIds = await kvGet('results:index') || []
-    const results = await Promise.all(matchIds.map(id => kvGet(`result:${id}`)))
+    const ruweResults = (await Promise.all(matchIds.map(id => kvGet(`result:${id}`)))).filter(Boolean)
+
+    // Lopend totaal altijd herberekenen in chronologische volgorde (op
+    // volgnummer), ongeacht de volgorde waarin uitslagen in Admin zijn
+    // ingevoerd. Zo blijft de reeks per speler gegarandeerd oplopend.
+    const chronologisch = [...ruweResults].sort((a, b) => (a.volgnummer || 0) - (b.volgnummer || 0))
+    const lopendTotaal = {}
+
+    for (const r of chronologisch) {
+      const nieuweTotalen = { ...(r.totalen || {}) }
+      for (const playerId of Object.keys(r.punten || {})) {
+        lopendTotaal[playerId] = (lopendTotaal[playerId] || 0) + (r.punten[playerId] || 0)
+        nieuweTotalen[playerId] = lopendTotaal[playerId]
+      }
+      r.totalen = nieuweTotalen
+    }
+
     return res.status(200).json({
-      totals,
-      results: results.filter(Boolean).sort((a,b) => new Date(b.datumISO) - new Date(a.datumISO))
+      totals: lopendTotaal,
+      results: chronologisch.slice().sort((a, b) => (b.volgnummer || 0) - (a.volgnummer || 0))
     })
   }
 
