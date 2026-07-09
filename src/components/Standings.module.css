@@ -1,155 +1,261 @@
-import { useState, useEffect } from 'react'
-import styles from './Standings.module.css'
-
-function bouwWhatsAppTekst(klassement, results, spelerNaamMap) {
-  const regels = []
-  regels.push('🏆 *PSV Poule — Klassement*')
-  regels.push('')
-  klassement.forEach((s, i) => {
-    regels.push(`${i + 1}. ${s.naam}: *${s.punten}* punten`)
-  })
-  regels.push('')
-  regels.push('_Alle wedstrijden:_')
-
-  const gesorteerd = [...results].sort((a, b) => (a.volgnummer || 0) - (b.volgnummer || 0))
-  for (const r of gesorteerd) {
-    regels.push('')
-    regels.push(`#${r.volgnummer || '—'} ${r.datum} — ${r.competitie}`)
-    regels.push(`${r.thuis} ${r.uitslag.home}-${r.uitslag.away} ${r.uit}`)
-    for (const [playerId, pred] of Object.entries(r.predicties || {})) {
-      const naam = spelerNaamMap[playerId] || '???'
-      const punten = r.punten?.[playerId] ?? 0
-      if (pred) {
-        regels.push(`${naam}: ${pred.home}-${pred.away} (+${punten}pt)`)
-      } else {
-        regels.push(`${naam}: geen voorspelling (+0pt)`)
-      }
-    }
-  }
-
-  return regels.join('\n')
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
-export default function Standings({ fixtures, speler }) {
-  const [totals, setTotals] = useState({})
-  const [results, setResults] = useState([])
-  const [spelerNaamMap, setSpelerNaamMap] = useState({})
-  const [loading, setLoading] = useState(true)
+.loadState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 60px 20px;
+  color: var(--psv-gray-lt);
+  font-size: 14px;
+}
 
-  useEffect(() => {
-    async function laad() {
-      try {
-        const [rResults, rSpelers] = await Promise.all([
-          fetch('/api/results?all=1'),
-          fetch('/api/players'),
-        ])
-        const dataResults = await rResults.json()
-        const dataSpelers = await rSpelers.json()
+.klassement {
+  background: var(--psv-surface);
+  border: 1px solid var(--psv-border);
+  border-radius: var(--radius-lg);
+  padding: 20px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
 
-        setTotals(dataResults.totals || {})
-        setResults(dataResults.results || [])
+.klassementTitel {
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--psv-gray-lt);
+}
 
-        const map = {}
-        for (const s of dataSpelers.spelers || []) map[s.id] = s.naam
-        setSpelerNaamMap(map)
-      } catch (_) {}
-      finally { setLoading(false) }
-    }
-    laad()
-  }, [])
+.geenData {
+  text-align: center;
+  font-size: 13px;
+  color: var(--psv-gray-lt);
+}
 
-  function puntKleur(punt) {
-    if (punt >= 10) return styles.puntGoud
-    if (punt >= 7)  return styles.puntGroen
-    if (punt >= 5)  return styles.puntBlauw
-    return styles.puntNul
-  }
+.ranglijst {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
 
-  const klassement = Object.entries(totals)
-    .map(([playerId, punten]) => ({ playerId, naam: spelerNaamMap[playerId] || '???', punten }))
-    .sort((a, b) => b.punten - a.punten)
+.ranglijstRij {
+  display: grid;
+  grid-template-columns: 24px 1fr auto 40px;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 8px;
+  border-radius: var(--radius-sm);
+}
 
-  function handleDelen() {
-    const tekst = bouwWhatsAppTekst(klassement, results, spelerNaamMap)
-    const url = `https://wa.me/?text=${encodeURIComponent(tekst)}`
-    window.open(url, '_blank')
-  }
+.ranglijstRij.jezelf {
+  background: rgba(255,255,255,0.04);
+}
 
-  if (loading) return (
-    <div className={styles.loadState}>
-      <div className="spinner" />
-      <p>Resultaten laden…</p>
-    </div>
-  )
+.ranglijstRij.leider {
+  background: rgba(245,184,0,0.08);
+}
 
-  return (
-    <div className={styles.wrapper}>
-      <div className={styles.klassement}>
-        <h2 className={styles.klassementTitel}>Klassement</h2>
-        {klassement.length === 0 ? (
-          <p className={styles.geenData}>Nog geen punten gescoord</p>
-        ) : (
-          <div className={styles.ranglijst}>
-            {klassement.map((s, i) => (
-              <div
-                key={s.playerId}
-                className={`${styles.ranglijstRij} ${i === 0 ? styles.leider : ''} ${s.naam === speler ? styles.jezelf : ''}`}
-              >
-                <span className={styles.ranglijstPositie}>{i + 1}</span>
-                <span className={styles.ranglijstNaam}>{s.naam}</span>
-                {i === 0 && <span className={styles.kroon}>👑</span>}
-                <span className={styles.ranglijstPunt}>{s.punten}</span>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+.ranglijstPositie {
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--psv-gray-lt);
+  text-align: center;
+}
 
-      {results.length > 0 && (
-        <button className={styles.deelBtn} onClick={handleDelen}>
-          📤 Delen via WhatsApp
-        </button>
-      )}
+.ranglijstNaam {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--psv-white);
+}
 
-      {results.length > 0 && (
-        <div className={styles.resultaten}>
-          <h3 className={styles.resultTitel}>Alle wedstrijden</h3>
-          {results.map(r => (
-            <div key={r.matchId} className={styles.resultBlok}>
-              <div className={styles.wedstrijdMeta}>
-                <span className={styles.compTag}>{r.competitie}</span>
-                <span className={styles.wedstrijdDatum}>#{r.volgnummer || '—'} · {r.datum}</span>
-              </div>
-              <div className={styles.wedstrijdTeams}>
-                <span className={styles.teamCode}>{r.thuis}</span>
-                <span className={styles.uitslag}>{r.uitslag.home}–{r.uitslag.away}</span>
-                <span className={styles.teamCode}>{r.uit}</span>
-              </div>
-              <div className={styles.spelerLijst}>
-                {Object.entries(r.predicties || {}).map(([playerId, pred]) => (
-                  <div key={playerId} className={styles.spelerLijstRij}>
-                    <span className={styles.spelerLijstNaam}>{spelerNaamMap[playerId] || '???'}</span>
-                    {pred ? (
-                      <span className={styles.predScore}>{pred.home}–{pred.away}</span>
-                    ) : (
-                      <span className={styles.predLeeg}>geen voorspelling</span>
-                    )}
-                    <span className={`${styles.punt} ${puntKleur(r.punten?.[playerId] ?? 0)}`}>+{r.punten?.[playerId] ?? 0}</span>
-                    <span className={styles.lopendTotaal}>{r.totalen?.[playerId] ?? '—'}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+.leider .ranglijstNaam {
+  color: var(--gold);
+}
 
-      {results.length === 0 && (
-        <div className={styles.leeg}>
-          <p>Nog geen wedstrijdresultaten.</p>
-          <p className={styles.leegSub}>Na elke wedstrijd verschijnen hier de punten.</p>
-        </div>
-      )}
-    </div>
-  )
+.kroon {
+  font-size: 16px;
+}
+
+.ranglijstPunt {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 900;
+  color: var(--psv-white);
+  text-align: right;
+}
+
+.leider .ranglijstPunt {
+  color: var(--gold);
+}
+
+.deelBtn {
+  background: #25D366;
+  color: white;
+  border: none;
+  border-radius: var(--radius-lg);
+  padding: 12px 16px;
+  font-size: 14px;
+  font-weight: 700;
+  width: 100%;
+  cursor: pointer;
+}
+
+.deelBtn:active {
+  opacity: 0.85;
+}
+
+.resultaten {
+  background: var(--psv-surface);
+  border: 1px solid var(--psv-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.resultTitel {
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--psv-gray-lt);
+  padding: 14px 16px 10px;
+}
+
+.resultBlok {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--psv-border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.resultBlok:last-child {
+  border-bottom: none;
+}
+
+.wedstrijdMeta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.compTag {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--psv-red);
+  background: rgba(225,0,14,0.1);
+  border-radius: 3px;
+  padding: 1px 4px;
+}
+
+.wedstrijdDatum {
+  font-size: 10px;
+  color: var(--psv-gray-lt);
+}
+
+.wedstrijdTeams {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.teamCode {
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--psv-white);
+}
+
+.uitslag {
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 900;
+  color: var(--psv-white);
+  background: var(--psv-gray);
+  border-radius: 4px;
+  padding: 1px 6px;
+}
+
+.spelerLijst {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.spelerLijstRij {
+  display: grid;
+  grid-template-columns: 1fr auto auto 40px;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+}
+
+.spelerLijstNaam {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--psv-white);
+}
+
+.predScore {
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--psv-white);
+}
+
+.predLeeg {
+  font-size: 11px;
+  color: var(--psv-gray-md);
+  font-style: italic;
+}
+
+.punt {
+  font-size: 11px;
+  font-weight: 800;
+  border-radius: 4px;
+  padding: 1px 5px;
+  text-align: center;
+}
+
+.puntGoud { color: var(--gold); background: rgba(245,184,0,0.1); }
+.puntGroen { color: var(--green); background: rgba(34,197,94,0.1); }
+.puntBlauw { color: #60A5FA; background: rgba(96,165,250,0.1); }
+.puntNul { color: var(--psv-gray-lt); }
+
+.lopendTotaal {
+  font-size: 10px;
+  color: var(--psv-gray-lt);
+  font-weight: 600;
+  text-align: right;
+}
+
+.leeg {
+  background: var(--psv-surface);
+  border: 1px solid var(--psv-border);
+  border-radius: var(--radius-lg);
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--psv-gray-lt);
+  font-size: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.leegSub {
+  font-size: 12px;
+  color: var(--psv-gray-md);
 }
