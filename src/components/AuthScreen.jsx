@@ -2,26 +2,23 @@ import { useState, useEffect } from 'react'
 import styles from './AuthScreen.module.css'
 
 export default function AuthScreen({ onIngelogd }) {
-  const [modus, setModus] = useState('login') // login | registreren | vergeten | reset | verifyResultaat
+  const [modus, setModus] = useState('login')
   const [laden, setLaden] = useState(false)
   const [melding, setMelding] = useState(null)
   const [resetToken, setResetToken] = useState(null)
 
-  // Login-formulier
   const [loginNaam, setLoginNaam] = useState('')
   const [loginPincode, setLoginPincode] = useState('')
 
-  // Registratie-formulier
   const [regEmail, setRegEmail] = useState('')
   const [regEmailHerhaal, setRegEmailHerhaal] = useState('')
   const [regNaam, setRegNaam] = useState('')
   const [regPincode, setRegPincode] = useState('')
   const [regPincodeHerhaal, setRegPincodeHerhaal] = useState('')
 
-  // Pincode vergeten
+  const [vergetenNaam, setVergetenNaam] = useState('')
   const [vergetenEmail, setVergetenEmail] = useState('')
 
-  // Nieuwe pincode instellen (via reset-link)
   const [nieuwePincode, setNieuwePincode] = useState('')
   const [nieuwePincodeHerhaal, setNieuwePincodeHerhaal] = useState('')
 
@@ -29,12 +26,15 @@ export default function AuthScreen({ onIngelogd }) {
     const params = new URLSearchParams(window.location.search)
     const verifyToken = params.get('verify')
     const rToken = params.get('reset')
+    const emailToken = params.get('bevestigEmail')
 
     if (verifyToken) {
       verifieerEmail(verifyToken)
     } else if (rToken) {
       setResetToken(rToken)
       setModus('reset')
+    } else if (emailToken) {
+      bevestigEmailWijziging(emailToken)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -49,11 +49,28 @@ export default function AuthScreen({ onIngelogd }) {
         body: JSON.stringify({ action: 'verify', token })
       })
       const data = await r.json()
-      if (data.success) {
-        setMelding({ type: 'ok', tekst: data.message })
-      } else {
-        setMelding({ type: 'fout', tekst: data.error })
-      }
+      setMelding({ type: data.success ? 'ok' : 'fout', tekst: data.message || data.error })
+      setModus('verifyResultaat')
+    } catch (e) {
+      setMelding({ type: 'fout', tekst: 'Er ging iets mis. Probeer het opnieuw.' })
+      setModus('verifyResultaat')
+    } finally {
+      setLaden(false)
+      window.history.replaceState({}, '', window.location.pathname)
+    }
+  }
+
+  async function bevestigEmailWijziging(token) {
+    setLaden(true)
+    setMelding(null)
+    try {
+      const r = await fetch('/api/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'bevestig-email-wijziging', token })
+      })
+      const data = await r.json()
+      setMelding({ type: data.success ? 'ok' : 'fout', tekst: data.message || data.error })
       setModus('verifyResultaat')
     } catch (e) {
       setMelding({ type: 'fout', tekst: 'Er ging iets mis. Probeer het opnieuw.' })
@@ -126,8 +143,8 @@ export default function AuthScreen({ onIngelogd }) {
   }
 
   async function handleVraagResetAan() {
-    if (!vergetenEmail.trim()) {
-      setMelding({ type: 'fout', tekst: 'Vul je e-mailadres in' })
+    if (!vergetenNaam.trim() || !vergetenEmail.trim()) {
+      setMelding({ type: 'fout', tekst: 'Vul je spelernaam en e-mailadres in' })
       return
     }
     setLaden(true)
@@ -136,7 +153,7 @@ export default function AuthScreen({ onIngelogd }) {
       const r = await fetch('/api/auth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'vraag-reset-aan', email: vergetenEmail.trim() })
+        body: JSON.stringify({ action: 'vraag-reset-aan', naam: vergetenNaam.trim(), email: vergetenEmail.trim() })
       })
       const data = await r.json()
       setMelding({ type: data.success ? 'ok' : 'fout', tekst: data.message || data.error })
@@ -303,8 +320,16 @@ export default function AuthScreen({ onIngelogd }) {
         {modus === 'vergeten' && (
           <div className={styles.form}>
             <p className={styles.uitleg}>
-              Vul je e-mailadres in. Als dit adres bekend is, ontvang je een link om een nieuwe pincode in te stellen.
+              Vul je spelernaam en e-mailadres in. Als deze combinatie bekend is, ontvang je een link om een nieuwe pincode in te stellen.
             </p>
+            <label className={styles.label}>Spelernaam</label>
+            <input
+              className={styles.input}
+              value={vergetenNaam}
+              onChange={e => setVergetenNaam(e.target.value)}
+              placeholder="Niek"
+              autoCapitalize="words"
+            />
             <label className={styles.label}>E-mailadres</label>
             <input
               className={styles.input}
