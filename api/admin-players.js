@@ -1,8 +1,9 @@
 import { kvGet, kvSet } from './_kv.js'
 import {
-  alleSpelers, getPlayerById, getPlayerByEmail, isAdmin,
+  alleSpelers, getPlayerById, isAdmin,
   verifyPincode, hashPincode,
 } from './_players.js'
+import { haalAlleWedstrijden } from './_wedstrijden.js'
 import {
   stuurAccountVerwijderdMail, stuurNieuwePincodeDoorBeheerderMail,
   stuurBeheerderMeldingMail,
@@ -31,6 +32,55 @@ async function verifieerBeheerder(sessionToken, adminPincode) {
   if (!verifyPincode(adminPincode, beheerder.pincodeHash)) return { fout: 'Onjuiste pincode' }
 
   return { beheerder }
+}
+
+// Verwijdert alle voorspellingen en punten van een speler, over alle
+// wedstrijden (zowel al verwerkte resultaten als nog openstaande).
+async function verwijderAlleDataVanSpeler(playerId) {
+  // 1. Al verwerkte resultaten: punten uit totals halen, entries verwijderen
+  const resultsIndex = await kvGet('results:index') || []
+  const totals = await kvGet('totals') || {}
+  const nieuweTotals = { ...totals }
+
+  for (const matchId of resultsIndex) {
+    const result = await kvGet(`result:${matchId}`)
+    if (!result) continue
+    if (!(playerId in (result.punten || {}))) continue
+
+    const oud = result.punten[playerId] || 0
+    nieuweTotals[playerId] = (nieuweTotals[playerId] || 0) - oud
+
+    const nieuwePredicties = { ...result.predicties }
+    const nieuweToto = { ...result.toto }
+    const nieuwePunten = { ...result.punten }
+    const nieuweTotalen = { ...result.totalen }
+    delete nieuwePredicties[playerId]
+    delete nieuweToto[playerId]
+    delete nieuwePunten[playerId]
+    delete nieuweTotalen[playerId]
+
+    await kvSet(`result:${matchId}`, {
+      ...result,
+      predicties: nieuwePredicties,
+      toto: nieuweToto,
+      punten: nieuwePunten,
+      totalen: nieuweTotalen,
+    })
+  }
+  delete nieuweTotals[playerId]
+  await kvSet('totals', nieuweTotals)
+
+  // 2. Nog niet verwerkte wedstrijden: losse voorspelling + index-entry weghalen
+  const alleWedstrijden = await haalAlleWedstrijden()
+  for (const f of alleWedstrijden) {
+    const bestaandeVoorspelling = await kvGet(`prediction:${f.matchId}:${playerId}`)
+    if (!bestaandeVoorspelling) continue
+
+    await kvSet(`prediction:${f.matchId}:${playerId}`, null)
+    const predictionIndex = await kvGet(`predictionIndex:${f.matchId}`) || []
+    const nieuweIndex = predictionIndex.filter(id => id !== playerId)
+    await kvSet(`predictionIndex:${f.matchId}`, nieuweIndex)
+  }
 }
 
 export default async function handler(req, res) {
@@ -79,6 +129,8 @@ export default async function handler(req, res) {
     if (!doelSpeler) return res.status(404).json({ error: 'Speler niet gevonden' })
 
     if (action === 'verwijderen') {
+      await verwijderAlleDataVanSpeler(playerId)
+
       await kvSet(`player:${playerId}`, null)
       await kvSet(`playerByNaam:${doelSpeler.naam.toLowerCase()}`, null)
       await kvSet(`playerByEmail:${doelSpeler.email.toLowerCase()}`, null)
@@ -94,11 +146,11 @@ export default async function handler(req, res) {
         await stuurBeheerderMeldingMail(
           email,
           'Speler verwijderd',
-          `Beheerder ${beheerder.naam} (${beheerder.email}) heeft speler "${doelSpeler.naam}" (${doelSpeler.email}) verwijderd.`
+          `Beheerder ${beheerder.naam} (${beheerder.email}) heeft speler "${doelSpeler.naam}" (${doelSpeler.email}) verwijderd, inclusief al zijn voorspellingen en punten.`
         )
       }
 
-      return res.status(200).json({ success: true, message: `Speler ${doelSpeler.naam} is verwijderd.` })
+      return res.status(200).json({ success: true, message: `Speler ${doelSpeler.naam} en al zijn gegevens zijn verwijderd.` })
     }
 
     if (action === 'reset-pincode') {
