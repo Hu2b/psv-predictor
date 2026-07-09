@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react'
 import styles from './Admin.module.css'
+import PincodeBevestigModal from './PincodeBevestigModal.jsx'
 
 const SESSION_KEY = 'psv_session_token'
 
 export default function AdminSpelers({ setMelding }) {
   const [spelers, setSpelers] = useState([])
   const [laden, setLaden] = useState(true)
+  const [actieBezig, setActieBezig] = useState(false)
+  const [modalActie, setModalActie] = useState(null) // { actie, speler } of null
 
   useEffect(() => {
     laadSpelers()
@@ -22,12 +25,18 @@ export default function AdminSpelers({ setMelding }) {
     setLaden(false)
   }
 
-  async function vraagActieAan(actie, speler) {
-    const adminPincode = window.prompt(
-      `Voer je eigen pincode in om te bevestigen: ${actie === 'verwijderen' ? 'verwijderen van' : 'pincode resetten van'} ${speler.naam}`
-    )
-    if (!adminPincode) return
+  function openModal(actie, speler) {
+    setModalActie({ actie, speler })
+  }
 
+  function sluitModal() {
+    setModalActie(null)
+  }
+
+  async function bevestigActie(adminPincode) {
+    if (!modalActie) return
+    setActieBezig(true)
+    const { actie, speler } = modalActie
     const sessionToken = localStorage.getItem(SESSION_KEY)
     try {
       const r = await fetch('/api/admin-players', {
@@ -38,12 +47,15 @@ export default function AdminSpelers({ setMelding }) {
       const data = await r.json()
       if (data.success) {
         setMelding({ type: 'ok', tekst: data.message })
+        setModalActie(null)
         await laadSpelers()
       } else {
         setMelding({ type: 'fout', tekst: data.error })
       }
     } catch (e) {
       setMelding({ type: 'fout', tekst: 'Er ging iets mis. Probeer het opnieuw.' })
+    } finally {
+      setActieBezig(false)
     }
   }
 
@@ -62,15 +74,29 @@ export default function AdminSpelers({ setMelding }) {
             <span className={styles.leegTekst} style={{ fontSize: 12 }}>{s.email}</span>
           </div>
           <div className={styles.beheerBtns}>
-            <button className={styles.btnKlein} onClick={() => vraagActieAan('reset-pincode', s)}>
+            <button className={styles.btnKlein} onClick={() => openModal('reset-pincode', s)}>
               🔑 Pincode resetten
             </button>
-            <button className={styles.btnKleinRood} onClick={() => vraagActieAan('verwijderen', s)}>
+            <button className={styles.btnKleinRood} onClick={() => openModal('verwijderen', s)}>
               🗑️ Verwijderen
             </button>
           </div>
         </div>
       ))}
+
+      {modalActie && (
+        <PincodeBevestigModal
+          titel={modalActie.actie === 'verwijderen' ? 'Speler verwijderen' : 'Pincode resetten'}
+          omschrijving={
+            modalActie.actie === 'verwijderen'
+              ? `Weet je zeker dat je "${modalActie.speler.naam}" wilt verwijderen? Voer je eigen pincode in om te bevestigen.`
+              : `Er wordt een nieuwe pincode gegenereerd voor "${modalActie.speler.naam}" en per e-mail verstuurd. Voer je eigen pincode in om te bevestigen.`
+          }
+          laden={actieBezig}
+          onBevestig={bevestigActie}
+          onAnnuleer={sluitModal}
+        />
+      )}
     </div>
   )
 }
