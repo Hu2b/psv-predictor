@@ -169,8 +169,7 @@ export default function PredictionForm({ fixture, speler }) {
             {anderePredicties.map(p => (
               <div key={p.playerId} className={styles.andereRij}>
                 <span className={styles.andereNaam}>{p.naam}</span>
-                <span className={styles.andereScoreKlein}>{p.home} - {p.away}</span>
-                <span className={styles.andereToto}>{totoLabel(p.home, p.away)}</span>
+                <span className={styles.andereScoreKlein}>{p.home} – {p.away}</span>
               </div>
             ))}
           </div>
