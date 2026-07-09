@@ -1,40 +1,57 @@
 import { useState, useEffect } from 'react'
 import styles from './Standings.module.css'
 
-function bouwWhatsAppTekst(totals, results) {
+function bouwWhatsAppTekst(klassement, results, spelerNaamMap) {
   const regels = []
   regels.push('🏆 *PSV Poule — Klassement*')
   regels.push('')
-  regels.push(`Niek: *${totals.niek}* punten`)
-  regels.push(`Huub: *${totals.huub}* punten`)
+  klassement.forEach((s, i) => {
+    regels.push(`${i + 1}. ${s.naam}: *${s.punten}* punten`)
+  })
   regels.push('')
   regels.push('_Alle wedstrijden:_')
 
   const gesorteerd = [...results].sort((a, b) => (a.volgnummer || 0) - (b.volgnummer || 0))
-
   for (const r of gesorteerd) {
     regels.push('')
     regels.push(`#${r.volgnummer || '—'} ${r.datum} — ${r.competitie}`)
     regels.push(`${r.thuis} ${r.uitslag.home}-${r.uitslag.away} ${r.uit}`)
-    regels.push(`Niek: ${r.predNiek ? `${r.predNiek.home}-${r.predNiek.away}` : '–'} (+${r.puntNiek}pt)`)
-    regels.push(`Huub: ${r.predHuub ? `${r.predHuub.home}-${r.predHuub.away}` : '–'} (+${r.puntHuub}pt)`)
+    for (const [playerId, pred] of Object.entries(r.predicties || {})) {
+      const naam = spelerNaamMap[playerId] || '???'
+      const punten = r.punten?.[playerId] ?? 0
+      if (pred) {
+        regels.push(`${naam}: ${pred.home}-${pred.away} (+${punten}pt)`)
+      } else {
+        regels.push(`${naam}: geen voorspelling (+0pt)`)
+      }
+    }
   }
 
   return regels.join('\n')
 }
 
 export default function Standings({ fixtures, speler }) {
-  const [totals, setTotals] = useState({ niek: 0, huub: 0 })
+  const [totals, setTotals] = useState({})
   const [results, setResults] = useState([])
+  const [spelerNaamMap, setSpelerNaamMap] = useState({})
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     async function laad() {
       try {
-        const r = await fetch('/api/results?all=1')
-        const data = await r.json()
-        setTotals(data.totals || { niek: 0, huub: 0 })
-        setResults(data.results || [])
+        const [rResults, rSpelers] = await Promise.all([
+          fetch('/api/results?all=1'),
+          fetch('/api/players'),
+        ])
+        const dataResults = await rResults.json()
+        const dataSpelers = await rSpelers.json()
+
+        setTotals(dataResults.totals || {})
+        setResults(dataResults.results || [])
+
+        const map = {}
+        for (const s of dataSpelers.spelers || []) map[s.id] = s.naam
+        setSpelerNaamMap(map)
       } catch (_) {}
       finally { setLoading(false) }
     }
@@ -48,14 +65,15 @@ export default function Standings({ fixtures, speler }) {
     return styles.puntNul
   }
 
+  const klassement = Object.entries(totals)
+    .map(([playerId, punten]) => ({ playerId, naam: spelerNaamMap[playerId] || '???', punten }))
+    .sort((a, b) => b.punten - a.punten)
+
   function handleDelen() {
-    const tekst = bouwWhatsAppTekst(totals, results)
+    const tekst = bouwWhatsAppTekst(klassement, results, spelerNaamMap)
     const url = `https://wa.me/?text=${encodeURIComponent(tekst)}`
     window.open(url, '_blank')
   }
-
-  const niekLeidt = totals.niek > totals.huub
-  const huubLeidt = totals.huub > totals.niek
 
   if (loading) return (
     <div className={styles.loadState}>
@@ -64,25 +82,28 @@ export default function Standings({ fixtures, speler }) {
     </div>
   )
 
+  const gesorteerdeResultaten = [...results].sort((a, b) => (b.volgnummer || 0) - (a.volgnummer || 0))
+
   return (
     <div className={styles.wrapper}>
       <div className={styles.klassement}>
         <h2 className={styles.klassementTitel}>Klassement</h2>
-        <div className={styles.scores}>
-          <div className={`${styles.spelerScore} ${niekLeidt ? styles.leider : ''}`}>
-            <span className={styles.spelerNaam}>Niek</span>
-            <span className={styles.spelerPunt}>{totals.niek}</span>
-            {niekLeidt && <span className={styles.kroon}>👑</span>}
-          </div>
-          <div className={styles.scheidingV}>vs</div>
-          <div className={`${styles.spelerScore} ${huubLeidt ? styles.leider : ''}`}>
-            <span className={styles.spelerNaam}>Huub</span>
-            <span className={styles.spelerPunt}>{totals.huub}</span>
-            {huubLeidt && <span className={styles.kroon}>👑</span>}
-          </div>
-        </div>
-        {totals.niek === 0 && totals.huub === 0 && (
+        {klassement.length === 0 ? (
           <p className={styles.geenData}>Nog geen punten gescoord</p>
+        ) : (
+          <div className={styles.ranglijst}>
+            {klassement.map((s, i) => (
+              <div
+                key={s.playerId}
+                className={`${styles.ranglijstRij} ${i === 0 ? styles.leider : ''} ${s.naam === speler ? styles.jezelf : ''}`}
+              >
+                <span className={styles.ranglijstPositie}>{i + 1}</span>
+                <span className={styles.ranglijstNaam}>{s.naam}</span>
+                {i === 0 && <span className={styles.kroon}>👑</span>}
+                <span className={styles.ranglijstPunt}>{s.punten}</span>
+              </div>
+            ))}
+          </div>
         )}
       </div>
 
@@ -93,16 +114,11 @@ export default function Standings({ fixtures, speler }) {
       )}
 
       {results.length > 0 && (
-        <div className={styles.resultaten}>
+        <div className={styles.resultatenWrapper}>
           <h3 className={styles.resultTitel}>Alle wedstrijden</h3>
-          <div className={styles.resultHeader}>
-            <span className={styles.colWedstrijd}>Wedstrijd</span>
-            <span className={styles.colSpeler}>Niek</span>
-            <span className={styles.colSpeler}>Huub</span>
-          </div>
-          {results.map(r => (
-            <div key={r.matchId} className={styles.resultRij}>
-              <div className={styles.wedstrijdInfo}>
+          <div className={styles.resultLijst}>
+            {gesorteerdeResultaten.map(r => (
+              <div key={r.matchId} className={styles.resultKaart}>
                 <div className={styles.wedstrijdMeta}>
                   <span className={styles.compTag}>{r.competitie}</span>
                   <span className={styles.wedstrijdDatum}>#{r.volgnummer || '—'} · {r.datum}</span>
@@ -112,19 +128,29 @@ export default function Standings({ fixtures, speler }) {
                   <span className={styles.uitslag}>{r.uitslag.home}–{r.uitslag.away}</span>
                   <span className={styles.teamCode}>{r.uit}</span>
                 </div>
+                <div className={styles.spelerTabel}>
+                  <div className={styles.spelerTabelHeader}>
+                    <span>Speler</span>
+                    <span>Voorspelling</span>
+                    <span>Punten</span>
+                    <span>Totaal</span>
+                  </div>
+                  {Object.entries(r.predicties || {}).map(([playerId, pred]) => (
+                    <div key={playerId} className={styles.spelerTabelRij}>
+                      <span className={styles.spelerTabelNaam}>{spelerNaamMap[playerId] || '???'}</span>
+                      {pred ? (
+                        <span className={styles.predScore}>{pred.home}–{pred.away}</span>
+                      ) : (
+                        <span className={styles.predLeeg}>geen voorspelling</span>
+                      )}
+                      <span className={`${styles.punt} ${puntKleur(r.punten?.[playerId] ?? 0)}`}>+{r.punten?.[playerId] ?? 0}</span>
+                      <span className={styles.lopendTotaal}>{r.totalen?.[playerId] ?? '—'}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
-              <div className={styles.spelerResultaat}>
-                <span className={styles.predScore}>{r.predNiek ? `${r.predNiek.home}–${r.predNiek.away}` : '–'}</span>
-                <span className={`${styles.punt} ${puntKleur(r.puntNiek)}`}>+{r.puntNiek}</span>
-                <span className={styles.lopendTotaal}>{r.totaalNiek}</span>
-              </div>
-              <div className={styles.spelerResultaat}>
-                <span className={styles.predScore}>{r.predHuub ? `${r.predHuub.home}–${r.predHuub.away}` : '–'}</span>
-                <span className={`${styles.punt} ${puntKleur(r.puntHuub)}`}>+{r.puntHuub}</span>
-                <span className={styles.lopendTotaal}>{r.totaalHuub}</span>
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       )}
 
