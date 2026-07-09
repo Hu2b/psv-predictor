@@ -65,7 +65,7 @@ export async function stuurNieuwePincodeDoorBeheerderMail(email, naam, nieuwePin
     <p>Hoi ${naam},</p>
     <p>Een beheerder heeft je pincode gereset. Je nieuwe pincode is:</p>
     <p style="font-size: 24px; font-weight: bold; letter-spacing: 4px;">${nieuwePincode}</p>
-    <p>Log in met deze pincode en wijzig hem eventueel via 'Pincode vergeten' naar iets dat je zelf kunt onthouden.</p>
+    <p>Log in met deze pincode en wijzig hem eventueel naar iets dat je zelf kunt onthouden.</p>
   `)
 }
 
@@ -73,4 +73,24 @@ export async function stuurBeheerderMeldingMail(email, onderwerpTekst, inhoudTek
   await verstuurMail(email, `[PSV Poule beheer] ${onderwerpTekst}`, `
     <p>${inhoudTekst}</p>
   `)
+}
+
+export async function stuurEmailWijzigingVerificatieMail(nieuwEmail, naam, token) {
+  const link = `${APP_URL}/?bevestigEmail=${token}`
+  await verstuurMail(nieuwEmail, 'Bevestig je nieuwe e-mailadres — PSV Poule', `
+    <p>Hoi ${naam},</p>
+    <p>Klik op onderstaande link om dit e-mailadres te koppelen aan je PSV Poule account:</p>
+    <p><a href="${link}">${link}</a></p>
+    <p>Deze link is 24 uur geldig. Heb je dit niet aangevraagd, negeer deze e-mail dan.</p>
+  `)
+}
+
+export async function stuurEmailGewijzigdMail(oudEmail, nieuwEmail, naam) {
+  const bericht = `
+    <p>Hoi ${naam},</p>
+    <p>Je e-mailadres is gewijzigd naar <strong>${nieuwEmail}</strong>.</p>
+    <p>Was jij dit niet? Neem dan contact op met de beheerder.</p>
+  `
+  await verstuurMail(oudEmail, 'Je e-mailadres is gewijzigd — PSV Poule', bericht)
+  await verstuurMail(nieuwEmail, 'Je e-mailadres is gewijzigd — PSV Poule', bericht)
 }
