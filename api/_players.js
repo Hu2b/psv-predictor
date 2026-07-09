@@ -49,11 +49,29 @@ export async function getPlayerByNaam(naam) {
   return await getPlayerById(id)
 }
 
-export async function getPlayerByEmail(email) {
-  if (!email) return null
-  const id = await kvGet(`playerByEmail:${email.toLowerCase().trim()}`)
-  if (!id) return null
-  return await getPlayerById(id)
+// E-mail is NIET uniek: meerdere spelers kunnen hetzelfde adres gebruiken.
+// Deze functie geeft daarom altijd een array terug.
+export async function getSpelersByEmail(email) {
+  if (!email) return []
+  const ids = await kvGet(`playersByEmail:${email.toLowerCase().trim()}`) || []
+  const spelers = await Promise.all(ids.map(id => getPlayerById(id)))
+  return spelers.filter(Boolean)
+}
+
+export async function voegToeAanEmailIndex(email, playerId) {
+  const key = `playersByEmail:${email.toLowerCase().trim()}`
+  const ids = await kvGet(key) || []
+  if (!ids.includes(playerId)) {
+    ids.push(playerId)
+    await kvSet(key, ids)
+  }
+}
+
+export async function verwijderUitEmailIndex(email, playerId) {
+  const key = `playersByEmail:${email.toLowerCase().trim()}`
+  const ids = await kvGet(key) || []
+  const nieuw = ids.filter(id => id !== playerId)
+  await kvSet(key, nieuw)
 }
 
 export async function telSpelers() {
@@ -80,7 +98,7 @@ export async function maakSpeler({ naam, email, pincode }) {
   }
   await kvSet(`player:${id}`, speler)
   await kvSet(`playerByNaam:${naam.toLowerCase().trim()}`, id)
-  await kvSet(`playerByEmail:${email.toLowerCase().trim()}`, id)
+  await voegToeAanEmailIndex(email, id)
 
   const index = await kvGet('players:index') || []
   index.push(id)
