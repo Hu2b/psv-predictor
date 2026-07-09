@@ -121,9 +121,7 @@ export default function NextMatch({ fixture, fixtures, speler }) {
         </div>
         <div className={styles.datum}>
           {getoond.datum}
-          {!isAfgelopen && (
-            <span className={styles.tijd}> · {formatTijd(getoond.datumISO)}</span>
-          )}
+          <span className={styles.tijd}> · {formatTijd(getoond.datumISO)}</span>
         </div>
         <div className={styles.teams}>
           <div className={styles.team}>
