@@ -39,6 +39,29 @@
   padding-left: 4px;
 }
 
+.rechts {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.accountBtn {
+  background: rgba(0,0,0,0.2);
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 50%;
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  transition: background 0.15s;
+}
+
+.accountBtn:active {
+  background: rgba(0,0,0,0.35);
+}
+
 .spelerBtn {
   display: flex;
   align-items: center;
