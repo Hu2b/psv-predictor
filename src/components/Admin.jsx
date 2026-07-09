@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import styles from './Admin.module.css'
 import AdminBeheer from './AdminBeheer.jsx'
+import AdminSpelers from './AdminSpelers.jsx'
 import { teamNamenObject } from '../../shared/teams.js'
 
 const COMPETITIES = ['JCS', 'ERE', 'KNVB', 'CL', 'UL']
@@ -67,7 +68,7 @@ export default function Admin({ fixtures, onWedstrijdenGewijzigd }) {
     const data = await r.json()
     if (data.success) {
       setResultaat(data)
-      setMelding({ type: 'ok', tekst: `Opgeslagen! Niek: ${data.punten.niek}pt, Huub: ${data.punten.huub}pt` })
+      setMelding({ type: 'ok', tekst: 'Uitslag opgeslagen en punten berekend!' })
       if (onWedstrijdenGewijzigd) onWedstrijdenGewijzigd()
     } else {
       setMelding({ type: 'fout', tekst: data.error || 'Fout' })
@@ -113,6 +114,7 @@ export default function Admin({ fixtures, onWedstrijdenGewijzigd }) {
         <button className={`${styles.tabBtn} ${tab === 'uitslag' ? styles.tabActief : ''}`} onClick={() => setTab('uitslag')}>Uitslag</button>
         <button className={`${styles.tabBtn} ${tab === 'toevoegen' ? styles.tabActief : ''}`} onClick={() => setTab('toevoegen')}>Toevoegen</button>
         <button className={`${styles.tabBtn} ${tab === 'beheer' ? styles.tabActief : ''}`} onClick={() => setTab('beheer')}>Beheer</button>
+        <button className={`${styles.tabBtn} ${tab === 'spelers' ? styles.tabActief : ''}`} onClick={() => setTab('spelers')}>Spelers</button>
       </div>
 
       {melding && (
@@ -160,16 +162,13 @@ export default function Admin({ fixtures, onWedstrijdenGewijzigd }) {
               </button>
               {resultaat && (
                 <div className={styles.resultaatBlok}>
-                  <div className={styles.resultaatRij}>
-                    <span>Niek: {resultaat.result.predNiek ? `${resultaat.result.predNiek.home}-${resultaat.result.predNiek.away}` : '—'}</span>
-                    <span className={styles.punten}>+{resultaat.punten.niek} pt</span>
-                    <span className={styles.totaal}>Totaal: {resultaat.totals.niek}</span>
-                  </div>
-                  <div className={styles.resultaatRij}>
-                    <span>Huub: {resultaat.result.predHuub ? `${resultaat.result.predHuub.home}-${resultaat.result.predHuub.away}` : '—'}</span>
-                    <span className={styles.punten}>+{resultaat.punten.huub} pt</span>
-                    <span className={styles.totaal}>Totaal: {resultaat.totals.huub}</span>
-                  </div>
+                  {Object.entries(resultaat.result.predicties || {}).map(([playerId, pred]) => (
+                    <div key={playerId} className={styles.resultaatRij}>
+                      <span>{pred ? `${pred.home}-${pred.away}` : 'geen voorspelling'}</span>
+                      <span className={styles.punten}>+{resultaat.result.punten?.[playerId] ?? 0} pt</span>
+                      <span className={styles.totaal}>Totaal: {resultaat.result.totalen?.[playerId] ?? '—'}</span>
+                    </div>
+                  ))}
                 </div>
               )}
             </>
@@ -214,6 +213,10 @@ export default function Admin({ fixtures, onWedstrijdenGewijzigd }) {
           alleWedstrijden={alleWedstrijden}
           onWedstrijdenGewijzigd={onWedstrijdenGewijzigd}
         />
+      )}
+
+      {tab === 'spelers' && (
+        <AdminSpelers setMelding={setMelding} />
       )}
     </div>
   )
