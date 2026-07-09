@@ -11,7 +11,7 @@ function bouwWhatsAppTekst(klassement, results, spelerNaamMap) {
   regels.push('')
   regels.push('_Alle wedstrijden:_')
 
-  const gesorteerd = [...results].sort((a, b) => (a.volgnummer || 0) - (b.volgnummer || 0))
+  const gesorteerd = [...results].sort((a, b) => (b.volgnummer || 0) - (a.volgnummer || 0))
   for (const r of gesorteerd) {
     regels.push('')
     regels.push(`#${r.volgnummer || '—'} ${r.datum} — ${r.competitie}`)
