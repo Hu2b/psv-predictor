@@ -14,6 +14,16 @@ const COMP_LABELS = {
 
 const SWIPE_DREMPEL = 50 // minimale swipe-afstand in pixels
 
+function formatTijd(datumISO) {
+  if (!datumISO) return ''
+  const d = new Date(datumISO)
+  return d.toLocaleTimeString('nl-NL', {
+    timeZone: 'Europe/Amsterdam',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
 export default function NextMatch({ fixture, fixtures, speler }) {
   const [gekozenId, setGekozenId] = useState(null)
   const [randMelding, setRandMelding] = useState(null)
@@ -109,7 +119,12 @@ export default function NextMatch({ fixture, fixtures, speler }) {
           <span className={styles.compBadge}>{COMP_LABELS[getoond.competitie] || getoond.competitie}</span>
           <span className={styles.volgnr}>#{getoond.volgnummer || '—'}</span>
         </div>
-        <div className={styles.datum}>{getoond.datum}</div>
+        <div className={styles.datum}>
+          {getoond.datum}
+          {!isAfgelopen && (
+            <span className={styles.tijd}> · {formatTijd(getoond.datumISO)}</span>
+          )}
+        </div>
         <div className={styles.teams}>
           <div className={styles.team}>
             {getoond.thuisLogo ? (
