@@ -235,14 +235,19 @@ export default function AuthScreen({ onIngelogd }) {
         )}
 
         {modus === 'login' && (
-          <div className={styles.form}>
+          <form autoComplete="off" onSubmit={e => e.preventDefault()}>
             <label className={styles.label}>Spelernaam</label>
             <input
               className={styles.input}
               value={loginNaam}
               onChange={e => setLoginNaam(e.target.value)}
-              placeholder="Niek"
+              placeholder="Spelernaam"
               autoCapitalize="words"
+              autoComplete="off"
+              autoCorrect="off"
+              spellCheck="false"
+              name="psv-naam-niet-opslaan"
+              id="psv-naam-niet-opslaan"
             />
             <label className={styles.label}>Pincode</label>
             <input
@@ -253,14 +258,17 @@ export default function AuthScreen({ onIngelogd }) {
               value={loginPincode}
               onChange={e => setLoginPincode(e.target.value.replace(/\D/g, '').slice(0, 4))}
               placeholder="••••"
+              autoComplete="off"
+              name="psv-pincode-niet-opslaan"
+              id="psv-pincode-niet-opslaan"
             />
-            <button className={styles.btn} onClick={handleLogin} disabled={laden}>
+            <button type="submit" className={styles.btn} onClick={handleLogin} disabled={laden}>
               {laden ? 'Bezig…' : 'Inloggen'}
             </button>
-            <button className={styles.linkBtn} onClick={() => wisselModus('vergeten')}>
+            <button type="button" className={styles.linkBtn} onClick={() => wisselModus('vergeten')}>
               Pincode vergeten?
             </button>
-          </div>
+          </form>
         )}
 
         {modus === 'registreren' && (
@@ -273,6 +281,7 @@ export default function AuthScreen({ onIngelogd }) {
               onChange={e => setRegEmail(e.target.value)}
               placeholder="naam@voorbeeld.nl"
               autoCapitalize="none"
+              autoComplete="off"
             />
             <label className={styles.label}>Herhaal e-mailadres</label>
             <input
@@ -282,14 +291,16 @@ export default function AuthScreen({ onIngelogd }) {
               onChange={e => setRegEmailHerhaal(e.target.value)}
               placeholder="naam@voorbeeld.nl"
               autoCapitalize="none"
+              autoComplete="off"
             />
             <label className={styles.label}>Spelernaam</label>
             <input
               className={styles.input}
               value={regNaam}
               onChange={e => setRegNaam(e.target.value)}
-              placeholder="Niek"
+              placeholder="Spelernaam"
               autoCapitalize="words"
+              autoComplete="off"
             />
             <label className={styles.label}>Pincode (4 cijfers)</label>
             <input
@@ -300,6 +311,7 @@ export default function AuthScreen({ onIngelogd }) {
               value={regPincode}
               onChange={e => setRegPincode(e.target.value.replace(/\D/g, '').slice(0, 4))}
               placeholder="••••"
+              autoComplete="off"
             />
             <label className={styles.label}>Herhaal pincode</label>
             <input
@@ -310,6 +322,7 @@ export default function AuthScreen({ onIngelogd }) {
               value={regPincodeHerhaal}
               onChange={e => setRegPincodeHerhaal(e.target.value.replace(/\D/g, '').slice(0, 4))}
               placeholder="••••"
+              autoComplete="off"
             />
             <button className={styles.btn} onClick={handleRegistreren} disabled={laden}>
               {laden ? 'Bezig…' : 'Account aanmaken'}
@@ -327,8 +340,9 @@ export default function AuthScreen({ onIngelogd }) {
               className={styles.input}
               value={vergetenNaam}
               onChange={e => setVergetenNaam(e.target.value)}
-              placeholder="Niek"
+              placeholder="Spelernaam"
               autoCapitalize="words"
+              autoComplete="off"
             />
             <label className={styles.label}>E-mailadres</label>
             <input
@@ -338,6 +352,7 @@ export default function AuthScreen({ onIngelogd }) {
               onChange={e => setVergetenEmail(e.target.value)}
               placeholder="naam@voorbeeld.nl"
               autoCapitalize="none"
+              autoComplete="off"
             />
             <button className={styles.btn} onClick={handleVraagResetAan} disabled={laden}>
               {laden ? 'Bezig…' : 'Verstuur link'}
@@ -360,6 +375,7 @@ export default function AuthScreen({ onIngelogd }) {
               value={nieuwePincode}
               onChange={e => setNieuwePincode(e.target.value.replace(/\D/g, '').slice(0, 4))}
               placeholder="••••"
+              autoComplete="off"
             />
             <label className={styles.label}>Herhaal nieuwe pincode</label>
             <input
@@ -370,6 +386,7 @@ export default function AuthScreen({ onIngelogd }) {
               value={nieuwePincodeHerhaal}
               onChange={e => setNieuwePincodeHerhaal(e.target.value.replace(/\D/g, '').slice(0, 4))}
               placeholder="••••"
+              autoComplete="off"
             />
             <button className={styles.btn} onClick={handleNieuwePincodeInstellen} disabled={laden}>
               {laden ? 'Bezig…' : 'Pincode instellen'}
