@@ -47,7 +47,7 @@
 
 .ranglijstRij {
   display: grid;
-  grid-template-columns: 24px 1fr auto 40px;
+  grid-template-columns: 24px 1fr 28px auto;
   align-items: center;
   gap: 8px;
   padding: 10px 10px;
@@ -76,6 +76,7 @@
   font-size: 15px;
   font-weight: 700;
   color: var(--psv-white);
+  text-align: left;
 }
 
 .leider .ranglijstNaam {
@@ -84,6 +85,7 @@
 
 .kroon {
   font-size: 16px;
+  text-align: center;
 }
 
 .ranglijstPunt {
@@ -92,6 +94,7 @@
   font-weight: 900;
   color: var(--psv-white);
   text-align: right;
+  min-width: 32px;
 }
 
 .leider .ranglijstPunt {
