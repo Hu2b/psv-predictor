@@ -15,6 +15,7 @@ export default function Admin({ fixtures, onWedstrijdenGewijzigd }) {
   const [homeScore, setHomeScore] = useState('')
   const [awayScore, setAwayScore] = useState('')
   const [resultaat, setResultaat] = useState(null)
+  const [spelerNaamMap, setSpelerNaamMap] = useState({})
   const [comp, setComp] = useState('JCS')
   const [thuis, setThuis] = useState('')
   const [thuisNaam, setThuisNaam] = useState('')
@@ -29,6 +30,17 @@ export default function Admin({ fixtures, onWedstrijdenGewijzigd }) {
       setHandmatig(data.wedstrijden || [])
     }
     laad()
+
+    async function laadSpelers() {
+      try {
+        const r = await fetch('/api/players')
+        const data = await r.json()
+        const map = {}
+        for (const s of data.spelers || []) map[s.id] = s.naam
+        setSpelerNaamMap(map)
+      } catch (_) {}
+    }
+    laadSpelers()
   }, [])
 
   const alleWedstrijden = [...fixtures].sort((a, b) => new Date(a.datumISO) - new Date(b.datumISO))
@@ -164,7 +176,10 @@ export default function Admin({ fixtures, onWedstrijdenGewijzigd }) {
                 <div className={styles.resultaatBlok}>
                   {Object.entries(resultaat.result.predicties || {}).map(([playerId, pred]) => (
                     <div key={playerId} className={styles.resultaatRij}>
-                      <span>{pred ? `${pred.home}-${pred.away}` : 'geen voorspelling'}</span>
+                      <span className={styles.resultaatNaam}>{spelerNaamMap[playerId] || '???'}</span>
+                      <span className={styles.resultaatUitslag}>
+                        {pred ? `${pred.home}-${pred.away}` : 'geen voorspelling'}
+                      </span>
                       <span className={styles.punten}>+{resultaat.result.punten?.[playerId] ?? 0} pt</span>
                       <span className={styles.totaal}>Totaal: {resultaat.result.totalen?.[playerId] ?? '—'}</span>
                     </div>
