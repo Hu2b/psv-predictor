@@ -1,7 +1,7 @@
 import { kvGet, kvSet } from './_kv.js'
 import {
   alleSpelers, getPlayerById, isAdmin,
-  verifyPincode, hashPincode,
+  verifyPincode, hashPincode, verwijderUitEmailIndex,
 } from './_players.js'
 import { haalAlleWedstrijden } from './_wedstrijden.js'
 import {
@@ -34,10 +34,7 @@ async function verifieerBeheerder(sessionToken, adminPincode) {
   return { beheerder }
 }
 
-// Verwijdert alle voorspellingen en punten van een speler, over alle
-// wedstrijden (zowel al verwerkte resultaten als nog openstaande).
 async function verwijderAlleDataVanSpeler(playerId) {
-  // 1. Al verwerkte resultaten: punten uit totals halen, entries verwijderen
   const resultsIndex = await kvGet('results:index') || []
   const totals = await kvGet('totals') || {}
   const nieuweTotals = { ...totals }
@@ -70,7 +67,6 @@ async function verwijderAlleDataVanSpeler(playerId) {
   delete nieuweTotals[playerId]
   await kvSet('totals', nieuweTotals)
 
-  // 2. Nog niet verwerkte wedstrijden: losse voorspelling + index-entry weghalen
   const alleWedstrijden = await haalAlleWedstrijden()
   for (const f of alleWedstrijden) {
     const bestaandeVoorspelling = await kvGet(`prediction:${f.matchId}:${playerId}`)
@@ -133,7 +129,7 @@ export default async function handler(req, res) {
 
       await kvSet(`player:${playerId}`, null)
       await kvSet(`playerByNaam:${doelSpeler.naam.toLowerCase()}`, null)
-      await kvSet(`playerByEmail:${doelSpeler.email.toLowerCase()}`, null)
+      await verwijderUitEmailIndex(doelSpeler.email, playerId)
 
       const index = await kvGet('players:index') || []
       const nieuweIndex = index.filter(id => id !== playerId)
