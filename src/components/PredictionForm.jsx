@@ -6,47 +6,47 @@ export default function PredictionForm({ fixture, speler }) {
   const [awayScore, setAwayScore] = useState('')
   const [status, setStatus] = useState('idle')
   const [mijnPred, setMijnPred] = useState(null)
-  const [anderePred, setAnderePred] = useState(null)
-  const [beideBevest, setBeideBevest] = useState(false)
+  const [anderePredicties, setAnderePredicties] = useState([])
+  const [onthuld, setOnthuld] = useState(false)
+  const [aantalVoorspeld, setAantalVoorspeld] = useState(0)
+  const [totaalSpelers, setTotaalSpelers] = useState(0)
   const [errorMsg, setErrorMsg] = useState('')
   const [wijzigenModus, setWijzigenModus] = useState(false)
 
-  const andere = speler === 'niek' ? 'huub' : 'niek'
   const isAfgelopen = ['FT','AET','PEN'].includes(fixture.status)
   const isBezig = ['1H','HT','2H','ET','BT','LIVE'].includes(fixture.status)
   const isSluiting = isAfgelopen || isBezig
 
+  async function laad() {
+    try {
+      const r = await fetch(`/api/prediction?matchId=${fixture.matchId}&playerId=${speler.id}&datumISO=${encodeURIComponent(fixture.datumISO)}`)
+      const data = await r.json()
+
+      if (data.mijnPrediction?.confirmed) {
+        setMijnPred(data.mijnPrediction)
+        setStatus('confirmed')
+        setHomeScore(String(data.mijnPrediction.home))
+        setAwayScore(String(data.mijnPrediction.away))
+      } else {
+        setMijnPred(null)
+        setStatus('idle')
+        setHomeScore('')
+        setAwayScore('')
+      }
+
+      setOnthuld(data.onthuld)
+      setAnderePredicties(data.anderePredicties || [])
+      setAantalVoorspeld(data.aantalVoorspeld || 0)
+      setTotaalSpelers(data.totaalSpelers || 0)
+    } catch (e) {}
+  }
+
   useEffect(() => {
     setWijzigenModus(false)
     setErrorMsg('')
-    async function laad() {
-      try {
-        const r = await fetch(`/api/prediction?matchId=${fixture.matchId}`)
-        const data = await r.json()
-        const mijn = data[speler]
-        const andere_ = data[andere]
-        if (mijn?.confirmed) {
-          setMijnPred(mijn)
-          setStatus('confirmed')
-          setHomeScore(String(mijn.home))
-          setAwayScore(String(mijn.away))
-        } else {
-          setMijnPred(null)
-          setStatus('idle')
-          setHomeScore('')
-          setAwayScore('')
-        }
-        if (data.beideBevest) {
-          setBeideBevest(true)
-          setAnderePred(andere_)
-        } else {
-          setBeideBevest(false)
-          setAnderePred(null)
-        }
-      } catch (e) {}
-    }
     laad()
-  }, [fixture.matchId, speler])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fixture.matchId, speler.id])
 
   async function handleBevestigen() {
     if (homeScore === '' || awayScore === '') { setErrorMsg('Vul beide scores in'); return }
@@ -57,7 +57,7 @@ export default function PredictionForm({ fixture, speler }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          matchId: fixture.matchId, speler,
+          matchId: fixture.matchId, playerId: speler.id,
           home: Number(homeScore), away: Number(awayScore),
           datumISO: fixture.datumISO,
         })
@@ -71,12 +71,7 @@ export default function PredictionForm({ fixture, speler }) {
       setMijnPred(data.prediction)
       setStatus('confirmed')
       setWijzigenModus(false)
-      if (data.beideBevest) {
-        const check = await fetch(`/api/prediction?matchId=${fixture.matchId}`)
-        const checkData = await check.json()
-        setBeideBevest(true)
-        setAnderePred(checkData[andere])
-      }
+      await laad()
     } catch (e) { setErrorMsg('Netwerkfout'); setStatus(mijnPred ? 'confirmed' : 'idle') }
   }
 
@@ -99,6 +94,7 @@ export default function PredictionForm({ fixture, speler }) {
           <p className={styles.geslotenTekst}>
             {isBezig ? 'Wedstrijd is begonnen' : 'Wedstrijd afgelopen'}
           </p>
+          <p className={styles.geslotenSub}>Je hebt niet op tijd voorspeld — 0 punten voor deze wedstrijd.</p>
         </div>
       </div>
     )
@@ -110,7 +106,7 @@ export default function PredictionForm({ fixture, speler }) {
     <div className={styles.card}>
       <h2 className={styles.titel}>
         Jouw voorspelling
-        <span className={styles.spelerBadge}>{speler === 'niek' ? 'Niek' : 'Huub'}</span>
+        <span className={styles.spelerBadge}>{speler.naam}</span>
       </h2>
 
       {toonInvoer && !isSluiting && (
@@ -151,28 +147,33 @@ export default function PredictionForm({ fixture, speler }) {
           </div>
           <div className={styles.toto}>Toto: <strong>{totoLabel(mijnPred.home, mijnPred.away)}</strong></div>
           <div className={styles.bevestigdCheck}>✓ Bevestigd</div>
-          {!beideBevest && !isSluiting && (
+          {!onthuld && !isSluiting && (
             <>
-              <p className={styles.wacht}>Wachten op {andere === 'niek' ? 'Niek' : 'Huub'}…</p>
+              <p className={styles.wacht}>
+                {aantalVoorspeld} van {totaalSpelers} spelers hebben voorspeld…
+              </p>
               <button className={styles.wijzigenBtn} onClick={handleWijzigen}>Wijzigen</button>
             </>
           )}
-          {beideBevest && (
-            <p className={styles.vergrendeld}>🔒 Beide spelers hebben voorspeld</p>
+          {onthuld && (
+            <p className={styles.vergrendeld}>🔒 Voorspellingen zijn onthuld</p>
           )}
         </div>
       )}
 
-      {beideBevest && anderePred && (
+      {onthuld && anderePredicties.length > 0 && (
         <div className={styles.andereWrap}>
           <div className={styles.scheidingslijn} />
-          <h3 className={styles.andereLabel}>Voorspelling {andere === 'niek' ? 'Niek' : 'Huub'}</h3>
-          <div className={styles.andereScore}>
-            <span className={styles.andereGetal}>{anderePred.home}</span>
-            <span className={styles.andereDash}>-</span>
-            <span className={styles.andereGetal}>{anderePred.away}</span>
+          <h3 className={styles.andereLabel}>Voorspellingen andere spelers</h3>
+          <div className={styles.andereLijst}>
+            {anderePredicties.map(p => (
+              <div key={p.playerId} className={styles.andereRij}>
+                <span className={styles.andereNaam}>{p.naam}</span>
+                <span className={styles.andereScoreKlein}>{p.home} - {p.away}</span>
+                <span className={styles.andereToto}>{totoLabel(p.home, p.away)}</span>
+              </div>
+            ))}
           </div>
-          <div className={styles.toto}>Toto: <strong>{totoLabel(anderePred.home, anderePred.away)}</strong></div>
         </div>
       )}
     </div>
