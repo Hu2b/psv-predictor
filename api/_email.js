@@ -51,3 +51,26 @@ export async function stuurPincodeGewijzigdMail(email, naam) {
     <p>Je pincode is zojuist gewijzigd. Was jij dit niet? Neem dan contact op met de beheerder.</p>
   `)
 }
+
+export async function stuurAccountVerwijderdMail(email, naam) {
+  await verstuurMail(email, 'Je PSV Poule account is verwijderd', `
+    <p>Hoi ${naam},</p>
+    <p>Je account is verwijderd door een beheerder van PSV Poule.</p>
+    <p>Heb je hier vragen over, neem dan contact op met de beheerder.</p>
+  `)
+}
+
+export async function stuurNieuwePincodeDoorBeheerderMail(email, naam, nieuwePincode) {
+  await verstuurMail(email, 'Je pincode is gereset door een beheerder', `
+    <p>Hoi ${naam},</p>
+    <p>Een beheerder heeft je pincode gereset. Je nieuwe pincode is:</p>
+    <p style="font-size: 24px; font-weight: bold; letter-spacing: 4px;">${nieuwePincode}</p>
+    <p>Log in met deze pincode en wijzig hem eventueel via 'Pincode vergeten' naar iets dat je zelf kunt onthouden.</p>
+  `)
+}
+
+export async function stuurBeheerderMeldingMail(email, onderwerpTekst, inhoudTekst) {
+  await verstuurMail(email, `[PSV Poule beheer] ${onderwerpTekst}`, `
+    <p>${inhoudTekst}</p>
+  `)
+}
