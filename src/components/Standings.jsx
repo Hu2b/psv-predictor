@@ -19,10 +19,11 @@ function bouwWhatsAppTekst(klassement, results, spelerNaamMap) {
     for (const [playerId, pred] of Object.entries(r.predicties || {})) {
       const naam = spelerNaamMap[playerId] || '???'
       const punten = r.punten?.[playerId] ?? 0
+      const totaal = r.totalen?.[playerId] ?? '—'
       if (pred) {
-        regels.push(`${naam}: ${pred.home}-${pred.away} (+${punten}pt)`)
+        regels.push(`${naam}: ${pred.home}-${pred.away} (+${punten}pt) — Totaal: ${totaal}`)
       } else {
-        regels.push(`${naam}: geen voorspelling (+0pt)`)
+        regels.push(`${naam}: geen voorspelling (+0pt) — Totaal: ${totaal}`)
       }
     }
   }
