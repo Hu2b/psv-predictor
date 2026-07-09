@@ -7,7 +7,7 @@ function formatSeizoen(season) {
   return `${kort(season)}/${kort(season + 1)}`
 }
 
-export default function Header({ speler, onUitloggen, season }) {
+export default function Header({ speler, onUitloggen, onAccountOpen, season }) {
   const psvLogo = zoekLogo('PSV')
 
   return (
@@ -24,10 +24,15 @@ export default function Header({ speler, onUitloggen, season }) {
         <span className={styles.appName}>PSV Poule</span>
         {season && <span className={styles.seizoen}>{formatSeizoen(season)}</span>}
       </div>
-      <button className={styles.spelerBtn} onClick={onUitloggen}>
-        <span className={styles.spelerLabel}>{speler.naam}</span>
-        <span className={styles.wisselIcon}>⏻</span>
-      </button>
+      <div className={styles.rechts}>
+        <button className={styles.accountBtn} onClick={onAccountOpen}>
+          ⚙️
+        </button>
+        <button className={styles.spelerBtn} onClick={onUitloggen}>
+          <span className={styles.spelerLabel}>{speler.naam}</span>
+          <span className={styles.wisselIcon}>⏻</span>
+        </button>
+      </div>
     </header>
   )
 }
