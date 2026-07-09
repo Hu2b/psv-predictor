@@ -194,19 +194,33 @@
   padding: 12px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 4px;
 }
 
 .resultaatRij {
-  display: flex;
+  display: grid;
+  grid-template-columns: 70px 1fr auto auto;
   align-items: center;
-  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 4px;
+  border-bottom: 1px solid var(--psv-border);
+}
+
+.resultaatRij:last-child { border-bottom: none; }
+
+.resultaatNaam {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--psv-white);
+}
+
+.resultaatUitslag {
   font-size: 13px;
   color: var(--psv-white);
 }
 
-.punten { font-weight: 800; color: var(--gold); }
-.totaal { font-size: 12px; color: var(--psv-gray-lt); }
+.punten { font-weight: 800; color: var(--gold); font-size: 13px; text-align: right; }
+.totaal { font-size: 11px; color: var(--psv-gray-lt); text-align: right; white-space: nowrap; }
 
 .teamRij { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .teamBlok { display: flex; flex-direction: column; gap: 6px; }
@@ -245,57 +259,4 @@
 
 .btnKlein {
   padding: 6px 10px;
-  background: var(--psv-gray);
-  border: 1px solid var(--psv-border);
-  border-radius: var(--radius-sm);
-  color: var(--psv-white);
-  font-size: 13px;
-  font-weight: 600;
-  font-family: var(--font-body);
-}
-
-.btnKleinRood {
-  padding: 6px 10px;
-  background: rgba(225,0,14,0.1);
-  border: 1px solid rgba(225,0,14,0.3);
-  border-radius: var(--radius-sm);
-  color: var(--psv-red);
-  font-size: 13px;
-  font-family: var(--font-body);
-}
-
-.btnKleinGrijs {
-  padding: 6px 10px;
-  background: var(--psv-gray);
-  border: 1px solid var(--psv-border);
-  border-radius: var(--radius-sm);
-  color: var(--psv-gray-lt);
-  font-size: 13px;
-  font-family: var(--font-body);
-}
-
-.wijzigenForm { display: flex; flex-direction: column; gap: 8px; width: 100%; }
-
-.predBlok { display: flex; flex-direction: column; gap: 12px; margin-top: 4px; }
-
-.predRij {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 10px 12px;
-  background: var(--psv-gray);
-  border-radius: var(--radius-sm);
-}
-
-.predInfo { display: flex; align-items: center; gap: 10px; flex: 1; }
-.predNaam { font-size: 14px; font-weight: 700; color: var(--psv-white); min-width: 40px; }
-
-.predScore {
-  font-family: var(--font-display);
-  font-size: 18px;
-  font-weight: 800;
-  color: var(--gold);
-}
-
-.predLeeg { font-size: 12px; color: var(--psv-gray-lt); font-style: italic; }
+  background: var(--
