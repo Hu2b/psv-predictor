@@ -154,4 +154,51 @@ export default async function handler(req, res) {
 
     if (action === 'reset-pincode') {
       const nieuwePincode = genereerNieuwePincode()
-      const
+      const pincodeHash = hashPincode(nieuwePincode)
+      await kvSet(`player:${playerId}`, { ...doelSpeler, pincodeHash })
+
+      await stuurNieuwePincodeDoorBeheerderMail(doelSpeler.email, doelSpeler.naam, nieuwePincode)
+
+      const adminEmails = getAdminEmails()
+      for (const email of adminEmails) {
+        await stuurBeheerderMeldingMail(
+          email,
+          'Pincode gereset',
+          `Beheerder ${beheerder.naam} (${beheerder.email}) heeft de pincode van speler "${doelSpeler.naam}" (${doelSpeler.email}) gereset.`
+        )
+      }
+
+      return res.status(200).json({ success: true, message: `Nieuwe pincode is verstuurd naar ${doelSpeler.naam}.` })
+    }
+
+    if (action === 'wijzig-email') {
+      if (!isGeldigEmail(nieuwEmail)) return res.status(400).json({ error: 'Ongeldig e-mailadres' })
+      const nieuwEmailSchoon = nieuwEmail.toLowerCase().trim()
+      const oudEmail = doelSpeler.email
+
+      await verwijderUitEmailIndex(oudEmail, playerId)
+      await voegToeAanEmailIndex(nieuwEmailSchoon, playerId)
+      await kvSet(`player:${playerId}`, { ...doelSpeler, email: nieuwEmailSchoon })
+
+      // Geen verificatielink nodig: de beheerder heeft de wijziging al
+      // bevestigd met zijn eigen pincode. Wel bevestiging naar oud én
+      // nieuw adres, net als bij e-mailwijziging door de speler zelf.
+      await stuurEmailGewijzigdMail(oudEmail, nieuwEmailSchoon, doelSpeler.naam)
+
+      const adminEmails = getAdminEmails()
+      for (const email of adminEmails) {
+        await stuurBeheerderMeldingMail(
+          email,
+          'E-mailadres gewijzigd',
+          `Beheerder ${beheerder.naam} (${beheerder.email}) heeft het e-mailadres van speler "${doelSpeler.naam}" gewijzigd van ${oudEmail} naar ${nieuwEmailSchoon}.`
+        )
+      }
+
+      return res.status(200).json({ success: true, message: `E-mailadres van ${doelSpeler.naam} is gewijzigd.` })
+    }
+
+    return res.status(400).json({ error: 'Onbekende actie' })
+  }
+
+  return res.status(405).json({ error: 'Method not allowed' })
+}
