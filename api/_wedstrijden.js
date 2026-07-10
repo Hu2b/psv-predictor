@@ -2,7 +2,7 @@ import { kvGet, kvSet } from './_kv.js'
 import { berekenPunten, totoLabel } from './_scoring.js'
 import { zoekAfkorting } from '../shared/teams.js'
 import { bewaarLogoAlsNieuw, zoekLogo } from './_logo-lookup.js'
-import { alleSpelers } from './_players.js'
+import { alleGeverifieerdeSpelers } from './_players.js'
 
 const API_KEY = process.env.FOOTBALL_DATA_KEY
 const API_BASE = 'https://api.football-data.org/v4'
@@ -83,6 +83,7 @@ function mapMatch(m, comp) {
   }
 }
 
+// Haalt alleen de automatische (football-data.org) wedstrijden op, met cache
 async function haalAutomatischeWedstrijden() {
   const datumKey = getNLDatumKey()
   const venster = getTijdvenster()
@@ -171,7 +172,7 @@ export async function zoekVolgnummer(matchId) {
 export async function berekenEnSlaResultaatOp(fixtureInfo, uitslag) {
   const { matchId, volgnummer, datumISO, datum, competitie, thuis, uit } = fixtureInfo
 
-  const spelers = await alleSpelers()
+  const spelers = await alleGeverifieerdeSpelers()
   const predicties = {}
   const toto = {}
   const punten = {}
