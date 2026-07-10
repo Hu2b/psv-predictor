@@ -2,6 +2,8 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .label {
@@ -23,6 +25,7 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
+  width: 100%;
 }
 
 .kaart {
@@ -33,18 +36,32 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .info {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 4px;
+  min-width: 0;
+}
+
+.naamRij {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
 }
 
 .naam {
   font-size: 15px;
   font-weight: 700;
   color: var(--psv-white);
+  word-break: break-word;
 }
 
 .badge {
@@ -55,37 +72,56 @@
   border-radius: 4px;
   padding: 2px 6px;
   width: fit-content;
+  white-space: nowrap;
 }
 
 .email {
   font-size: 12px;
   color: var(--psv-gray-lt);
+  word-break: break-all;
+  overflow-wrap: break-word;
 }
 
 .btnKolom {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  width: 100%;
+}
+
+.btnResetten,
+.btnVerwijderen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-radius: var(--radius-sm);
+  padding: 11px 10px;
+  font-size: 13px;
+  font-weight: 600;
+  width: 100%;
+  box-sizing: border-box;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .btnResetten {
   background: rgba(255,255,255,0.05);
   border: 1px solid var(--psv-border);
-  border-radius: var(--radius-sm);
   color: var(--psv-white);
-  padding: 10px;
-  font-size: 13px;
-  font-weight: 600;
-  width: 100%;
 }
 
 .btnVerwijderen {
   background: rgba(225,0,14,0.1);
   border: 1px solid rgba(225,0,14,0.3);
-  border-radius: var(--radius-sm);
   color: #f87171;
-  padding: 10px;
-  font-size: 13px;
-  font-weight: 600;
-  width: 100%;
+}
+
+@media (max-width: 340px) {
+  .btnResetten,
+  .btnVerwijderen {
+    font-size: 12px;
+    padding: 10px 6px;
+  }
 }
