@@ -112,10 +112,77 @@
   color: var(--psv-white);
 }
 
+.btnEmail {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--psv-border);
+  color: var(--psv-white);
+}
+
 .btnVerwijderen {
   background: rgba(225,0,14,0.1);
   border: 1px solid rgba(225,0,14,0.3);
   color: #f87171;
+}
+
+.emailForm {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.emailFormLabel {
+  font-size: 12px;
+  color: var(--psv-gray-lt);
+}
+
+.emailInput {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--psv-border);
+  border-radius: var(--radius-sm);
+  color: var(--psv-white);
+  padding: 10px 12px;
+  font-size: 14px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.emailBtnRij {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+
+.emailBtnRij button {
+  flex: 1;
+  min-width: 0;
+}
+
+.btnKleinGrijs,
+.btnKleinRood {
+  border-radius: var(--radius-sm);
+  padding: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.btnKleinGrijs {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--psv-border);
+  color: var(--psv-white);
+}
+
+.btnKleinRood {
+  background: rgba(225,0,14,0.1);
+  border: 1px solid rgba(225,0,14,0.3);
+  color: #f87171;
+}
+
+.btnKleinRood:disabled {
+  opacity: 0.4;
 }
 
 @media (max-width: 340px) {
