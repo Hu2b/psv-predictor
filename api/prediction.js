@@ -1,5 +1,5 @@
 import { kvGet, kvSet } from './_kv.js'
-import { getPlayerById, telSpelers } from './_players.js'
+import { getPlayerById, telGeverifieerdeSpelers } from './_players.js'
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
@@ -21,7 +21,7 @@ export default async function handler(req, res) {
     const kickoff = datumISO ? new Date(datumISO).getTime() : null
     const kickoffVoorbij = kickoff ? nu >= kickoff : false
 
-    const totaalSpelers = await telSpelers()
+    const totaalSpelers = await telGeverifieerdeSpelers()
     const iedereenVoorspeld = totaalSpelers > 0 && geldig.length >= totaalSpelers
 
     // Onthullen zodra de wedstrijd begonnen is, óf zodra alle spelers hebben voorspeld
