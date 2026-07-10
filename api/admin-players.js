@@ -1,12 +1,13 @@
 import { kvGet, kvSet } from './_kv.js'
 import {
   alleSpelers, getPlayerById, isAdmin,
-  verifyPincode, hashPincode, verwijderUitEmailIndex,
+  verifyPincode, hashPincode, verwijderUitEmailIndex, voegToeAanEmailIndex,
+  isGeldigEmail,
 } from './_players.js'
 import { haalAlleWedstrijden } from './_wedstrijden.js'
 import {
   stuurAccountVerwijderdMail, stuurNieuwePincodeDoorBeheerderMail,
-  stuurBeheerderMeldingMail,
+  stuurBeheerderMeldingMail, stuurEmailGewijzigdMail,
 } from './_email.js'
 
 function genereerNieuwePincode() {
@@ -34,6 +35,8 @@ async function verifieerBeheerder(sessionToken, adminPincode) {
   return { beheerder }
 }
 
+// Verwijdert alle voorspellingen en punten van een speler, over alle
+// wedstrijden (zowel al verwerkte resultaten als nog openstaande).
 async function verwijderAlleDataVanSpeler(playerId) {
   const resultsIndex = await kvGet('results:index') || []
   const totals = await kvGet('totals') || {}
@@ -113,7 +116,7 @@ export default async function handler(req, res) {
   if (req.method === 'POST') {
     let body = req.body
     if (typeof body === 'string') { try { body = JSON.parse(body) } catch (_) {} }
-    const { action, sessionToken, adminPincode, playerId } = body || {}
+    const { action, sessionToken, adminPincode, playerId, nieuwEmail } = body || {}
 
     const check = await verifieerBeheerder(sessionToken, adminPincode)
     if (check.fout) return res.status(403).json({ error: check.fout })
@@ -168,8 +171,13 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, message: `Nieuwe pincode is verstuurd naar ${doelSpeler.naam}.` })
     }
 
-    return res.status(400).json({ error: 'Onbekende actie' })
-  }
+    if (action === 'wijzig-email') {
+      if (!isGeldigEmail(nieuwEmail)) return res.status(400).json({ error: 'Ongeldig e-mailadres' })
+      const nieuwEmailSchoon = nieuwEmail.toLowerCase().trim()
+      const oudEmail = doelSpeler.email
 
-  return res.status(405).json({ error: 'Method not allowed' })
-}
+      await verwijderUitEmailIndex(oudEmail, playerId)
+      await voegToeAanEmailIndex(nieuwEmailSchoon, playerId)
+      await kvSet(`player:${playerId}`, { ...doelSpeler, email: nieuwEmailSchoon })
+
+      // Geen verificatielink nodig: de beheerder heeft de wijziging al
