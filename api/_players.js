@@ -74,15 +74,38 @@ export async function verwijderUitEmailIndex(email, playerId) {
   await kvSet(key, nieuw)
 }
 
+// Telt ALLE geregistreerde spelers (geverifieerd of niet) — gebruikt voor de
+// max-10-registratielimiet: ook een nog niet geverifieerd account bezet een plek.
 export async function telSpelers() {
   const index = await kvGet('players:index') || []
   return index.length
 }
 
+// Geeft ALLE geregistreerde spelers terug (geverifieerd of niet). Gebruik dit
+// NIET voor puntenverwerking of "iedereen heeft voorspeld"-logica — daarvoor
+// alleGeverifieerdeSpelers()/telGeverifieerdeSpelers() gebruiken, anders blijft
+// een nooit-bevestigd account als "???" in het klassement hangen en kan de
+// vroegtijdige onthulling nooit meer waar worden.
 export async function alleSpelers() {
   const index = await kvGet('players:index') || []
   const spelers = await Promise.all(index.map(id => getPlayerById(id)))
   return spelers.filter(Boolean)
+}
+
+// Alleen spelers die hun e-mailadres bevestigd hebben — dit zijn de enige
+// spelers die kunnen inloggen en dus kunnen voorspellen. Gebruikt door
+// berekenEnSlaResultaatOp() (puntenverwerking) en prediction.js
+// ("iedereen heeft voorspeld"-check), zodat een hangend, nooit bevestigd
+// account niet als "???" in het klassement verschijnt en niet permanent
+// blokkeert dat voorspellingen vroegtijdig onthuld worden.
+export async function alleGeverifieerdeSpelers() {
+  const spelers = await alleSpelers()
+  return spelers.filter(s => s.geverifieerd)
+}
+
+export async function telGeverifieerdeSpelers() {
+  const spelers = await alleGeverifieerdeSpelers()
+  return spelers.length
 }
 
 export async function maakSpeler({ naam, email, pincode }) {
