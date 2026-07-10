@@ -28,6 +28,14 @@ export default function AuthScreen({ onIngelogd }) {
     const rToken = params.get('reset')
     const emailToken = params.get('bevestigEmail')
 
+    // Meteen opschonen zodra we een token uit de URL hebben gelezen — anders
+    // blijft bijv. ?reset=... in de adresbalk staan en forceert een latere
+    // remount (zoals na uitloggen) dit scherm opnieuw terug, in plaats van
+    // het normale start-scherm.
+    if (verifyToken || rToken || emailToken) {
+      window.history.replaceState({}, '', window.location.pathname)
+    }
+
     if (verifyToken) {
       verifieerEmail(verifyToken)
     } else if (rToken) {
@@ -56,7 +64,6 @@ export default function AuthScreen({ onIngelogd }) {
       setModus('verifyResultaat')
     } finally {
       setLaden(false)
-      window.history.replaceState({}, '', window.location.pathname)
     }
   }
 
@@ -77,7 +84,6 @@ export default function AuthScreen({ onIngelogd }) {
       setModus('verifyResultaat')
     } finally {
       setLaden(false)
-      window.history.replaceState({}, '', window.location.pathname)
     }
   }
 
