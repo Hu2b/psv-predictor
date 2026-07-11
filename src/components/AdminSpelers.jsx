@@ -60,10 +60,9 @@ export default function AdminSpelers({ setMelding }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: actie, sessionToken, adminPincode, playerId: speler.id,
-          ...(nieuweEmail && { nieuwEmail }),
+          ...(nieuweEmail && { nieuwEmail: nieuweEmail }),
         })
       })
-      alert('DEBUG: fetch voltooid. status = ' + r.status)
       const data = await r.json()
       if (data.success) {
         setMelding({ type: 'ok', tekst: data.message })
@@ -75,7 +74,6 @@ export default function AdminSpelers({ setMelding }) {
         setMelding({ type: 'fout', tekst: data.error })
       }
     } catch (e) {
-      alert('DEBUG: catch geraakt. foutmelding = ' + (e && e.message) + ' | ' + (e && e.toString()))
       setMelding({ type: 'fout', tekst: 'Er ging iets mis. Probeer het opnieuw.' })
     } finally {
       setActieBezig(false)
