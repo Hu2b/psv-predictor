@@ -23,9 +23,13 @@ export default async function handler(req, res) {
 
     const totaalSpelers = await telGeverifieerdeSpelers()
     const iedereenVoorspeld = totaalSpelers > 0 && geldig.length >= totaalSpelers
+    const bestaandResultaat = await kvGet(`result:${matchId}`)
 
-    // Onthullen zodra de wedstrijd begonnen is, óf zodra alle spelers hebben voorspeld
-    const onthuld = kickoffVoorbij || iedereenVoorspeld
+    // Onthullen zodra de wedstrijd begonnen is, óf zodra alle spelers hebben
+    // voorspeld, óf zodra de uitslag al is vastgelegd (dekt het uitzonderings-
+    // geval af waarin een beheerder een uitslag invoert vóór de geplande
+    // aftraptijd, bijvoorbeeld bij een handmatig toegevoegde wedstrijd).
+    const onthuld = kickoffVoorbij || iedereenVoorspeld || !!bestaandResultaat
 
     let anderePredicties = []
     if (onthuld) {
@@ -61,6 +65,19 @@ export default async function handler(req, res) {
 
     if (datumISO && new Date() > new Date(datumISO)) {
       return res.status(403).json({ error: 'Wedstrijd al begonnen, wijzigen niet meer mogelijk' })
+    }
+
+    const bestaandResultaat = await kvGet(`result:${matchId}`)
+    if (bestaandResultaat) {
+      return res.status(403).json({ error: 'Uitslag is al vastgelegd, wijzigen niet meer mogelijk' })
+    }
+
+    const bestaandeIndex = await kvGet(`predictionIndex:${matchId}`) || []
+    const totaalSpelers = await telGeverifieerdeSpelers()
+    if (totaalSpelers > 0 && bestaandeIndex.length >= totaalSpelers) {
+      // Iedereen had al voorspeld (dus voorspellingen zijn al onthuld) —
+      // ook wie zelf al had voorspeld, kan dan niet meer wijzigen.
+      return res.status(403).json({ error: 'Voorspellingen zijn al onthuld, wijzigen niet meer mogelijk' })
     }
 
     const prediction = {
