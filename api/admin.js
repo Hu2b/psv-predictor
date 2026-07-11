@@ -1,6 +1,7 @@
 import { kvGet, kvSet } from './_kv.js'
 import { zoekVolgnummer, berekenEnSlaResultaatOp } from './_wedstrijden.js'
 import { getPlayerById } from './_players.js'
+import { verifieerBeheerderSessie } from './_auth.js'
 
 async function slaHandmatigOp(wedstrijden) {
   await kvSet('admin:wedstrijden', wedstrijden)
@@ -15,6 +16,13 @@ export default async function handler(req, res) {
   let body = req.body
   if (typeof body === 'string') { try { body = JSON.parse(body) } catch (_) {} }
   const { action } = body || req.query
+
+  // Alle acties op dit endpoint (lezen én schrijven) vereisen een geldige
+  // sessie van een beheerder — voorkomt dat iemand die de URL raadt
+  // wedstrijden/uitslagen kan wijzigen zonder ingelogd te zijn.
+  const sessionToken = req.method === 'GET' ? req.query.sessionToken : body?.sessionToken
+  const check = await verifieerBeheerderSessie(sessionToken)
+  if (check.fout) return res.status(403).json({ error: check.fout })
 
   if (req.method === 'GET' && req.query.action === 'wedstrijden') {
     const wedstrijden = await kvGet('admin:wedstrijden') || []
