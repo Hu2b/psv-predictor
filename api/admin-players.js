@@ -138,16 +138,15 @@ export default async function handler(req, res) {
       const nieuweIndex = index.filter(id => id !== playerId)
       await kvSet('players:index', nieuweIndex)
 
-      await stuurAccountVerwijderdMail(doelSpeler.email, doelSpeler.naam)
-
       const adminEmails = getAdminEmails()
-      for (const email of adminEmails) {
-        await stuurBeheerderMeldingMail(
+      await Promise.allSettled([
+        stuurAccountVerwijderdMail(doelSpeler.email, doelSpeler.naam),
+        ...adminEmails.map(email => stuurBeheerderMeldingMail(
           email,
           'Speler verwijderd',
           `Beheerder ${beheerder.naam} (${beheerder.email}) heeft speler "${doelSpeler.naam}" (${doelSpeler.email}) verwijderd, inclusief al zijn voorspellingen en punten.`
-        )
-      }
+        )),
+      ])
 
       return res.status(200).json({ success: true, message: `Speler ${doelSpeler.naam} en al zijn gegevens zijn verwijderd.` })
     }
@@ -157,16 +156,15 @@ export default async function handler(req, res) {
       const pincodeHash = hashPincode(nieuwePincode)
       await kvSet(`player:${playerId}`, { ...doelSpeler, pincodeHash })
 
-      await stuurNieuwePincodeDoorBeheerderMail(doelSpeler.email, doelSpeler.naam, nieuwePincode)
-
       const adminEmails = getAdminEmails()
-      for (const email of adminEmails) {
-        await stuurBeheerderMeldingMail(
+      await Promise.allSettled([
+        stuurNieuwePincodeDoorBeheerderMail(doelSpeler.email, doelSpeler.naam, nieuwePincode),
+        ...adminEmails.map(email => stuurBeheerderMeldingMail(
           email,
           'Pincode gereset',
           `Beheerder ${beheerder.naam} (${beheerder.email}) heeft de pincode van speler "${doelSpeler.naam}" (${doelSpeler.email}) gereset.`
-        )
-      }
+        )),
+      ])
 
       return res.status(200).json({ success: true, message: `Nieuwe pincode is verstuurd naar ${doelSpeler.naam}.` })
     }
@@ -183,16 +181,15 @@ export default async function handler(req, res) {
       // Geen verificatielink nodig: de beheerder heeft de wijziging al
       // bevestigd met zijn eigen pincode. Wel bevestiging naar oud én
       // nieuw adres, net als bij e-mailwijziging door de speler zelf.
-      await stuurEmailGewijzigdMail(oudEmail, nieuwEmailSchoon, doelSpeler.naam)
-
       const adminEmails = getAdminEmails()
-      for (const email of adminEmails) {
-        await stuurBeheerderMeldingMail(
+      await Promise.allSettled([
+        stuurEmailGewijzigdMail(oudEmail, nieuwEmailSchoon, doelSpeler.naam),
+        ...adminEmails.map(email => stuurBeheerderMeldingMail(
           email,
           'E-mailadres gewijzigd',
           `Beheerder ${beheerder.naam} (${beheerder.email}) heeft het e-mailadres van speler "${doelSpeler.naam}" gewijzigd van ${oudEmail} naar ${nieuwEmailSchoon}.`
-        )
-      }
+        )),
+      ])
 
       return res.status(200).json({ success: true, message: `E-mailadres van ${doelSpeler.naam} is gewijzigd.` })
     }
