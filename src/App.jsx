@@ -168,29 +168,9 @@ export default function App() {
         season={season}
       />
       {linkMelding && (
-        <div
-          style={{
-            margin: '12px 16px 0',
-            padding: '10px 14px',
-            borderRadius: '10px',
-            fontSize: '13px',
-            lineHeight: 1.4,
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            gap: '10px',
-            background: linkMelding.type === 'ok' ? 'rgba(34,197,94,0.1)' : 'rgba(225,0,14,0.1)',
-            border: `1px solid ${linkMelding.type === 'ok' ? 'rgba(34,197,94,0.3)' : 'rgba(225,0,14,0.3)'}`,
-            color: linkMelding.type === 'ok' ? '#4ade80' : '#f87171',
-          }}
-        >
+        <div className={`${styles.linkMelding} ${linkMelding.type === 'ok' ? styles.linkMeldingOk : styles.linkMeldingFout}`}>
           <span>{linkMelding.tekst}</span>
-          <button
-            onClick={() => setLinkMelding(null)}
-            style={{ background: 'transparent', border: 'none', color: 'inherit', fontSize: '16px', cursor: 'pointer', flexShrink: 0 }}
-          >
-            ✕
-          </button>
+          <button className={styles.linkMeldingSluit} onClick={() => setLinkMelding(null)}>✕</button>
         </div>
       )}
       <nav className={styles.tabs}>
