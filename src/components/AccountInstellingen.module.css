@@ -93,6 +93,24 @@
   width: 100%;
 }
 
+.huidigEmail {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--psv-border);
+  border-radius: var(--radius-sm);
+  color: var(--psv-gray-lt);
+  padding: 12px 14px;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  word-break: break-all;
+}
+
+.huidigEmailIcon {
+  flex-shrink: 0;
+  font-size: 14px;
+}
+
 .inputPincode {
   background: rgba(255,255,255,0.05);
   border: 1px solid var(--psv-border);
