@@ -152,6 +152,11 @@ export default function AccountInstellingen({ speler, onSluiten }) {
             <p className={styles.uitleg}>
               Je ontvangt een bevestigingslink op je nieuwe e-mailadres. Het wijzigt pas na het klikken op die link.
             </p>
+            <label className={styles.label}>Huidig e-mailadres</label>
+            <p className={styles.huidigEmail}>
+              <span className={styles.huidigEmailIcon}>✉️</span>
+              <span>{speler.email}</span>
+            </p>
             <label className={styles.label}>Huidige pincode</label>
             <input
               className={styles.inputPincode}
