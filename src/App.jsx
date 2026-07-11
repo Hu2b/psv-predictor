@@ -20,6 +20,8 @@ const SESSION_KEY = 'psv_session_token'
 export default function App() {
   const [speler, setSpeler] = useState(null)
   const [sessieControleGedaan, setSessieControleGedaan] = useState(false)
+  const [resetTokenVanUrl, setResetTokenVanUrl] = useState(null)
+  const [linkMelding, setLinkMelding] = useState(null)
   const [tab, setTab] = useState('wedstrijd')
   const [fixtures, setFixtures] = useState([])
   const [season, setSeason] = useState(null)
@@ -28,7 +30,55 @@ export default function App() {
   const [accountOpen, setAccountOpen] = useState(false)
 
   useEffect(() => {
-    async function controleerSessie() {
+    async function initialiseer() {
+      const params = new URLSearchParams(window.location.search)
+      const verifyToken = params.get('verify')
+      const resetToken = params.get('reset')
+      const bevestigToken = params.get('bevestigEmail')
+
+      // Reset-pincode hoort bij het inlogscherm: forceer (indien nodig)
+      // uitloggen in deze browser, zodat AuthScreen altijd getoond wordt
+      // en de link oppikt — ook als deze browser toevallig al een geldige
+      // sessie had.
+      if (resetToken) {
+        localStorage.removeItem(SESSION_KEY)
+        setResetTokenVanUrl(resetToken)
+      }
+
+      // verify en bevestigEmail zijn eenmalige bevestigingen die moeten
+      // werken ONGEACHT of je in deze browser toevallig al bent ingelogd.
+      // Vandaar dat dit hier op App-niveau gebeurt, vóór het besluit of
+      // AuthScreen of het hoofdscherm getoond wordt.
+      if (verifyToken || resetToken || bevestigToken) {
+        window.history.replaceState({}, '', window.location.pathname)
+      }
+
+      if (verifyToken) {
+        try {
+          const r = await fetch('/api/auth', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'verify', token: verifyToken })
+          })
+          const data = await r.json()
+          setLinkMelding({ type: data.success ? 'ok' : 'fout', tekst: data.message || data.error })
+        } catch (e) {
+          setLinkMelding({ type: 'fout', tekst: 'Er ging iets mis. Probeer het opnieuw.' })
+        }
+      } else if (bevestigToken) {
+        try {
+          const r = await fetch('/api/auth', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'bevestig-email-wijziging', token: bevestigToken })
+          })
+          const data = await r.json()
+          setLinkMelding({ type: data.success ? 'ok' : 'fout', tekst: data.message || data.error })
+        } catch (e) {
+          setLinkMelding({ type: 'fout', tekst: 'Er ging iets mis. Probeer het opnieuw.' })
+        }
+      }
+
       const token = localStorage.getItem(SESSION_KEY)
       if (!token) {
         setSessieControleGedaan(true)
@@ -48,7 +98,7 @@ export default function App() {
         setSessieControleGedaan(true)
       }
     }
-    controleerSessie()
+    initialiseer()
   }, [])
 
   const laadWedstrijden = useCallback(async () => {
@@ -107,7 +157,7 @@ export default function App() {
     )
   }
 
-  if (!speler) return <AuthScreen onIngelogd={handleIngelogd} />
+  if (!speler) return <AuthScreen onIngelogd={handleIngelogd} resetToken={resetTokenVanUrl} linkMelding={linkMelding} />
 
   return (
     <div className={styles.app}>
@@ -117,6 +167,32 @@ export default function App() {
         onAccountOpen={() => setAccountOpen(true)}
         season={season}
       />
+      {linkMelding && (
+        <div
+          style={{
+            margin: '12px 16px 0',
+            padding: '10px 14px',
+            borderRadius: '10px',
+            fontSize: '13px',
+            lineHeight: 1.4,
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            gap: '10px',
+            background: linkMelding.type === 'ok' ? 'rgba(34,197,94,0.1)' : 'rgba(225,0,14,0.1)',
+            border: `1px solid ${linkMelding.type === 'ok' ? 'rgba(34,197,94,0.3)' : 'rgba(225,0,14,0.3)'}`,
+            color: linkMelding.type === 'ok' ? '#4ade80' : '#f87171',
+          }}
+        >
+          <span>{linkMelding.tekst}</span>
+          <button
+            onClick={() => setLinkMelding(null)}
+            style={{ background: 'transparent', border: 'none', color: 'inherit', fontSize: '16px', cursor: 'pointer', flexShrink: 0 }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
       <nav className={styles.tabs}>
         <button
           className={`${styles.tab} ${tab === 'wedstrijd' ? styles.tabActive : ''}`}
