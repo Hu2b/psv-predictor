@@ -99,6 +99,7 @@ export async function stuurEmailGewijzigdMail(oudEmail, nieuwEmail, naam) {
   const bericht = `
     <p>Hoi ${naam},</p>
     <p>Je e-mailadres is gewijzigd naar <strong>${nieuwEmail}</strong>.</p>
+    <p>Je kunt inloggen op PSV Poule via: <a href="${APP_URL}">${APP_URL}</a></p>
     <p>Was jij dit niet? Neem dan contact op met de beheerder.</p>
   `
   await Promise.allSettled([
