@@ -1,49 +1,34 @@
 import { kvGet, kvSet } from './_kv.js'
 import {
   alleSpelers, getPlayerById, isAdmin,
-  verifyPincode, hashPincode, verwijderUitEmailIndex, voegToeAanEmailIndex,
+  hashPincode, verwijderUitEmailIndex, voegToeAanEmailIndex,
   isGeldigEmail,
 } from './_players.js'
 import { haalAlleWedstrijden } from './_wedstrijden.js'
 import {
   stuurAccountVerwijderdMail, stuurNieuwePincodeDoorBeheerderMail,
-  stuurBeheerderMeldingMail, stuurEmailGewijzigdMail,
+  stuurEmailGewijzigdMail, stuurBeheerNotificaties,
 } from './_email.js'
+import { verifieerBeheerder, verifieerBeheerderSessie, getAdminEmails } from './_auth.js'
 
 function genereerNieuwePincode() {
   return String(Math.floor(1000 + Math.random() * 9000))
 }
 
-function getAdminEmails() {
-  return (process.env.ADMIN_EMAILS || '')
-    .split(',')
-    .map(e => e.trim().toLowerCase())
-    .filter(Boolean)
-}
-
-async function verifieerBeheerder(sessionToken, adminPincode) {
-  if (!sessionToken || !adminPincode) return { fout: 'sessionToken en pincode zijn verplicht' }
-
-  const sessie = await kvGet(`session:${sessionToken}`)
-  if (!sessie) return { fout: 'Sessie verlopen, log opnieuw in' }
-
-  const beheerder = await getPlayerById(sessie.playerId)
-  if (!beheerder) return { fout: 'Speler niet gevonden' }
-  if (!isAdmin(beheerder.email)) return { fout: 'Geen beheerrechten' }
-  if (!verifyPincode(adminPincode, beheerder.pincodeHash)) return { fout: 'Onjuiste pincode' }
-
-  return { beheerder }
-}
-
 // Verwijdert alle voorspellingen en punten van een speler, over alle
-// wedstrijden (zowel al verwerkte resultaten als nog openstaande).
+// wedstrijden (zowel al verwerkte resultaten als nog openstaande). Reads
+// gebeuren parallel (verschillende, onafhankelijke keys) voor snelheid.
 async function verwijderAlleDataVanSpeler(playerId) {
   const resultsIndex = await kvGet('results:index') || []
   const totals = await kvGet('totals') || {}
   const nieuweTotals = { ...totals }
 
-  for (const matchId of resultsIndex) {
-    const result = await kvGet(`result:${matchId}`)
+  const results = await Promise.all(resultsIndex.map(matchId => kvGet(`result:${matchId}`)))
+
+  const resultSchrijfActies = []
+  for (let i = 0; i < resultsIndex.length; i++) {
+    const matchId = resultsIndex[i]
+    const result = results[i]
     if (!result) continue
     if (!(playerId in (result.punten || {}))) continue
 
@@ -59,27 +44,37 @@ async function verwijderAlleDataVanSpeler(playerId) {
     delete nieuwePunten[playerId]
     delete nieuweTotalen[playerId]
 
-    await kvSet(`result:${matchId}`, {
+    resultSchrijfActies.push(kvSet(`result:${matchId}`, {
       ...result,
       predicties: nieuwePredicties,
       toto: nieuweToto,
       punten: nieuwePunten,
       totalen: nieuweTotalen,
-    })
+    }))
   }
   delete nieuweTotals[playerId]
-  await kvSet('totals', nieuweTotals)
+  resultSchrijfActies.push(kvSet('totals', nieuweTotals))
+  await Promise.all(resultSchrijfActies)
 
   const alleWedstrijden = await haalAlleWedstrijden()
-  for (const f of alleWedstrijden) {
-    const bestaandeVoorspelling = await kvGet(`prediction:${f.matchId}:${playerId}`)
-    if (!bestaandeVoorspelling) continue
+  const voorspellingen = await Promise.all(
+    alleWedstrijden.map(f => kvGet(`prediction:${f.matchId}:${playerId}`))
+  )
 
-    await kvSet(`prediction:${f.matchId}:${playerId}`, null)
-    const predictionIndex = await kvGet(`predictionIndex:${f.matchId}`) || []
-    const nieuweIndex = predictionIndex.filter(id => id !== playerId)
-    await kvSet(`predictionIndex:${f.matchId}`, nieuweIndex)
+  const predictieSchrijfActies = []
+  for (let i = 0; i < alleWedstrijden.length; i++) {
+    const f = alleWedstrijden[i]
+    if (!voorspellingen[i]) continue
+
+    predictieSchrijfActies.push(kvSet(`prediction:${f.matchId}:${playerId}`, null))
+    predictieSchrijfActies.push(
+      kvGet(`predictionIndex:${f.matchId}`).then(idx => {
+        const nieuweIndex = (idx || []).filter(id => id !== playerId)
+        return kvSet(`predictionIndex:${f.matchId}`, nieuweIndex)
+      })
+    )
   }
+  await Promise.all(predictieSchrijfActies)
 }
 
 export default async function handler(req, res) {
@@ -90,15 +85,8 @@ export default async function handler(req, res) {
 
   if (req.method === 'GET') {
     const { sessionToken } = req.query
-    if (!sessionToken) return res.status(400).json({ error: 'sessionToken verplicht' })
-
-    const sessie = await kvGet(`session:${sessionToken}`)
-    if (!sessie) return res.status(401).json({ error: 'Sessie verlopen, log opnieuw in' })
-
-    const beheerder = await getPlayerById(sessie.playerId)
-    if (!beheerder || !isAdmin(beheerder.email)) {
-      return res.status(403).json({ error: 'Geen beheerrechten' })
-    }
+    const check = await verifieerBeheerderSessie(sessionToken)
+    if (check.fout) return res.status(403).json({ error: check.fout })
 
     const spelers = await alleSpelers()
     const overzicht = spelers.map(s => ({
@@ -127,26 +115,26 @@ export default async function handler(req, res) {
     const doelSpeler = await getPlayerById(playerId)
     if (!doelSpeler) return res.status(404).json({ error: 'Speler niet gevonden' })
 
+    const adminEmails = getAdminEmails()
+
     if (action === 'verwijderen') {
       await verwijderAlleDataVanSpeler(playerId)
 
       await kvSet(`player:${playerId}`, null)
       await kvSet(`playerByNaam:${doelSpeler.naam.toLowerCase()}`, null)
       await verwijderUitEmailIndex(doelSpeler.email, playerId)
+      await kvSet(`loginPogingen:${playerId}`, null)
 
       const index = await kvGet('players:index') || []
       const nieuweIndex = index.filter(id => id !== playerId)
       await kvSet('players:index', nieuweIndex)
 
-      const adminEmails = getAdminEmails()
-      await Promise.allSettled([
-        stuurAccountVerwijderdMail(doelSpeler.email, doelSpeler.naam),
-        ...adminEmails.map(email => stuurBeheerderMeldingMail(
-          email,
-          'Speler verwijderd',
-          `Beheerder ${beheerder.naam} (${beheerder.email}) heeft speler "${doelSpeler.naam}" (${doelSpeler.email}) verwijderd, inclusief al zijn voorspellingen en punten.`
-        )),
-      ])
+      await stuurBeheerNotificaties(
+        [stuurAccountVerwijderdMail(doelSpeler.email, doelSpeler.naam)],
+        adminEmails,
+        'Speler verwijderd',
+        `Beheerder ${beheerder.naam} (${beheerder.email}) heeft speler "${doelSpeler.naam}" (${doelSpeler.email}) verwijderd, inclusief al zijn voorspellingen en punten.`
+      )
 
       return res.status(200).json({ success: true, message: `Speler ${doelSpeler.naam} en al zijn gegevens zijn verwijderd.` })
     }
@@ -156,15 +144,17 @@ export default async function handler(req, res) {
       const pincodeHash = hashPincode(nieuwePincode)
       await kvSet(`player:${playerId}`, { ...doelSpeler, pincodeHash })
 
-      const adminEmails = getAdminEmails()
-      await Promise.allSettled([
-        stuurNieuwePincodeDoorBeheerderMail(doelSpeler.email, doelSpeler.naam, nieuwePincode),
-        ...adminEmails.map(email => stuurBeheerderMeldingMail(
-          email,
-          'Pincode gereset',
-          `Beheerder ${beheerder.naam} (${beheerder.email}) heeft de pincode van speler "${doelSpeler.naam}" (${doelSpeler.email}) gereset.`
-        )),
-      ])
+      // Een pincode-reset door de beheerder is een geldige, geverifieerde
+      // route om weer toegang te krijgen — een eventuele inlog-blokkade
+      // door te veel mislukte pogingen vervalt daarom meteen.
+      await kvSet(`loginPogingen:${playerId}`, null)
+
+      await stuurBeheerNotificaties(
+        [stuurNieuwePincodeDoorBeheerderMail(doelSpeler.email, doelSpeler.naam, nieuwePincode)],
+        adminEmails,
+        'Pincode gereset',
+        `Beheerder ${beheerder.naam} (${beheerder.email}) heeft de pincode van speler "${doelSpeler.naam}" (${doelSpeler.email}) gereset.`
+      )
 
       return res.status(200).json({ success: true, message: `Nieuwe pincode is verstuurd naar ${doelSpeler.naam}.` })
     }
@@ -181,15 +171,12 @@ export default async function handler(req, res) {
       // Geen verificatielink nodig: de beheerder heeft de wijziging al
       // bevestigd met zijn eigen pincode. Wel bevestiging naar oud én
       // nieuw adres, net als bij e-mailwijziging door de speler zelf.
-      const adminEmails = getAdminEmails()
-      await Promise.allSettled([
-        stuurEmailGewijzigdMail(oudEmail, nieuwEmailSchoon, doelSpeler.naam),
-        ...adminEmails.map(email => stuurBeheerderMeldingMail(
-          email,
-          'E-mailadres gewijzigd',
-          `Beheerder ${beheerder.naam} (${beheerder.email}) heeft het e-mailadres van speler "${doelSpeler.naam}" gewijzigd van ${oudEmail} naar ${nieuwEmailSchoon}.`
-        )),
-      ])
+      await stuurBeheerNotificaties(
+        [stuurEmailGewijzigdMail(oudEmail, nieuwEmailSchoon, doelSpeler.naam)],
+        adminEmails,
+        'E-mailadres gewijzigd',
+        `Beheerder ${beheerder.naam} (${beheerder.email}) heeft het e-mailadres van speler "${doelSpeler.naam}" gewijzigd van ${oudEmail} naar ${nieuwEmailSchoon}.`
+      )
 
       return res.status(200).json({ success: true, message: `E-mailadres van ${doelSpeler.naam} is gewijzigd.` })
     }
