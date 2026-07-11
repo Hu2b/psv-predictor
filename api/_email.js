@@ -75,6 +75,16 @@ export async function stuurBeheerderMeldingMail(email, onderwerpTekst, inhoudTek
   `)
 }
 
+// Verstuurt de mail(s) naar de betrokken speler EN de audit-mail naar alle
+// beheerders, allemaal gelijktijdig — voorkomt dat een trage e-mailservice
+// (of veel beheerders) de serverless-functie laat vasthangen tot een timeout.
+export async function stuurBeheerNotificaties(spelerMailPromises, adminEmails, onderwerpTekst, inhoudTekst) {
+  await Promise.allSettled([
+    ...spelerMailPromises,
+    ...adminEmails.map(email => stuurBeheerderMeldingMail(email, onderwerpTekst, inhoudTekst)),
+  ])
+}
+
 export async function stuurEmailWijzigingVerificatieMail(nieuwEmail, naam, token) {
   const link = `${APP_URL}/?bevestigEmail=${token}`
   await verstuurMail(nieuwEmail, 'Bevestig je nieuwe e-mailadres — PSV Poule', `
