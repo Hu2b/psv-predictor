@@ -50,7 +50,6 @@ export default function AdminSpelers({ setMelding }) {
   }
 
   async function bevestigActie(adminPincode) {
-    alert('DEBUG: bevestigActie aangeroepen. modalActie = ' + JSON.stringify(modalActie))
     if (!modalActie) return
     setActieBezig(true)
     const { actie, speler, nieuweEmail } = modalActie
@@ -64,6 +63,7 @@ export default function AdminSpelers({ setMelding }) {
           ...(nieuweEmail && { nieuwEmail }),
         })
       })
+      alert('DEBUG: fetch voltooid. status = ' + r.status)
       const data = await r.json()
       if (data.success) {
         setMelding({ type: 'ok', tekst: data.message })
@@ -75,6 +75,7 @@ export default function AdminSpelers({ setMelding }) {
         setMelding({ type: 'fout', tekst: data.error })
       }
     } catch (e) {
+      alert('DEBUG: catch geraakt. foutmelding = ' + (e && e.message) + ' | ' + (e && e.toString()))
       setMelding({ type: 'fout', tekst: 'Er ging iets mis. Probeer het opnieuw.' })
     } finally {
       setActieBezig(false)
