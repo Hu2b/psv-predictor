@@ -144,6 +144,36 @@ export async function zoekVolgnummer(matchId) {
   return f ? f.volgnummer : null
 }
 
+// Herberekent de lopende totalen van ALLE spelers over ALLE verwerkte
+// wedstrijden, strikt in chronologische volgorde (op volgnummer), en
+// schrijft dat overal opnieuw weg. Dit is de enige plek waar "totalen"
+// (zowel de per-wedstrijd momentopname als het globale eindtotaal) wordt
+// vastgesteld — zo kan een per-wedstrijd totaal nooit meer "vastvriezen"
+// op een verouderd moment, ook niet als wedstrijden niet in volgorde zijn
+// ingevoerd of een eerdere uitslag achteraf is aangepast.
+export async function herberekenAlleTotalen() {
+  const resultsIndex = await kvGet('results:index') || []
+  const alleResults = await Promise.all(resultsIndex.map(id => kvGet(`result:${id}`)))
+  const geldigeResults = alleResults
+    .filter(Boolean)
+    .sort((a, b) => (a.volgnummer || 0) - (b.volgnummer || 0))
+
+  const lopendTotaal = {}
+  const schrijfActies = []
+
+  for (const result of geldigeResults) {
+    const nieuweTotalen = {}
+    for (const [playerId, p] of Object.entries(result.punten || {})) {
+      lopendTotaal[playerId] = (lopendTotaal[playerId] || 0) + p
+      nieuweTotalen[playerId] = lopendTotaal[playerId]
+    }
+    schrijfActies.push(kvSet(`result:${result.matchId}`, { ...result, totalen: nieuweTotalen }))
+  }
+
+  schrijfActies.push(kvSet('totals', lopendTotaal))
+  await Promise.all(schrijfActies)
+}
+
 // Enige, centrale plek waar een uitslag wordt verwerkt tot punten en totalen.
 // ALLE geverifieerde spelers krijgen een entry: wie niet op tijd heeft
 // voorspeld (of helemaal niet), krijgt hier expliciet 0 punten.
@@ -170,33 +200,15 @@ export async function berekenEnSlaResultaatOp(fixtureInfo, uitslag) {
     }
   }
 
-  const vorigeResult = await kvGet(`result:${matchId}`)
-  const totals = await kvGet('totals') || {}
-  const nieuweTotals = { ...totals }
-
-  if (vorigeResult) {
-    for (const [playerId, oud] of Object.entries(vorigeResult.punten || {})) {
-      nieuweTotals[playerId] = (nieuweTotals[playerId] || 0) - oud
-    }
-  }
-  for (const [playerId, p] of Object.entries(punten)) {
-    nieuweTotals[playerId] = (nieuweTotals[playerId] || 0) + p
-  }
-
-  const totalen = {}
-  for (const playerId of Object.keys(punten)) {
-    totalen[playerId] = nieuweTotals[playerId]
-  }
-
   const result = {
     matchId, uitslag, volgnummer,
-    predicties, toto, punten, totalen,
+    predicties, toto, punten,
+    totalen: {}, // wordt hieronder door herberekenAlleTotalen() gevuld
     datumISO, datum, competitie, thuis, uit,
     verwerktOp: new Date().toISOString(),
   }
 
   await kvSet(`result:${matchId}`, result)
-  await kvSet('totals', nieuweTotals)
 
   const index = await kvGet('results:index') || []
   if (!index.includes(String(matchId))) {
@@ -204,7 +216,9 @@ export async function berekenEnSlaResultaatOp(fixtureInfo, uitslag) {
     await kvSet('results:index', index)
   }
 
-  return result
+  await herberekenAlleTotalen()
+
+  return await kvGet(`result:${matchId}`)
 }
 
 export async function checkEnSlaUitslagenOp(fixtures) {
