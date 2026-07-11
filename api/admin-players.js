@@ -4,7 +4,7 @@ import {
   hashPincode, verwijderUitEmailIndex, voegToeAanEmailIndex,
   isGeldigEmail,
 } from './_players.js'
-import { haalAlleWedstrijden } from './_wedstrijden.js'
+import { haalAlleWedstrijden, herberekenAlleTotalen } from './_wedstrijden.js'
 import {
   stuurAccountVerwijderdMail, stuurNieuwePincodeDoorBeheerderMail,
   stuurEmailGewijzigdMail, stuurBeheerNotificaties,
@@ -18,11 +18,11 @@ function genereerNieuwePincode() {
 // Verwijdert alle voorspellingen en punten van een speler, over alle
 // wedstrijden (zowel al verwerkte resultaten als nog openstaande). Reads
 // gebeuren parallel (verschillende, onafhankelijke keys) voor snelheid.
+// De lopende totalen worden na afloop volledig herberekend (niet handmatig
+// bijgewerkt) zodat de per-wedstrijd "totaal"-momentopnames van de OVERIGE
+// spelers kloppend blijven.
 async function verwijderAlleDataVanSpeler(playerId) {
   const resultsIndex = await kvGet('results:index') || []
-  const totals = await kvGet('totals') || {}
-  const nieuweTotals = { ...totals }
-
   const results = await Promise.all(resultsIndex.map(matchId => kvGet(`result:${matchId}`)))
 
   const resultSchrijfActies = []
@@ -32,29 +32,22 @@ async function verwijderAlleDataVanSpeler(playerId) {
     if (!result) continue
     if (!(playerId in (result.punten || {}))) continue
 
-    const oud = result.punten[playerId] || 0
-    nieuweTotals[playerId] = (nieuweTotals[playerId] || 0) - oud
-
     const nieuwePredicties = { ...result.predicties }
     const nieuweToto = { ...result.toto }
     const nieuwePunten = { ...result.punten }
-    const nieuweTotalen = { ...result.totalen }
     delete nieuwePredicties[playerId]
     delete nieuweToto[playerId]
     delete nieuwePunten[playerId]
-    delete nieuweTotalen[playerId]
 
     resultSchrijfActies.push(kvSet(`result:${matchId}`, {
       ...result,
       predicties: nieuwePredicties,
       toto: nieuweToto,
       punten: nieuwePunten,
-      totalen: nieuweTotalen,
     }))
   }
-  delete nieuweTotals[playerId]
-  resultSchrijfActies.push(kvSet('totals', nieuweTotals))
   await Promise.all(resultSchrijfActies)
+  await herberekenAlleTotalen()
 
   const alleWedstrijden = await haalAlleWedstrijden()
   const voorspellingen = await Promise.all(
