@@ -1,5 +1,5 @@
 import { kvGet, kvSet } from './_kv.js'
-import { zoekVolgnummer, berekenEnSlaResultaatOp } from './_wedstrijden.js'
+import { zoekVolgnummer, berekenEnSlaResultaatOp, herberekenAlleTotalen } from './_wedstrijden.js'
 import { getPlayerById } from './_players.js'
 import { verifieerBeheerderSessie } from './_auth.js'
 
@@ -92,17 +92,16 @@ export default async function handler(req, res) {
 
     const vorigeResult = await kvGet(`result:${matchId}`)
     if (vorigeResult) {
-      const totals = await kvGet('totals') || {}
-      const nieuweTotals = { ...totals }
-      for (const [playerId, punten] of Object.entries(vorigeResult.punten || {})) {
-        nieuweTotals[playerId] = (nieuweTotals[playerId] || 0) - punten
-      }
-      await kvSet('totals', nieuweTotals)
       await kvSet(`result:${matchId}`, null)
 
       const index = await kvGet('results:index') || []
       const nieuweIndex = index.filter(id => String(id) !== String(matchId))
       await kvSet('results:index', nieuweIndex)
+
+      // Volledige herberekening in plaats van alleen het globale totaal
+      // bij te werken — zo blijven ook de per-wedstrijd "totaal"-momentopnames
+      // van de OVERIGE wedstrijden kloppend na deze verwijdering.
+      await herberekenAlleTotalen()
     }
 
     const predictionIndex = await kvGet(`predictionIndex:${matchId}`) || []
