@@ -19,24 +19,9 @@ function bepaalSeizoen() {
 export const SEASON = parseInt(process.env.PSV_SEASON || String(bepaalSeizoen()))
 const COMPETITIONS = { DED: 'ERE', CL: 'CL' }
 
-function getNLHour() {
-  const nu = new Date()
-  const nlStr = nu.toLocaleString('nl-NL', { timeZone: 'Europe/Amsterdam', hour: '2-digit', hour12: false })
-  return parseInt(nlStr)
-}
-
-function getNLDatumKey() {
-  const nu = new Date()
-  return nu.toLocaleDateString('nl-NL', { timeZone: 'Europe/Amsterdam', year: 'numeric', month: '2-digit', day: '2-digit' })
-}
-
-function getTijdvenster() {
-  const uur = getNLHour()
-  if (uur >= 10 && uur < 14) return 1
-  if (uur >= 14 && uur < 19) return 2
-  if (uur >= 19 && uur < 22) return 3
-  return 0
-}
+// Elke 5 minuten verversen: 2 aanroepen naar football-data.org per ververs-
+// beurt, ruim binnen hun limiet van 10 aanroepen per minuut (gratis laag).
+const CACHE_TTL_MS = 5 * 60 * 1000
 
 function dagAfkorting(dateStr) {
   const d = new Date(dateStr)
@@ -85,22 +70,17 @@ function mapMatch(m, comp) {
 
 // Haalt alleen de automatische (football-data.org) wedstrijden op, met cache
 async function haalAutomatischeWedstrijden() {
-  const datumKey = getNLDatumKey()
-  const venster = getTijdvenster()
-  const cacheKey = `psv:fixtures:fd:${SEASON}:${datumKey}:v${venster}`
-  const fallbackKey = `psv:fixtures:fd:${SEASON}:latest`
+  const cacheKey = `psv:fixtures:fd:${SEASON}`
+  const cached = await kvGet(cacheKey)
+  const nu = Date.now()
 
-  if (venster === 0) {
-    const cached = await kvGet(fallbackKey)
-    if (cached?.fixtures) return cached.fixtures
+  if (cached?.fixtures && cached?.cached_at) {
+    const leeftijdMs = nu - new Date(cached.cached_at).getTime()
+    if (leeftijdMs < CACHE_TTL_MS) return cached.fixtures
   }
 
-  const vensterCache = await kvGet(cacheKey)
-  if (vensterCache?.fixtures) return vensterCache.fixtures
-
   if (!API_KEY) {
-    const fallback = await kvGet(fallbackKey)
-    return fallback?.fixtures || []
+    return cached?.fixtures || []
   }
 
   try {
@@ -115,12 +95,12 @@ async function haalAutomatischeWedstrijden() {
     }
     const payload = { fixtures, cached_at: new Date().toISOString() }
     await kvSet(cacheKey, payload)
-    await kvSet(fallbackKey, payload)
     return fixtures
   } catch (err) {
     console.error('Automatische wedstrijden ophalen mislukt:', err)
-    const fallback = await kvGet(fallbackKey)
-    return fallback?.fixtures || []
+    // Bij een fout: liever verouderde data tonen dan niets, ook als de cache
+    // al ouder is dan de TTL.
+    return cached?.fixtures || []
   }
 }
 
