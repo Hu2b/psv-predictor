@@ -1,11 +1,10 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import styles from './AuthScreen.module.css'
 
-export default function AuthScreen({ onIngelogd }) {
-  const [modus, setModus] = useState('login')
+export default function AuthScreen({ onIngelogd, resetToken, linkMelding }) {
+  const [modus, setModus] = useState(resetToken ? 'reset' : (linkMelding ? 'verifyResultaat' : 'login'))
   const [laden, setLaden] = useState(false)
-  const [melding, setMelding] = useState(null)
-  const [resetToken, setResetToken] = useState(null)
+  const [melding, setMelding] = useState(linkMelding || null)
 
   const [loginNaam, setLoginNaam] = useState('')
   const [loginPincode, setLoginPincode] = useState('')
@@ -22,70 +21,10 @@ export default function AuthScreen({ onIngelogd }) {
   const [nieuwePincode, setNieuwePincode] = useState('')
   const [nieuwePincodeHerhaal, setNieuwePincodeHerhaal] = useState('')
 
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    const verifyToken = params.get('verify')
-    const rToken = params.get('reset')
-    const emailToken = params.get('bevestigEmail')
-
-    // Meteen opschonen zodra we een token uit de URL hebben gelezen — anders
-    // blijft bijv. ?reset=... in de adresbalk staan en forceert een latere
-    // remount (zoals na uitloggen) dit scherm opnieuw terug, in plaats van
-    // het normale start-scherm.
-    if (verifyToken || rToken || emailToken) {
-      window.history.replaceState({}, '', window.location.pathname)
-    }
-
-    if (verifyToken) {
-      verifieerEmail(verifyToken)
-    } else if (rToken) {
-      setResetToken(rToken)
-      setModus('reset')
-    } else if (emailToken) {
-      bevestigEmailWijziging(emailToken)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  async function verifieerEmail(token) {
-    setLaden(true)
-    setMelding(null)
-    try {
-      const r = await fetch('/api/auth', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'verify', token })
-      })
-      const data = await r.json()
-      setMelding({ type: data.success ? 'ok' : 'fout', tekst: data.message || data.error })
-      setModus('verifyResultaat')
-    } catch (e) {
-      setMelding({ type: 'fout', tekst: 'Er ging iets mis. Probeer het opnieuw.' })
-      setModus('verifyResultaat')
-    } finally {
-      setLaden(false)
-    }
-  }
-
-  async function bevestigEmailWijziging(token) {
-    setLaden(true)
-    setMelding(null)
-    try {
-      const r = await fetch('/api/auth', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'bevestig-email-wijziging', token })
-      })
-      const data = await r.json()
-      setMelding({ type: data.success ? 'ok' : 'fout', tekst: data.message || data.error })
-      setModus('verifyResultaat')
-    } catch (e) {
-      setMelding({ type: 'fout', tekst: 'Er ging iets mis. Probeer het opnieuw.' })
-      setModus('verifyResultaat')
-    } finally {
-      setLaden(false)
-    }
-  }
+  // Verify, reset-pincode en e-mailwijziging-links worden nu allemaal op
+  // App-niveau uitgelezen en (voor verify/bevestigEmail) al afgehandeld
+  // vóórdat dit scherm ooit rendert — dat werkt ongeacht of de browser
+  // toevallig al een sessie had. Dit scherm toont alleen het resultaat.
 
   async function handleLogin() {
     if (!loginNaam.trim() || loginPincode.length !== 4) {
@@ -196,7 +135,6 @@ export default function AuthScreen({ onIngelogd }) {
       if (data.success) {
         setMelding({ type: 'ok', tekst: data.message })
         setModus('login')
-        setResetToken(null)
       } else {
         setMelding({ type: 'fout', tekst: data.error })
       }
