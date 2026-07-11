@@ -15,7 +15,14 @@ export default function PredictionForm({ fixture, speler }) {
 
   const isAfgelopen = ['FT','AET','PEN'].includes(fixture.status)
   const isBezig = ['1H','HT','2H','ET','BT','LIVE'].includes(fixture.status)
-  const isSluiting = isAfgelopen || isBezig
+  // Snelle, lokale inschatting op basis van de (mogelijk wat vertraagde)
+  // wedstrijdstatus — puur om vóór de eerste server-respons al een
+  // redelijk beeld te tonen.
+  const isSluitingLokaal = isAfgelopen || isBezig
+  // De server bepaalt het definitieve antwoord: aftraptijd verstreken, óf
+  // uitslag al vastgelegd, óf iedereen heeft al voorspeld. Zodra de eerste
+  // fetch binnen is, is dit altijd leidend boven de lokale inschatting.
+  const isSluiting = onthuld || isSluitingLokaal
 
   async function laad() {
     try {
