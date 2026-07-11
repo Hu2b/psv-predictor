@@ -91,6 +91,8 @@ export async function stuurEmailGewijzigdMail(oudEmail, nieuwEmail, naam) {
     <p>Je e-mailadres is gewijzigd naar <strong>${nieuwEmail}</strong>.</p>
     <p>Was jij dit niet? Neem dan contact op met de beheerder.</p>
   `
-  await verstuurMail(oudEmail, 'Je e-mailadres is gewijzigd — PSV Poule', bericht)
-  await verstuurMail(nieuwEmail, 'Je e-mailadres is gewijzigd — PSV Poule', bericht)
+  await Promise.allSettled([
+    verstuurMail(oudEmail, 'Je e-mailadres is gewijzigd — PSV Poule', bericht),
+    verstuurMail(nieuwEmail, 'Je e-mailadres is gewijzigd — PSV Poule', bericht),
+  ])
 }
