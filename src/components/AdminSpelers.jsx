@@ -50,6 +50,7 @@ export default function AdminSpelers({ setMelding }) {
   }
 
   async function bevestigActie(adminPincode) {
+    alert('DEBUG: bevestigActie aangeroepen. modalActie = ' + JSON.stringify(modalActie))
     if (!modalActie) return
     setActieBezig(true)
     const { actie, speler, nieuweEmail } = modalActie
