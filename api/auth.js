@@ -14,6 +14,8 @@ import {
 const MAX_SPELERS = 10
 const VERIFY_TTL_MS = 24 * 60 * 60 * 1000
 const RESET_TTL_MS = 60 * 60 * 1000
+const MAX_LOGIN_POGINGEN = 5
+const LOCKOUT_MS = 15 * 60 * 1000
 
 async function haalSpelerViaSessie(sessionToken) {
   if (!sessionToken) return { fout: 'sessionToken verplicht' }
@@ -85,9 +87,34 @@ export default async function handler(req, res) {
       if (!naam || !pincode) return res.status(400).json({ error: 'Naam en pincode zijn verplicht' })
 
       const speler = await getPlayerByNaam(naam)
-      if (!speler || !verifyPincode(pincode, speler.pincodeHash)) {
+      if (!speler) {
         return res.status(401).json({ error: 'Onbekende speler of onjuiste pincode' })
       }
+
+      const pogingenKey = `loginPogingen:${speler.id}`
+      const pogingen = await kvGet(pogingenKey)
+      if (pogingen?.geblokkeerdTot && Date.now() < pogingen.geblokkeerdTot) {
+        const resterendeMinuten = Math.ceil((pogingen.geblokkeerdTot - Date.now()) / 60000)
+        return res.status(429).json({
+          error: `Te veel mislukte pogingen. Probeer het over ${resterendeMinuten} ${resterendeMinuten === 1 ? 'minuut' : 'minuten'} opnieuw.`
+        })
+      }
+
+      if (!verifyPincode(pincode, speler.pincodeHash)) {
+        const aantal = (pogingen?.geblokkeerdTot ? 0 : (pogingen?.aantal || 0)) + 1
+        if (aantal >= MAX_LOGIN_POGINGEN) {
+          await kvSet(pogingenKey, { aantal, geblokkeerdTot: Date.now() + LOCKOUT_MS })
+          return res.status(429).json({
+            error: `Te veel mislukte pogingen. Probeer het over 15 minuten opnieuw.`
+          })
+        }
+        await kvSet(pogingenKey, { aantal })
+        return res.status(401).json({ error: 'Onbekende speler of onjuiste pincode' })
+      }
+
+      // Geslaagde login: eventuele opgebouwde pogingen/blokkade vervalt.
+      if (pogingen) await kvSet(pogingenKey, null)
+
       if (!speler.geverifieerd) {
         return res.status(403).json({ error: 'Bevestig eerst je e-mailadres via de link die we je gestuurd hebben' })
       }
@@ -163,6 +190,7 @@ export default async function handler(req, res) {
       const pincodeHash = hashPincode(pincode)
       await updatePlayer(speler.id, { pincodeHash })
       await kvSet(`resetToken:${token}`, null)
+      await kvSet(`loginPogingen:${speler.id}`, null)
       await stuurPincodeGewijzigdMail(speler.email, speler.naam)
 
       return res.status(200).json({ success: true, message: 'Pincode gewijzigd. Je kunt nu inloggen.' })
