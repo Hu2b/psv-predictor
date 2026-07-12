@@ -173,5 +173,64 @@ export default async function handler(req, res) {
     return res.status(200).json({ success: true, result, totals: result.totalen, punten: result.punten })
   }
 
+  // Herberekent een AL verwerkte wedstrijd opnieuw, met de HUIDIGE
+  // spelerslijst en voorspellingen — handig als een speler zich pas ná het
+  // verwerken van de uitslag heeft aangemeld/geverifieerd, of als een
+  // voorspelling nog is bijgewerkt. Gebruikt dezelfde uitslag die al was
+  // vastgelegd, dus de score hoeft niet opnieuw te worden ingetypt.
+  if (req.method === 'POST' && action === 'herberekenen') {
+    const { matchId } = body
+    if (!matchId) return res.status(400).json({ error: 'matchId verplicht' })
+
+    const bestaandResultaat = await kvGet(`result:${matchId}`)
+    if (!bestaandResultaat) return res.status(404).json({ error: 'Deze wedstrijd heeft nog geen uitslag' })
+
+    const result = await berekenEnSlaResultaatOp({
+      matchId: bestaandResultaat.matchId,
+      volgnummer: bestaandResultaat.volgnummer,
+      datumISO: bestaandResultaat.datumISO,
+      datum: bestaandResultaat.datum,
+      competitie: bestaandResultaat.competitie,
+      thuis: bestaandResultaat.thuis,
+      uit: bestaandResultaat.uit,
+    }, bestaandResultaat.uitslag)
+
+    return res.status(200).json({ success: true, result, totals: result.totalen, punten: result.punten })
+  }
+
+  // Verwijdert een al vastgelegde uitslag weer volledig — alleen toegestaan
+  // zolang de wedstrijd nog niet is begonnen (bijvoorbeeld om een per
+  // ongeluk te vroeg ingevoerde testuitslag terug te draaien). De
+  // voorspellingen van spelers blijven gewoon staan.
+  if (req.method === 'POST' && action === 'verwijderUitslag') {
+    const { matchId } = body
+    if (!matchId) return res.status(400).json({ error: 'matchId verplicht' })
+
+    const bestaandResultaat = await kvGet(`result:${matchId}`)
+    if (!bestaandResultaat) return res.status(404).json({ error: 'Deze wedstrijd heeft nog geen uitslag' })
+
+    if (bestaandResultaat.datumISO && new Date() > new Date(bestaandResultaat.datumISO)) {
+      return res.status(403).json({ error: 'Wedstrijd is al begonnen, uitslag kan niet meer verwijderd worden' })
+    }
+
+    await kvSet(`result:${matchId}`, null)
+    const index = await kvGet('results:index') || []
+    const nieuweIndex = index.filter(id => String(id) !== String(matchId))
+    await kvSet('results:index', nieuweIndex)
+    await herberekenAlleTotalen()
+
+    // Bij een handmatig toegevoegde wedstrijd ook de uitslag/status in de
+    // lijst zelf resetten (de wedstrijd zelf blijft gewoon bestaan).
+    const wedstrijden = await kvGet('admin:wedstrijden') || []
+    const idx = wedstrijden.findIndex(w => String(w.matchId) === String(matchId))
+    if (idx !== -1) {
+      wedstrijden[idx].uitslag = null
+      wedstrijden[idx].status = 'NS'
+      await slaHandmatigOp(wedstrijden)
+    }
+
+    return res.status(200).json({ success: true })
+  }
+
   return res.status(400).json({ error: 'Onbekende actie' })
 }
