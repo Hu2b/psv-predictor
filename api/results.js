@@ -1,5 +1,6 @@
 import { kvGet } from './_kv.js'
 import { zoekVolgnummer, berekenEnSlaResultaatOp } from './_wedstrijden.js'
+import { zoekLogo } from './_logo-lookup.js'
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
@@ -26,9 +27,16 @@ export default async function handler(req, res) {
       r.totalen = nieuweTotalen
     }
 
+    // Teamlogo's erbij zoeken voor weergave in het klassement-overzicht.
+    const metLogos = await Promise.all(chronologisch.map(async r => ({
+      ...r,
+      thuisLogo: await zoekLogo(r.thuis),
+      uitLogo: await zoekLogo(r.uit),
+    })))
+
     return res.status(200).json({
       totals: lopendTotaal,
-      results: chronologisch.slice().sort((a, b) => (b.volgnummer || 0) - (a.volgnummer || 0))
+      results: metLogos.slice().sort((a, b) => (b.volgnummer || 0) - (a.volgnummer || 0))
     })
   }
 
