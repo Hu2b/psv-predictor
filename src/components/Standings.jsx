@@ -125,9 +125,11 @@ export default function Standings({ fixtures, speler }) {
                   <span className={styles.wedstrijdDatum}>#{r.volgnummer || '—'} · {r.datum}</span>
                 </div>
                 <div className={styles.wedstrijdTeams}>
+                  {r.thuisLogo && <img src={r.thuisLogo} alt="" className={styles.teamLogo} />}
                   <span className={styles.teamCode}>{r.thuis}</span>
                   <span className={styles.uitslag}>{r.uitslag.home}–{r.uitslag.away}</span>
                   <span className={styles.teamCode}>{r.uit}</span>
+                  {r.uitLogo && <img src={r.uitLogo} alt="" className={styles.teamLogo} />}
                 </div>
                 <div className={styles.spelerTabel}>
                   <div className={styles.spelerTabelHeader}>
