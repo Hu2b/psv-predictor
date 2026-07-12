@@ -315,4 +315,14 @@
   border-radius: var(--radius-sm);
 }
 
-.predInfo { display: flex; align-items:
+.predInfo { display: flex; align-items: center; gap: 10px; flex: 1; }
+.predNaam { font-size: 14px; font-weight: 700; color: var(--psv-white); min-width: 40px; }
+
+.predScore {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--gold);
+}
+
+.predLeeg { font-size: 12px; color: var(--psv-gray-lt); font-style: italic; }
