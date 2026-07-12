@@ -186,6 +186,13 @@
   color: var(--psv-white);
 }
 
+.teamLogo {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
 .uitslag {
   font-family: var(--font-display);
   font-size: 15px;
