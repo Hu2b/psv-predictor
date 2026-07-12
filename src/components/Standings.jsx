@@ -1,6 +1,45 @@
 import { useState, useEffect } from 'react'
 import styles from './Standings.module.css'
 
+// Vult een string met spaties tot vaste lengte (rechts uitlijnen tekst).
+function padRechts(str, len) {
+  str = String(str)
+  return str.length >= len ? str : str + ' '.repeat(len - str.length)
+}
+// Vult een string met spaties tot vaste lengte (links uitlijnen, voor getallen).
+function padLinks(str, len) {
+  str = String(str)
+  return str.length >= len ? str : ' '.repeat(len - str.length) + str
+}
+
+// Bouwt per wedstrijd een uitgelijnde tabel binnen een WhatsApp-monospace-blok
+// (```...```), zodat naam/voorspelling/punten/totaal altijd nette kolommen
+// vormen i.p.v. op smalle telefoonschermen af te breken over meerdere regels.
+// Dit is de BACKUP-tekstvariant (optie A), gebruikt als de browser geen
+// bestanden kan delen via de Web Share API.
+function bouwSpelerTabel(r, spelerNaamMap) {
+  const rijen = Object.entries(r.predicties || {}).map(([playerId, pred]) => {
+    const naam = spelerNaamMap[playerId] || '???'
+    const punten = r.punten?.[playerId] ?? 0
+    const totaal = r.totalen?.[playerId] ?? '—'
+    const vrsp = pred ? `${pred.home}-${pred.away}` : '-'
+    return { naam, vrsp, punt: `+${punten}`, totaal: String(totaal) }
+  })
+  if (rijen.length === 0) return null
+
+  const naamW = Math.max(6, ...rijen.map(x => x.naam.length))
+  const vrspW = Math.max(4, ...rijen.map(x => x.vrsp.length))
+  const puntW = Math.max(2, ...rijen.map(x => x.punt.length))
+  const totW  = Math.max(3, ...rijen.map(x => x.totaal.length))
+
+  const regels = []
+  regels.push(`${padRechts('Speler', naamW)} ${padRechts('Vrsp', vrspW)} ${padLinks('Pt', puntW)} ${padLinks('Tot', totW)}`)
+  for (const x of rijen) {
+    regels.push(`${padRechts(x.naam, naamW)} ${padRechts(x.vrsp, vrspW)} ${padLinks(x.punt, puntW)} ${padLinks(x.totaal, totW)}`)
+  }
+  return regels.join('\n')
+}
+
 function bouwWhatsAppTekst(klassement, results, spelerNaamMap) {
   const regels = []
   regels.push('🏆 *PSV Poule — Klassement*')
@@ -16,19 +55,226 @@ function bouwWhatsAppTekst(klassement, results, spelerNaamMap) {
     regels.push('')
     regels.push(`#${r.volgnummer || '—'} ${r.datum} — ${r.competitie}`)
     regels.push(`${r.thuis} ${r.uitslag.home}-${r.uitslag.away} ${r.uit}`)
-    for (const [playerId, pred] of Object.entries(r.predicties || {})) {
-      const naam = spelerNaamMap[playerId] || '???'
-      const punten = r.punten?.[playerId] ?? 0
-      const totaal = r.totalen?.[playerId] ?? '—'
-      if (pred) {
-        regels.push(`${naam}: ${pred.home}-${pred.away} (+${punten}pt) — Totaal: ${totaal}`)
-      } else {
-        regels.push(`${naam}: geen voorspelling (+0pt) — Totaal: ${totaal}`)
-      }
+    const tabel = bouwSpelerTabel(r, spelerNaamMap)
+    if (tabel) {
+      regels.push('```')
+      regels.push(tabel)
+      regels.push('```')
     }
   }
 
   return regels.join('\n')
+}
+
+// Leest een CSS custom property (--psv-red e.d.) op zodat de afbeelding
+// automatisch hetzelfde kleurenschema volgt als de rest van de app, zonder
+// kleuren dubbel te hoeven onderhouden.
+function cssVar(naam, fallback) {
+  const waarde = getComputedStyle(document.documentElement).getPropertyValue(naam).trim()
+  return waarde || fallback
+}
+
+// Handmatige afgeronde rechthoek i.p.v. ctx.roundRect(), voor bredere
+// browserondersteuning (ook oudere WebViews die apps soms gebruiken om
+// share-doelwitten te openen).
+function tekenAfgerondeRect(ctx, x, y, w, h, r) {
+  const radius = Math.min(r, w / 2, h / 2)
+  ctx.beginPath()
+  ctx.moveTo(x + radius, y)
+  ctx.lineTo(x + w - radius, y)
+  ctx.arcTo(x + w, y, x + w, y + radius, radius)
+  ctx.lineTo(x + w, y + h - radius)
+  ctx.arcTo(x + w, y + h, x + w - radius, y + h, radius)
+  ctx.lineTo(x + radius, y + h)
+  ctx.arcTo(x, y + h, x, y + h - radius, radius)
+  ctx.lineTo(x, y + radius)
+  ctx.arcTo(x, y, x + radius, y, radius)
+  ctx.closePath()
+}
+
+// Bouwt een PNG-afbeelding (canvas) van klassement + alle wedstrijden, in de
+// stijl van de app zelf. Geeft een Blob terug die via de Web Share API
+// gedeeld kan worden (navigator.share met files) — dat voorkomt het
+// "past niet op 1 regel"-probleem van platte tekst volledig, want een
+// afbeelding heeft geen regel-afbreekprobleem.
+async function bouwDeelAfbeelding(klassement, resultaten, spelerNaamMap) {
+  if (document.fonts && document.fonts.ready) {
+    try { await document.fonts.ready } catch (_) {}
+  }
+
+  const kleur = {
+    bg: cssVar('--psv-bg', '#111111'),
+    surface: cssVar('--psv-surface', '#1E1E1E'),
+    border: cssVar('--psv-border', '#2E2E2E'),
+    wit: cssVar('--psv-white', '#FFFFFF'),
+    rood: cssVar('--psv-red', '#E1000E'),
+    grijsLicht: cssVar('--psv-gray-lt', '#6B6B6B'),
+    goud: cssVar('--gold', '#F5B800'),
+    groen: cssVar('--green', '#22C55E'),
+  }
+  const fontDisplay = "'Barlow Condensed', Arial, sans-serif"
+  const fontBody = "'Inter', -apple-system, sans-serif"
+
+  const PAD = 28
+  const W = 760
+  const klassementRijHoogte = 52
+  const kolX = [PAD + 16, PAD + 200, PAD + 380, W - PAD - 16]
+
+  // --- Hoogte vooraf berekenen zodat het canvas meteen de juiste grootte heeft ---
+  let hoogte = PAD
+  hoogte += 46 // titel
+  hoogte += 26 + 16 // onderschrift + marge
+  hoogte += 30 // "KLASSEMENT"-label
+  hoogte += klassement.length * klassementRijHoogte
+  hoogte += 20
+
+  if (resultaten.length > 0) {
+    hoogte += 30 // "ALLE WEDSTRIJDEN"-label
+    for (const r of resultaten) {
+      const aantalSpelers = Object.keys(r.predicties || {}).length
+      hoogte += 16 + 22 + 34 + 24 + aantalSpelers * 26 + 16 + 16
+    }
+  }
+  hoogte += PAD
+  const H = Math.ceil(hoogte)
+
+  const dpr = 2
+  const canvas = document.createElement('canvas')
+  canvas.width = W * dpr
+  canvas.height = H * dpr
+  const ctx = canvas.getContext('2d')
+  ctx.scale(dpr, dpr)
+
+  ctx.fillStyle = kleur.bg
+  ctx.fillRect(0, 0, W, H)
+
+  let cy = PAD
+
+  ctx.fillStyle = kleur.rood
+  ctx.font = `900 34px ${fontDisplay}`
+  ctx.textAlign = 'left'
+  ctx.fillText('PSV POULE', PAD, cy + 32)
+  cy += 46
+
+  ctx.fillStyle = kleur.grijsLicht
+  ctx.font = `600 15px ${fontBody}`
+  const datumTekst = new Date().toLocaleDateString('nl-NL', { day: 'numeric', month: 'long', year: 'numeric' })
+  ctx.fillText(`Klassement · ${datumTekst}`, PAD, cy + 14)
+  cy += 26 + 16
+
+  ctx.fillStyle = kleur.grijsLicht
+  ctx.font = `700 13px ${fontBody}`
+  ctx.fillText('KLASSEMENT', PAD, cy + 12)
+  cy += 30
+
+  klassement.forEach((s, i) => {
+    const isLeider = i === 0
+    const rijH = klassementRijHoogte - 8
+    tekenAfgerondeRect(ctx, PAD, cy, W - PAD * 2, rijH, 10)
+    ctx.fillStyle = isLeider ? 'rgba(245,184,0,0.10)' : kleur.surface
+    ctx.fill()
+    ctx.strokeStyle = isLeider ? 'rgba(245,184,0,0.35)' : kleur.border
+    ctx.lineWidth = 1
+    ctx.stroke()
+
+    const midY = cy + rijH / 2 + 6
+
+    ctx.fillStyle = kleur.grijsLicht
+    ctx.font = `800 16px ${fontDisplay}`
+    ctx.fillText(String(i + 1), PAD + 16, midY)
+
+    ctx.fillStyle = isLeider ? kleur.goud : kleur.wit
+    ctx.font = `700 18px ${fontBody}`
+    ctx.fillText(s.naam + (isLeider ? '  👑' : ''), PAD + 48, midY)
+
+    ctx.fillStyle = isLeider ? kleur.goud : kleur.wit
+    ctx.font = `900 22px ${fontDisplay}`
+    ctx.textAlign = 'right'
+    ctx.fillText(String(s.punten), W - PAD - 16, midY + 1)
+    ctx.textAlign = 'left'
+
+    cy += klassementRijHoogte
+  })
+
+  cy += 20
+
+  if (resultaten.length > 0) {
+    ctx.fillStyle = kleur.grijsLicht
+    ctx.font = `700 13px ${fontBody}`
+    ctx.fillText('ALLE WEDSTRIJDEN', PAD, cy + 12)
+    cy += 30
+
+    for (const r of resultaten) {
+      const spelers = Object.entries(r.predicties || {})
+      const kaartHoogte = 16 + 22 + 34 + 24 + spelers.length * 26 + 16
+
+      tekenAfgerondeRect(ctx, PAD, cy, W - PAD * 2, kaartHoogte, 12)
+      ctx.fillStyle = kleur.surface
+      ctx.fill()
+      ctx.strokeStyle = kleur.border
+      ctx.stroke()
+
+      let ry = cy + 16
+
+      ctx.fillStyle = kleur.rood
+      ctx.font = `700 12px ${fontBody}`
+      ctx.textAlign = 'left'
+      ctx.fillText(r.competitie, kolX[0], ry + 10)
+      ctx.fillStyle = kleur.grijsLicht
+      ctx.font = `500 13px ${fontBody}`
+      ctx.textAlign = 'right'
+      ctx.fillText(`#${r.volgnummer || '—'} · ${r.datum}`, W - PAD - 16, ry + 10)
+      ctx.textAlign = 'left'
+      ry += 22
+
+      ctx.fillStyle = kleur.wit
+      ctx.font = `900 22px ${fontDisplay}`
+      ctx.fillText(`${r.thuis}  ${r.uitslag.home}–${r.uitslag.away}  ${r.uit}`, kolX[0], ry + 18)
+      ry += 34
+
+      ctx.fillStyle = kleur.grijsLicht
+      ctx.font = `700 11px ${fontBody}`
+      ctx.fillText('SPELER', kolX[0], ry + 10)
+      ctx.fillText('VOORSPELLING', kolX[1], ry + 10)
+      ctx.fillText('PUNTEN', kolX[2], ry + 10)
+      ctx.textAlign = 'right'
+      ctx.fillText('TOTAAL', kolX[3], ry + 10)
+      ctx.textAlign = 'left'
+      ry += 24
+
+      for (const [playerId, pred] of spelers) {
+        const naam = spelerNaamMap[playerId] || '???'
+        const punten = r.punten?.[playerId] ?? 0
+        const totaal = r.totalen?.[playerId] ?? '—'
+
+        ctx.fillStyle = kleur.wit
+        ctx.font = `700 15px ${fontBody}`
+        ctx.fillText(naam, kolX[0], ry + 14)
+
+        ctx.fillStyle = pred ? kleur.wit : kleur.grijsLicht
+        ctx.font = pred ? `700 15px ${fontBody}` : `italic 400 13px ${fontBody}`
+        ctx.fillText(pred ? `${pred.home}–${pred.away}` : 'geen voorspelling', kolX[1], ry + 14)
+
+        ctx.fillStyle = punten >= 10 ? kleur.goud : punten >= 7 ? kleur.groen : punten >= 5 ? '#3B82F6' : kleur.grijsLicht
+        ctx.font = `800 15px ${fontBody}`
+        ctx.fillText(`+${punten}`, kolX[2], ry + 14)
+
+        ctx.fillStyle = kleur.wit
+        ctx.font = `700 15px ${fontBody}`
+        ctx.textAlign = 'right'
+        ctx.fillText(String(totaal), kolX[3], ry + 14)
+        ctx.textAlign = 'left'
+
+        ry += 26
+      }
+
+      cy += kaartHoogte + 16
+    }
+  }
+
+  return new Promise(resolve => {
+    canvas.toBlob(blob => resolve(blob), 'image/png', 0.95)
+  })
 }
 
 export default function Standings({ fixtures, speler }) {
@@ -70,10 +316,46 @@ export default function Standings({ fixtures, speler }) {
     .map(([playerId, punten]) => ({ playerId, naam: spelerNaamMap[playerId] || '???', punten }))
     .sort((a, b) => b.punten - a.punten)
 
-  function handleDelen() {
+  const [delenBezig, setDelenBezig] = useState(false)
+
+  function valTerugOpTekst() {
     const tekst = bouwWhatsAppTekst(klassement, results, spelerNaamMap)
     const url = `https://wa.me/?text=${encodeURIComponent(tekst)}`
     window.open(url, '_blank')
+  }
+
+  async function handleDelen() {
+    if (delenBezig) return
+    setDelenBezig(true)
+    try {
+      const kanBestandenDelen = typeof navigator.canShare === 'function' && typeof navigator.share === 'function'
+      if (!kanBestandenDelen) {
+        valTerugOpTekst()
+        return
+      }
+      const blob = await bouwDeelAfbeelding(klassement, gesorteerdeResultaten, spelerNaamMap)
+      if (!blob) {
+        valTerugOpTekst()
+        return
+      }
+      const bestand = new File([blob], 'psv-poule-klassement.png', { type: 'image/png' })
+      if (!navigator.canShare({ files: [bestand] })) {
+        valTerugOpTekst()
+        return
+      }
+      await navigator.share({
+        files: [bestand],
+        title: 'PSV Poule',
+        text: 'Bekijk het klassement van de PSV Poule!'
+      })
+    } catch (e) {
+      // AbortError = gebruiker heeft de deel-dialoog zelf geannuleerd, geen actie nodig.
+      if (e && e.name !== 'AbortError') {
+        valTerugOpTekst()
+      }
+    } finally {
+      setDelenBezig(false)
+    }
   }
 
   if (loading) return (
@@ -109,8 +391,8 @@ export default function Standings({ fixtures, speler }) {
       </div>
 
       {results.length > 0 && (
-        <button className={styles.deelBtn} onClick={handleDelen}>
-          📤 Delen via WhatsApp
+        <button className={styles.deelBtn} onClick={handleDelen} disabled={delenBezig}>
+          {delenBezig ? 'Bezig…' : '📤 Delen'}
         </button>
       )}
 
