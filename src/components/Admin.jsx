@@ -116,11 +116,17 @@ export default function Admin({ fixtures, onWedstrijdenGewijzigd }) {
     }
   }
 
-  // Verwijdert een al vastgelegde uitslag weer, zolang de wedstrijd nog niet
-  // is begonnen — bijvoorbeeld om een per ongeluk verkeerd of te vroeg
-  // ingevoerde uitslag terug te draaien.
+  // Verwijdert een al vastgelegde uitslag weer — kan nu altijd, ook ná de
+  // aftrap, zodat een beheerder een fout ook nog kan corrigeren nadat een
+  // wedstrijd al (deels automatisch) verwerkt is. Voorspellingen van spelers
+  // blijven gewoon staan; alleen de uitslag + toegekende punten verdwijnen.
   async function handleVerwijderUitslag() {
-    if (!gekozen || !window.confirm(`Uitslag van ${gekozen.thuis} vs ${gekozen.uit} verwijderen?`)) return
+    if (!gekozen) return
+    const isAlGespeeld = new Date() >= new Date(gekozen.datumISO)
+    const waarschuwing = isAlGespeeld
+      ? `Let op: deze wedstrijd is al gespeeld/verwerkt. Uitslag van ${gekozen.thuis} vs ${gekozen.uit} verwijderen? De toegekende punten van spelers voor deze wedstrijd vervallen dan ook (voorspellingen zelf blijven staan).`
+      : `Uitslag van ${gekozen.thuis} vs ${gekozen.uit} verwijderen?`
+    if (!window.confirm(waarschuwing)) return
     const r = await fetch('/api/admin', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -230,7 +236,7 @@ export default function Admin({ fixtures, onWedstrijdenGewijzigd }) {
                   🔄 Herbereken punten (huidige spelerslijst)
                 </button>
               )}
-              {gekozen.uitslag && new Date() < new Date(gekozen.datumISO) && (
+              {gekozen.uitslag && (
                 <button className={styles.btn} onClick={handleVerwijderUitslag} style={{ marginTop: 8, background: 'transparent', border: '1px solid rgba(225,0,14,0.3)', color: '#f87171' }}>
                   🗑️ Uitslag verwijderen
                 </button>
