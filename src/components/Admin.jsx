@@ -23,6 +23,23 @@ export default function Admin({ fixtures, onWedstrijdenGewijzigd }) {
   const [uit, setUit] = useState('')
   const [uitNaam, setUitNaam] = useState('')
   const [datum, setDatum] = useState('')
+  // Kaart van matchId -> reeds opgeslagen eigen resultaat (uit /api/results).
+  // Dit is de ENIGE betrouwbare bron om te weten of een wedstrijd al een
+  // uitslag heeft binnen de app — het uitslag-veld op een wedstrijd uit
+  // `fixtures` komt namelijk rechtstreeks van de live football-data.org-feed
+  // en kan leeg zijn terwijl er intern al wél een resultaat is vastgelegd
+  // (bijv. een handmatig ingevoerde testuitslag vóór de echte aftraptijd).
+  const [resultatenMap, setResultatenMap] = useState({})
+
+  async function laadResultaten() {
+    try {
+      const r = await fetch('/api/results?all=1')
+      const data = await r.json()
+      const map = {}
+      for (const res of data.results || []) map[String(res.matchId)] = res
+      setResultatenMap(map)
+    } catch (_) {}
+  }
 
   useEffect(() => {
     async function laad() {
@@ -32,6 +49,7 @@ export default function Admin({ fixtures, onWedstrijdenGewijzigd }) {
       setHandmatig(data.wedstrijden || [])
     }
     laad()
+    laadResultaten()
 
     async function laadSpelers() {
       try {
@@ -48,6 +66,7 @@ export default function Admin({ fixtures, onWedstrijdenGewijzigd }) {
   const alleWedstrijden = [...fixtures].sort((a, b) => new Date(a.datumISO) - new Date(b.datumISO))
 
   const gekozen = alleWedstrijden.find(f => String(f.matchId) === String(gekozenMatch))
+  const bestaandResultaat = gekozen ? resultatenMap[String(gekozen.matchId)] : null
 
   function handleThuisAfkorting(val) {
     const upper = val.toUpperCase()
@@ -83,7 +102,8 @@ export default function Admin({ fixtures, onWedstrijdenGewijzigd }) {
     const data = await r.json()
     if (data.success) {
       setResultaat(data)
-      setMelding({ type: 'ok', tekst: 'Uitslag opgeslagen en punten berekend!' })
+      setMelding({ type: 'ok', tekst: bestaandResultaat ? 'Uitslag bijgewerkt en punten herberekend!' : 'Uitslag opgeslagen en punten berekend!' })
+      await laadResultaten()
       if (onWedstrijdenGewijzigd) onWedstrijdenGewijzigd()
     } else {
       setMelding({ type: 'fout', tekst: data.error || 'Fout' })
@@ -110,6 +130,7 @@ export default function Admin({ fixtures, onWedstrijdenGewijzigd }) {
     if (data.success) {
       setResultaat(data)
       setMelding({ type: 'ok', tekst: 'Punten herberekend met de huidige spelerslijst!' })
+      await laadResultaten()
       if (onWedstrijdenGewijzigd) onWedstrijdenGewijzigd()
     } else {
       setMelding({ type: 'fout', tekst: data.error || 'Fout' })
@@ -141,6 +162,7 @@ export default function Admin({ fixtures, onWedstrijdenGewijzigd }) {
       setResultaat(null)
       setHomeScore(''); setAwayScore('')
       setMelding({ type: 'ok', tekst: 'Uitslag verwijderd.' })
+      await laadResultaten()
       if (onWedstrijdenGewijzigd) onWedstrijdenGewijzigd()
     } else {
       setMelding({ type: 'fout', tekst: data.error || 'Fout' })
@@ -198,14 +220,28 @@ export default function Admin({ fixtures, onWedstrijdenGewijzigd }) {
         <div className={styles.sectie}>
           <label className={styles.label}>Wedstrijd</label>
           <select className={styles.select} value={gekozenMatch}
-            onChange={e => { setGekozenMatch(e.target.value); setResultaat(null); setHomeScore(''); setAwayScore('') }}>
+            onChange={e => {
+              const nieuweId = e.target.value
+              setGekozenMatch(nieuweId)
+              setResultaat(null)
+              const bestaand = resultatenMap[String(nieuweId)]
+              if (bestaand) {
+                setHomeScore(String(bestaand.uitslag.home))
+                setAwayScore(String(bestaand.uitslag.away))
+              } else {
+                setHomeScore(''); setAwayScore('')
+              }
+            }}>
             <option value="">— Kies wedstrijd —</option>
-            {alleWedstrijden.map(f => (
-              <option key={f.matchId} value={f.matchId}>
-                #{f.volgnummer || '—'} {f.datum} — {f.thuis} vs {f.uit} ({f.competitie})
-                {f.uitslag ? ` [${f.uitslag.home}-${f.uitslag.away}]` : ''}
-              </option>
-            ))}
+            {alleWedstrijden.map(f => {
+              const bestaand = resultatenMap[String(f.matchId)]
+              return (
+                <option key={f.matchId} value={f.matchId}>
+                  #{f.volgnummer || '—'} {f.datum} — {f.thuis} vs {f.uit} ({f.competitie})
+                  {bestaand ? ` [${bestaand.uitslag.home}-${bestaand.uitslag.away}]` : ''}
+                </option>
+              )
+            })}
           </select>
           {gekozen && (
             <>
@@ -213,6 +249,12 @@ export default function Admin({ fixtures, onWedstrijdenGewijzigd }) {
                 <span className={styles.compTag}>{gekozen.competitie}</span>
                 <span className={styles.matchNaam}>{gekozen.thuisNaam} vs {gekozen.uitNaam}</span>
               </div>
+              {bestaandResultaat && (
+                <div className={styles.melding} style={{ background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.3)', color: '#4ade80' }}>
+                  ✅ Deze wedstrijd heeft al een uitslag: <strong>{bestaandResultaat.uitslag.home}-{bestaandResultaat.uitslag.away}</strong>.
+                  Hieronder alvast ingevuld — wijzig de score en sla op om te corrigeren, of gebruik "Herbereken" als de score klopt maar de punten niet (bijv. na een nieuwe speler).
+                </div>
+              )}
               <div className={styles.scoreRij}>
                 <div className={styles.scoreBlok}>
                   <label className={styles.scoreLabel}>{gekozen.thuis}</label>
@@ -229,14 +271,14 @@ export default function Admin({ fixtures, onWedstrijdenGewijzigd }) {
                 </div>
               </div>
               <button className={styles.btn} onClick={handleUitslag}>
-                Uitslag opslaan & punten berekenen
+                {bestaandResultaat ? 'Uitslag wijzigen & punten herberekenen' : 'Uitslag opslaan & punten berekenen'}
               </button>
-              {gekozen.uitslag && (
+              {bestaandResultaat && (
                 <button className={styles.btn} onClick={handleHerberekenen} style={{ marginTop: 8, background: 'transparent', border: '1px solid var(--psv-border)' }}>
-                  🔄 Herbereken punten (huidige spelerslijst)
+                  🔄 Herbereken punten (huidige spelerslijst, zelfde score)
                 </button>
               )}
-              {gekozen.uitslag && (
+              {bestaandResultaat && (
                 <button className={styles.btn} onClick={handleVerwijderUitslag} style={{ marginTop: 8, background: 'transparent', border: '1px solid rgba(225,0,14,0.3)', color: '#f87171' }}>
                   🗑️ Uitslag verwijderen
                 </button>
