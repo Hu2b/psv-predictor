@@ -106,7 +106,12 @@ async function bouwDeelAfbeelding(klassement, resultaten, spelerNaamMap) {
     border: cssVar('--psv-border', '#2E2E2E'),
     wit: cssVar('--psv-white', '#FFFFFF'),
     rood: cssVar('--psv-red', '#E1000E'),
-    grijsLicht: cssVar('--psv-gray-lt', '#6B6B6B'),
+    // Bewust lichter dan de --psv-gray-lt van de live app: op een scherm in
+    // de app is dat contrast prima, maar in een gedeelde/gecomprimeerde
+    // afbeelding (WhatsApp e.d. comprimeren vaak nog eens) wordt dat te
+    // schraal om goed te lezen. Leesbaarheid weegt hier zwaarder dan exact
+    // dezelfde tint als de rest van de app.
+    grijsLicht: '#A3AAB5',
     goud: cssVar('--gold', '#F5B800'),
     groen: cssVar('--green', '#22C55E'),
   }
@@ -135,12 +140,12 @@ async function bouwDeelAfbeelding(klassement, resultaten, spelerNaamMap) {
   }
   hoogte += PAD
   const H = Math.ceil(hoogte)
-  // 3x i.p.v. 2x resolutie: bij veel wedstrijden wordt de afbeelding lang,
+
+  // 4x i.p.v. 3x resolutie: bij veel wedstrijden wordt de afbeelding lang,
   // en messenger-apps zoals WhatsApp schalen 'm vaak nog eens terug voor de
   // preview/thumbnail — een hogere brontekening voorkomt dat dat er
   // korrelig uitziet.
-  const dpr = 3
-  
+  const dpr = 4
   const canvas = document.createElement('canvas')
   canvas.width = W * dpr
   canvas.height = H * dpr
@@ -218,8 +223,12 @@ async function bouwDeelAfbeelding(klassement, resultaten, spelerNaamMap) {
 
       let ry = cy + 16
 
-      ctx.fillStyle = kleur.rood
       ctx.font = `700 12px ${fontBody}`
+      const compBreedte = ctx.measureText(r.competitie).width
+      tekenAfgerondeRect(ctx, kolX[0] - 6, ry - 4, compBreedte + 12, 20, 4)
+      ctx.fillStyle = 'rgba(225,0,14,0.12)'
+      ctx.fill()
+      ctx.fillStyle = kleur.rood
       ctx.textAlign = 'left'
       ctx.fillText(r.competitie, kolX[0], ry + 10)
       ctx.fillStyle = kleur.grijsLicht
