@@ -135,8 +135,12 @@ async function bouwDeelAfbeelding(klassement, resultaten, spelerNaamMap) {
   }
   hoogte += PAD
   const H = Math.ceil(hoogte)
-
-  const dpr = 2
+  // 3x i.p.v. 2x resolutie: bij veel wedstrijden wordt de afbeelding lang,
+  // en messenger-apps zoals WhatsApp schalen 'm vaak nog eens terug voor de
+  // preview/thumbnail — een hogere brontekening voorkomt dat dat er
+  // korrelig uitziet.
+  const dpr = 3
+  
   const canvas = document.createElement('canvas')
   canvas.width = W * dpr
   canvas.height = H * dpr
