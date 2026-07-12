@@ -249,7 +249,7 @@ export default function Admin({ fixtures, onWedstrijdenGewijzigd }) {
                 <span className={styles.compTag}>{gekozen.competitie}</span>
                 <span className={styles.matchNaam}>{gekozen.thuisNaam} vs {gekozen.uitNaam}</span>
               </div>
-              {bestaandResultaat && (
+              {bestaandResultaat && !resultaat && (
                 <div className={styles.melding} style={{ background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.3)', color: '#4ade80' }}>
                   ✅ Deze wedstrijd heeft al een uitslag: <strong>{bestaandResultaat.uitslag.home}-{bestaandResultaat.uitslag.away}</strong>.
                   Hieronder alvast ingevuld — wijzig de score en sla op om te corrigeren, of gebruik "Herbereken" als de score klopt maar de punten niet (bijv. na een nieuwe speler).
