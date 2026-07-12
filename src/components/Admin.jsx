@@ -175,7 +175,6 @@ export default function Admin({ fixtures, onWedstrijdenGewijzigd }) {
 
   return (
     <div className={styles.wrapper}>
-      <h2 className={styles.titel}>Admin</h2>
       <div className={styles.tabBar}>
         <button className={`${styles.tabBtn} ${tab === 'uitslag' ? styles.tabActief : ''}`} onClick={() => { setTab('uitslag'); setMelding(null) }}>Uitslag</button>
         <button className={`${styles.tabBtn} ${tab === 'toevoegen' ? styles.tabActief : ''}`} onClick={() => { setTab('toevoegen'); setMelding(null) }}>Toevoegen</button>
