@@ -36,6 +36,13 @@ button:focus-visible { outline: 2px solid var(--psv-red); outline-offset: 2px; }
 input { font-family: var(--font-body); }
 input:focus { outline: none; }
 
+/* Vangnet tegen iOS Safari's auto-zoom: elk input/select/textarea-veld met een
+   berekende font-size onder 16px laat Safari bij focus de hele pagina inzoomen.
+   Deze regel dekt nieuwe velden in de toekomst structureel af; een specifieke
+   class-selector (zoals .inputPincode of .scoreInput, die bewust groter zijn)
+   wint hier altijd van omdat een class zwaarder weegt dan deze tag-selector. */
+input, select, textarea { font-size: 16px; }
+
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0); }
