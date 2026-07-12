@@ -1,5 +1,5 @@
 import { kvGet, kvSet } from './_kv.js'
-import { zoekVolgnummer, berekenEnSlaResultaatOp, herberekenAlleTotalen } from './_wedstrijden.js'
+import { zoekVolgnummer, berekenEnSlaResultaatOp, herberekenAlleTotalen, haalAlleWedstrijden } from './_wedstrijden.js'
 import { getPlayerById } from './_players.js'
 import { verifieerBeheerderSessie } from './_auth.js'
 
@@ -185,14 +185,21 @@ export default async function handler(req, res) {
     const bestaandResultaat = await kvGet(`result:${matchId}`)
     if (!bestaandResultaat) return res.status(404).json({ error: 'Deze wedstrijd heeft nog geen uitslag' })
 
+    // thuis/uit verversen vanuit de actuele wedstrijdenlijst i.p.v. de
+    // bevroren waarde te hergebruiken — zo corrigeert "Herbereken" ook
+    // meteen een verouderde teamafkorting (bijv. na een verbetering in
+    // shared/teams.js), in plaats van 'm voor altijd te laten hangen.
+    const actueleWedstrijden = await haalAlleWedstrijden()
+    const actueel = actueleWedstrijden.find(f => String(f.matchId) === String(matchId))
+
     const result = await berekenEnSlaResultaatOp({
       matchId: bestaandResultaat.matchId,
       volgnummer: bestaandResultaat.volgnummer,
       datumISO: bestaandResultaat.datumISO,
       datum: bestaandResultaat.datum,
       competitie: bestaandResultaat.competitie,
-      thuis: bestaandResultaat.thuis,
-      uit: bestaandResultaat.uit,
+      thuis: actueel?.thuis || bestaandResultaat.thuis,
+      uit: actueel?.uit || bestaandResultaat.uit,
     }, bestaandResultaat.uitslag)
 
     return res.status(200).json({ success: true, result, totals: result.totalen, punten: result.punten })
