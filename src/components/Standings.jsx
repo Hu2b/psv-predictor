@@ -15,8 +15,6 @@ function padLinks(str, len) {
 // Bouwt per wedstrijd een uitgelijnde tabel binnen een WhatsApp-monospace-blok
 // (```...```), zodat naam/voorspelling/punten/totaal altijd nette kolommen
 // vormen i.p.v. op smalle telefoonschermen af te breken over meerdere regels.
-// Dit is de BACKUP-tekstvariant (optie A), gebruikt als de browser geen
-// bestanden kan delen via de Web Share API.
 function bouwSpelerTabel(r, spelerNaamMap) {
   const rijen = Object.entries(r.predicties || {}).map(([playerId, pred]) => {
     const naam = spelerNaamMap[playerId] || '???'
@@ -381,8 +379,10 @@ export default function Standings({ fixtures, speler }) {
                 className={`${styles.ranglijstRij} ${i === 0 ? styles.leider : ''} ${s.naam === speler ? styles.jezelf : ''}`}
               >
                 <span className={styles.ranglijstPositie}>{i + 1}</span>
-                <span className={styles.ranglijstNaam}>{s.naam}</span>
-                {i === 0 && <span className={styles.kroon}>👑</span>}
+                <span className={styles.ranglijstNaamGroep}>
+                  <span className={styles.ranglijstNaam}>{s.naam}</span>
+                  {i === 0 && <span className={styles.kroon}>👑</span>}
+                </span>
                 <span className={styles.ranglijstPunt}>{s.punten}</span>
               </div>
             ))}
