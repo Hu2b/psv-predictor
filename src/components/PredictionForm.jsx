@@ -87,12 +87,6 @@ export default function PredictionForm({ fixture, speler }) {
     setStatus('idle')
   }
 
-  function totoLabel(home, away) {
-    if (home > away) return '1'
-    if (home < away) return '2'
-    return 'X'
-  }
-
   if (isSluiting && !mijnPred) {
     return (
       <div className={styles.card}>
@@ -152,7 +146,6 @@ export default function PredictionForm({ fixture, speler }) {
             <span className={styles.bevestigdDash}>-</span>
             <span className={styles.bevestigdGetal}>{mijnPred.away}</span>
           </div>
-          <div className={styles.toto}>Toto: <strong>{totoLabel(mijnPred.home, mijnPred.away)}</strong></div>
           <div className={styles.bevestigdCheck}>✓ Bevestigd</div>
           {!onthuld && !isSluiting && (
             <>
