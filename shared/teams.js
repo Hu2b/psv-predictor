@@ -16,9 +16,9 @@ export const TEAMS = {
   PSV: { naam: 'PSV Eindhoven', aliases: ['PSV Eindhoven','PSV'], logo: 'https://en.wikipedia.org/wiki/Special:FilePath/PSV_Eindhoven.svg' },
   AJA: { naam: 'Ajax', aliases: ['Ajax','AFC Ajax'], logo: 'https://en.wikipedia.org/wiki/Special:FilePath/Ajax_Amsterdam.svg' },
   FEY: { naam: 'Feyenoord', aliases: ['Feyenoord','Feyenoord Rotterdam'], logo: 'https://en.wikipedia.org/wiki/Special:FilePath/Feyenoord_logo.svg' },
-  AZA: { naam: 'AZ', aliases: ['AZ','AZ Alkmaar'], logo: 'https://en.wikipedia.org/wiki/Special:FilePath/AZ_Alkmaar.svg' },
+  AZ: { naam: 'AZ', aliases: ['AZ','AZ Alkmaar'], logo: 'https://en.wikipedia.org/wiki/Special:FilePath/AZ_Alkmaar.svg' },
   UTR: { naam: 'FC Utrecht', aliases: ['FC Utrecht'], logo: 'https://en.wikipedia.org/wiki/Special:FilePath/FC_Utrecht.svg' },
-  TWE: { naam: 'FC Twente', aliases: ['FC Twente','FC Twente Enschede'], logo: 'https://en.wikipedia.org/wiki/Special:FilePath/FC_Twente_logo.svg' },
+  TWE: { naam: 'FC Twente', aliases: ['FC Twente','FC Twente Enschede',"FC Twente '65"], logo: 'https://en.wikipedia.org/wiki/Special:FilePath/FC_Twente_logo.svg' },
   NEC: { naam: 'NEC Nijmegen', aliases: ['NEC','NEC Nijmegen'], logo: 'https://en.wikipedia.org/wiki/Special:FilePath/NEC_Nijmegen_logo.svg' },
   HEE: { naam: 'sc Heerenveen', aliases: ['sc Heerenveen'], logo: 'https://en.wikipedia.org/wiki/Special:FilePath/Sc_Heerenveen.svg' },
   GRO: { naam: 'FC Groningen', aliases: ['FC Groningen'], logo: 'https://en.wikipedia.org/wiki/Special:FilePath/FC_Groningen.svg' },
@@ -91,10 +91,29 @@ export const TEAMS = {
   VIL: { naam: 'Villarreal', aliases: ['Villarreal'], logo: 'https://en.wikipedia.org/wiki/Special:FilePath/Villarreal_CF_logo.svg' },
 }
 
+// Normaliseert een teamnaam voor vergelijking: hoofdletters weg, dubbele
+// spaties/rand-spaties weg, en typografische quote-varianten (’ ‘ ´ `)
+// gelijkgetrokken naar de gewone rechte apostrof ('). Dat laatste is nodig
+// omdat football-data.org bij namen als "FC Twente '65" soms een
+// typografische apostrof (Unicode ’, U+2019) gebruikt i.p.v. de gewone
+// rechte ' (U+0027) — voor het oog identiek, voor een exacte
+// stringvergelijking twee compleet verschillende tekens. Voorkomt dat zulke
+// onzichtbare verschillen (of schrijfwijze-verschillen als "SC Heerenveen"
+// i.p.v. onze "sc Heerenveen") de match laten missen en zo bij de
+// 3-letter-noodgreep terechtkomen i.p.v. de juiste, bekende afkorting.
+function normaliseer(naam) {
+  return String(naam)
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, ' ')
+    .replace(/[’‘´`]/g, "'")
+}
+
 // naam (zoals football-data.org die aanlevert) -> code, met fallback voor onbekende teams
 export function zoekAfkorting(naam) {
+  const genormaliseerd = normaliseer(naam)
   for (const [code, t] of Object.entries(TEAMS)) {
-    if (t.aliases.includes(naam)) return code
+    if (t.aliases.some(alias => normaliseer(alias) === genormaliseerd)) return code
   }
   return naam.replace(/[^a-zA-Z]/g, '').substring(0, 3).toUpperCase()
 }
