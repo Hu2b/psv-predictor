@@ -132,6 +132,30 @@ export async function haalAlleWedstrijden() {
     seen.add(id); return true
   })
 
+  // Een intern al vastgelegd resultaat (result:{matchId}) is altijd
+  // leidend boven de live wedstrijdstatus van football-data.org. Zonder dit
+  // zou een wedstrijd waarvan de beheerder de uitslag al heeft ingevoerd
+  // vóórdat de ECHTE aftraptijd is verstreken (of vóórdat de live-feed het
+  // zelf als afgelopen meldt) nergens in de app als afgelopen/met eindstand
+  // te zien zijn, terwijl de punten al wél verwerkt zijn.
+  const resultsIndex = await kvGet('results:index') || []
+  if (resultsIndex.length > 0) {
+    const eigenResultaten = await Promise.all(resultsIndex.map(id => kvGet(`result:${id}`)))
+    const resultatenMap = {}
+    for (const r of eigenResultaten) {
+      if (r) resultatenMap[String(r.matchId)] = r
+    }
+    alle = alle.map(f => {
+      const eigen = resultatenMap[String(f.matchId)]
+      if (!eigen) return f
+      return {
+        ...f,
+        status: 'FT',
+        uitslag: { home: eigen.uitslag.home, away: eigen.uitslag.away, status: 'FT' },
+      }
+    })
+  }
+
   alle.sort((a, b) => new Date(a.datumISO) - new Date(b.datumISO))
   alle = alle.map((f, i) => ({ ...f, volgnummer: i + 1 }))
 
