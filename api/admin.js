@@ -1,307 +1,232 @@
-import { useState, useEffect } from 'react'
-import styles from './Admin.module.css'
-import AdminBeheer from './AdminBeheer.jsx'
-import AdminSpelers from './AdminSpelers.jsx'
-import { teamNamenObject } from '../../shared/teams.js'
+import { kvGet, kvSet } from './_kv.js'
+import { zoekVolgnummer, berekenEnSlaResultaatOp, herberekenAlleTotalen } from './_wedstrijden.js'
+import { getPlayerById } from './_players.js'
+import { verifieerBeheerderSessie } from './_auth.js'
 
-const COMPETITIES = ['JCS', 'ERE', 'KNVB', 'CL', 'UL']
-const TEAM_NAMEN = teamNamenObject()
-const SESSION_KEY = 'psv_session_token'
+async function slaHandmatigOp(wedstrijden) {
+  await kvSet('admin:wedstrijden', wedstrijden)
+}
 
-export default function Admin({ fixtures, onWedstrijdenGewijzigd }) {
-  const [tab, setTab] = useState('uitslag')
-  const [handmatig, setHandmatig] = useState([])
-  const [melding, setMelding] = useState(null)
-  const [gekozenMatch, setGekozenMatch] = useState('')
-  const [homeScore, setHomeScore] = useState('')
-  const [awayScore, setAwayScore] = useState('')
-  const [resultaat, setResultaat] = useState(null)
-  const [spelerNaamMap, setSpelerNaamMap] = useState({})
-  const [comp, setComp] = useState('JCS')
-  const [thuis, setThuis] = useState('')
-  const [thuisNaam, setThuisNaam] = useState('')
-  const [uit, setUit] = useState('')
-  const [uitNaam, setUitNaam] = useState('')
-  const [datum, setDatum] = useState('')
+export default async function handler(req, res) {
+  res.setHeader('Access-Control-Allow-Origin', '*')
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
+  if (req.method === 'OPTIONS') return res.status(200).end()
 
-  useEffect(() => {
-    async function laad() {
-      const sessionToken = localStorage.getItem(SESSION_KEY)
-      const r = await fetch(`/api/admin?action=wedstrijden&sessionToken=${encodeURIComponent(sessionToken)}`)
-      const data = await r.json()
-      setHandmatig(data.wedstrijden || [])
-    }
-    laad()
+  let body = req.body
+  if (typeof body === 'string') { try { body = JSON.parse(body) } catch (_) {} }
+  const { action } = body || req.query
 
-    async function laadSpelers() {
-      try {
-        const r = await fetch('/api/players')
-        const data = await r.json()
-        const map = {}
-        for (const s of data.spelers || []) map[s.id] = s.naam
-        setSpelerNaamMap(map)
-      } catch (_) {}
-    }
-    laadSpelers()
-  }, [])
+  // Alle acties op dit endpoint (lezen én schrijven) vereisen een geldige
+  // sessie van een beheerder — voorkomt dat iemand die de URL raadt
+  // wedstrijden/uitslagen kan wijzigen zonder ingelogd te zijn.
+  const sessionToken = req.method === 'GET' ? req.query.sessionToken : body?.sessionToken
+  const check = await verifieerBeheerderSessie(sessionToken)
+  if (check.fout) return res.status(403).json({ error: check.fout })
 
-  const alleWedstrijden = [...fixtures].sort((a, b) => new Date(a.datumISO) - new Date(b.datumISO))
-
-  const gekozen = alleWedstrijden.find(f => String(f.matchId) === String(gekozenMatch))
-
-  function handleThuisAfkorting(val) {
-    const upper = val.toUpperCase()
-    setThuis(upper)
-    if (TEAM_NAMEN[upper]) setThuisNaam(TEAM_NAMEN[upper])
+  if (req.method === 'GET' && req.query.action === 'wedstrijden') {
+    const wedstrijden = await kvGet('admin:wedstrijden') || []
+    return res.status(200).json({ wedstrijden })
   }
 
-  function handleUitAfkorting(val) {
-    const upper = val.toUpperCase()
-    setUit(upper)
-    if (TEAM_NAMEN[upper]) setUitNaam(TEAM_NAMEN[upper])
+  if (req.method === 'GET' && req.query.action === 'voorspellingen') {
+    const { matchId } = req.query
+    if (!matchId) return res.status(400).json({ error: 'matchId verplicht' })
+    const index = await kvGet(`predictionIndex:${matchId}`) || []
+    const predicties = await Promise.all(index.map(async playerId => {
+      const pred = await kvGet(`prediction:${matchId}:${playerId}`)
+      if (!pred) return null
+      const speler = await getPlayerById(playerId)
+      return { playerId, naam: speler?.naam || '???', home: pred.home, away: pred.away, confirmed: pred.confirmed }
+    }))
+    return res.status(200).json({ predicties: predicties.filter(Boolean) })
   }
 
-  async function handleUitslag() {
-    if (!gekozenMatch || homeScore === '' || awayScore === '') {
-      setMelding({ type: 'fout', tekst: 'Vul alle velden in' }); return
+  if (req.method === 'POST' && action === 'toevoegen') {
+    const { competitie, thuis, thuisNaam, uit, uitNaam, datum, datumISO } = body
+    if (!competitie || !thuis || !uit || !datumISO) {
+      return res.status(400).json({ error: 'competitie, thuis, uit en datumISO zijn verplicht' })
     }
-    const r = await fetch('/api/admin', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action: 'uitslag',
-        sessionToken: localStorage.getItem(SESSION_KEY),
-        matchId: gekozen.matchId,
-        homeScore: parseInt(homeScore),
-        awayScore: parseInt(awayScore),
-        matchInfo: {
-          datumISO: gekozen.datumISO, datum: gekozen.datum,
-          competitie: gekozen.competitie, thuis: gekozen.thuis, uit: gekozen.uit
-        }
-      })
-    })
-    const data = await r.json()
-    if (data.success) {
-      setResultaat(data)
-      setMelding({ type: 'ok', tekst: 'Uitslag opgeslagen en punten berekend!' })
-      if (onWedstrijdenGewijzigd) onWedstrijdenGewijzigd()
-    } else {
-      setMelding({ type: 'fout', tekst: data.error || 'Fout' })
+    const wedstrijden = await kvGet('admin:wedstrijden') || []
+    const matchId = `manual_${Date.now()}`
+    const nieuw = {
+      matchId, competitie,
+      thuis, thuisNaam: thuisNaam || thuis,
+      uit, uitNaam: uitNaam || uit,
+      datum, datumISO,
+      status: 'NS', uitslag: null,
+      handmatig: true,
     }
+    wedstrijden.push(nieuw)
+    await slaHandmatigOp(wedstrijden)
+    return res.status(200).json({ success: true, wedstrijd: nieuw })
   }
 
-  // Herberekent een AL verwerkte wedstrijd opnieuw, met de HUIDIGE lijst van
-  // geverifieerde spelers en de al bekende uitslag (niets hoeft opnieuw
-  // ingetypt te worden). Nuttig als er na het verwerken van een uitslag nog
-  // een nieuwe speler is bijgekomen, of een voorspelling achteraf is
-  // gecorrigeerd — dit trekt de punten en lopende totalen recht.
-  async function handleHerberekenen() {
-    if (!gekozenMatch) return
-    const r = await fetch('/api/admin', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action: 'herberekenen',
-        sessionToken: localStorage.getItem(SESSION_KEY),
-        matchId: gekozen.matchId,
-      })
-    })
-    const data = await r.json()
-    if (data.success) {
-      setResultaat(data)
-      setMelding({ type: 'ok', tekst: 'Punten herberekend met de huidige spelerslijst!' })
-      if (onWedstrijdenGewijzigd) onWedstrijdenGewijzigd()
-    } else {
-      setMelding({ type: 'fout', tekst: data.error || 'Fout' })
+  if (req.method === 'POST' && action === 'wijzigen') {
+    const { matchId, competitie, thuis, thuisNaam, uit, uitNaam, datum, datumISO } = body
+    if (!matchId) return res.status(400).json({ error: 'matchId verplicht' })
+    const wedstrijden = await kvGet('admin:wedstrijden') || []
+    const idx = wedstrijden.findIndex(w => String(w.matchId) === String(matchId))
+    if (idx === -1) return res.status(404).json({ error: 'Wedstrijd niet gevonden' })
+    wedstrijden[idx] = {
+      ...wedstrijden[idx],
+      ...(competitie && { competitie }),
+      ...(thuis && { thuis }),
+      ...(thuisNaam && { thuisNaam }),
+      ...(uit && { uit }),
+      ...(uitNaam && { uitNaam }),
+      ...(datum && { datum }),
+      ...(datumISO && { datumISO }),
     }
+    await slaHandmatigOp(wedstrijden)
+    return res.status(200).json({ success: true, wedstrijd: wedstrijden[idx] })
   }
 
-  // Verwijdert een al vastgelegde uitslag weer — kan nu altijd, ook ná de
-  // aftrap, zodat een beheerder een fout ook nog kan corrigeren nadat een
-  // wedstrijd al (deels automatisch) verwerkt is. Voorspellingen van spelers
-  // blijven gewoon staan; alleen de uitslag + toegekende punten verdwijnen.
-  async function handleVerwijderUitslag() {
-    if (!gekozen) return
-    const isAlGespeeld = new Date() >= new Date(gekozen.datumISO)
-    const waarschuwing = isAlGespeeld
-      ? `Let op: deze wedstrijd is al gespeeld/verwerkt. Uitslag van ${gekozen.thuis} vs ${gekozen.uit} verwijderen? De toegekende punten van spelers voor deze wedstrijd vervallen dan ook (voorspellingen zelf blijven staan).`
-      : `Uitslag van ${gekozen.thuis} vs ${gekozen.uit} verwijderen?`
-    if (!window.confirm(waarschuwing)) return
-    const r = await fetch('/api/admin', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action: 'verwijderUitslag',
-        sessionToken: localStorage.getItem(SESSION_KEY),
-        matchId: gekozen.matchId,
-      })
-    })
-    const data = await r.json()
-    if (data.success) {
-      setResultaat(null)
-      setHomeScore(''); setAwayScore('')
-      setMelding({ type: 'ok', tekst: 'Uitslag verwijderd.' })
-      if (onWedstrijdenGewijzigd) onWedstrijdenGewijzigd()
-    } else {
-      setMelding({ type: 'fout', tekst: data.error || 'Fout' })
+  if (req.method === 'POST' && action === 'verwijderen') {
+    const { matchId } = body
+    if (!matchId) return res.status(400).json({ error: 'matchId verplicht' })
+
+    const wedstrijden = await kvGet('admin:wedstrijden') || []
+    const nieuw = wedstrijden.filter(w => String(w.matchId) !== String(matchId))
+    await slaHandmatigOp(nieuw)
+
+    const vorigeResult = await kvGet(`result:${matchId}`)
+    if (vorigeResult) {
+      await kvSet(`result:${matchId}`, null)
+
+      const index = await kvGet('results:index') || []
+      const nieuweIndex = index.filter(id => String(id) !== String(matchId))
+      await kvSet('results:index', nieuweIndex)
+
+      // Volledige herberekening in plaats van alleen het globale totaal
+      // bij te werken — zo blijven ook de per-wedstrijd "totaal"-momentopnames
+      // van de OVERIGE wedstrijden kloppend na deze verwijdering.
+      await herberekenAlleTotalen()
     }
+
+    const predictionIndex = await kvGet(`predictionIndex:${matchId}`) || []
+    for (const playerId of predictionIndex) {
+      await kvSet(`prediction:${matchId}:${playerId}`, null)
+    }
+    await kvSet(`predictionIndex:${matchId}`, null)
+
+    return res.status(200).json({ success: true })
   }
 
-  async function handleToevoegen() {
-    if (!thuis || !uit || !datum) {
-      setMelding({ type: 'fout', tekst: 'Vul alle velden in' }); return
+  if (req.method === 'POST' && action === 'verwijderVoorspelling') {
+    const { matchId, playerId } = body
+    if (!matchId) return res.status(400).json({ error: 'matchId verplicht' })
+
+    const predictionIndex = await kvGet(`predictionIndex:${matchId}`) || []
+    const teVerwijderen = playerId ? [playerId] : predictionIndex
+
+    for (const id of teVerwijderen) {
+      await kvSet(`prediction:${matchId}:${id}`, null)
     }
-    const datumISO = new Date(datum).toISOString()
-    const datumLabel = new Date(datum).toLocaleDateString('nl-NL', {
-      weekday:'short', day:'numeric', month:'short', year:'numeric'
-    })
-    const r = await fetch('/api/admin', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action: 'toevoegen', sessionToken: localStorage.getItem(SESSION_KEY), competitie: comp,
-        thuis: thuis.substring(0,3), thuisNaam: thuisNaam || thuis,
-        uit: uit.substring(0,3), uitNaam: uitNaam || uit,
-        datum: datumLabel, datumISO
-      })
-    })
-    const data = await r.json()
-    if (data.success) {
-      setHandmatig(prev => [...prev, data.wedstrijd])
-      setThuis(''); setThuisNaam(''); setUit(''); setUitNaam(''); setDatum('')
-      setGekozenMatch(String(data.wedstrijd.matchId))
-      setHomeScore(''); setAwayScore(''); setResultaat(null)
-      setMelding({ type: 'ok', tekst: 'Wedstrijd toegevoegd!' })
-      setTab('uitslag')
-      if (onWedstrijdenGewijzigd) onWedstrijdenGewijzigd()
-    } else {
-      setMelding({ type: 'fout', tekst: data.error || 'Fout' })
+    const nieuweIndex = predictionIndex.filter(id => !teVerwijderen.includes(id))
+    await kvSet(`predictionIndex:${matchId}`, nieuweIndex)
+
+    // Was de wedstrijd al verwerkt? Dan alles herberekenen via dezelfde
+    // centrale functie als de automatische verwerking gebruikt.
+    const vorigeResult = await kvGet(`result:${matchId}`)
+    if (vorigeResult) {
+      await berekenEnSlaResultaatOp({
+        matchId: vorigeResult.matchId,
+        volgnummer: vorigeResult.volgnummer,
+        datumISO: vorigeResult.datumISO,
+        datum: vorigeResult.datum,
+        competitie: vorigeResult.competitie,
+        thuis: vorigeResult.thuis,
+        uit: vorigeResult.uit,
+      }, vorigeResult.uitslag)
     }
+
+    return res.status(200).json({ success: true })
   }
 
-  return (
-    <div className={styles.wrapper}>
-      <div className={styles.tabBar}>
-        <button className={`${styles.tabBtn} ${tab === 'uitslag' ? styles.tabActief : ''}`} onClick={() => { setTab('uitslag'); setMelding(null) }}>Uitslag</button>
-        <button className={`${styles.tabBtn} ${tab === 'toevoegen' ? styles.tabActief : ''}`} onClick={() => { setTab('toevoegen'); setMelding(null) }}>Toevoegen</button>
-        <button className={`${styles.tabBtn} ${tab === 'beheer' ? styles.tabActief : ''}`} onClick={() => { setTab('beheer'); setMelding(null) }}>Beheer</button>
-        <button className={`${styles.tabBtn} ${tab === 'spelers' ? styles.tabActief : ''}`} onClick={() => { setTab('spelers'); setMelding(null) }}>Spelers</button>
-      </div>
+  if (req.method === 'POST' && action === 'uitslag') {
+    const { matchId, homeScore, awayScore, matchInfo } = body
+    if (!matchId || homeScore === undefined || awayScore === undefined) {
+      return res.status(400).json({ error: 'matchId, homeScore en awayScore verplicht' })
+    }
+    const uitslag = { home: parseInt(homeScore), away: parseInt(awayScore) }
+    const volgnummer = await zoekVolgnummer(matchId)
 
-      {melding && (
-        <div className={`${styles.melding} ${melding.type === 'ok' ? styles.meldingOk : styles.meldingFout}`}>
-          {melding.tekst}
-        </div>
-      )}
+    const result = await berekenEnSlaResultaatOp({
+      matchId,
+      volgnummer,
+      datumISO: matchInfo?.datumISO || new Date().toISOString(),
+      datum: matchInfo?.datum || '',
+      competitie: matchInfo?.competitie || '',
+      thuis: matchInfo?.thuis || '',
+      uit: matchInfo?.uit || '',
+    }, uitslag)
 
-      {tab === 'uitslag' && (
-        <div className={styles.sectie}>
-          <label className={styles.label}>Wedstrijd</label>
-          <select className={styles.select} value={gekozenMatch}
-            onChange={e => { setGekozenMatch(e.target.value); setResultaat(null); setHomeScore(''); setAwayScore('') }}>
-            <option value="">— Kies wedstrijd —</option>
-            {alleWedstrijden.map(f => (
-              <option key={f.matchId} value={f.matchId}>
-                #{f.volgnummer || '—'} {f.datum} — {f.thuis} vs {f.uit} ({f.competitie})
-                {f.uitslag ? ` [${f.uitslag.home}-${f.uitslag.away}]` : ''}
-              </option>
-            ))}
-          </select>
-          {gekozen && (
-            <>
-              <div className={styles.matchInfo}>
-                <span className={styles.compTag}>{gekozen.competitie}</span>
-                <span className={styles.matchNaam}>{gekozen.thuisNaam} vs {gekozen.uitNaam}</span>
-              </div>
-              <div className={styles.scoreRij}>
-                <div className={styles.scoreBlok}>
-                  <label className={styles.scoreLabel}>{gekozen.thuis}</label>
-                  <input type="number" min="0" max="20" value={homeScore}
-                    onChange={e => setHomeScore(e.target.value)}
-                    className={styles.scoreInput} placeholder="0" inputMode="numeric" />
-                </div>
-                <span className={styles.scoreDash}>–</span>
-                <div className={styles.scoreBlok}>
-                  <label className={styles.scoreLabel}>{gekozen.uit}</label>
-                  <input type="number" min="0" max="20" value={awayScore}
-                    onChange={e => setAwayScore(e.target.value)}
-                    className={styles.scoreInput} placeholder="0" inputMode="numeric" />
-                </div>
-              </div>
-              <button className={styles.btn} onClick={handleUitslag}>
-                Uitslag opslaan & punten berekenen
-              </button>
-              {gekozen.uitslag && (
-                <button className={styles.btn} onClick={handleHerberekenen} style={{ marginTop: 8, background: 'transparent', border: '1px solid var(--psv-border)' }}>
-                  🔄 Herbereken punten (huidige spelerslijst)
-                </button>
-              )}
-              {gekozen.uitslag && (
-                <button className={styles.btn} onClick={handleVerwijderUitslag} style={{ marginTop: 8, background: 'transparent', border: '1px solid rgba(225,0,14,0.3)', color: '#f87171' }}>
-                  🗑️ Uitslag verwijderen
-                </button>
-              )}
-              {resultaat && (
-                <div className={styles.resultaatBlok}>
-                  {Object.entries(resultaat.result.predicties || {}).map(([playerId, pred]) => (
-                    <div key={playerId} className={styles.resultaatRij}>
-                      <span className={styles.resultaatNaam}>{spelerNaamMap[playerId] || '???'}</span>
-                      <span className={styles.resultaatUitslag}>
-                        {pred ? `${pred.home}-${pred.away}` : 'geen voorspelling'}
-                      </span>
-                      <span className={styles.punten}>+{resultaat.result.punten?.[playerId] ?? 0} pt</span>
-                      <span className={styles.totaal}>Totaal: {resultaat.result.totalen?.[playerId] ?? '—'}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </>
-          )}
-        </div>
-      )}
+    const wedstrijden = await kvGet('admin:wedstrijden') || []
+    const idx = wedstrijden.findIndex(w => String(w.matchId) === String(matchId))
+    if (idx !== -1) {
+      wedstrijden[idx].uitslag = uitslag
+      wedstrijden[idx].status = 'FT'
+      await slaHandmatigOp(wedstrijden)
+    }
 
-      {tab === 'toevoegen' && (
-        <div className={styles.sectie}>
-          <label className={styles.label}>Competitie</label>
-          <select className={styles.select} value={comp} onChange={e => setComp(e.target.value)}>
-            {COMPETITIES.map(c => <option key={c} value={c}>{c}</option>)}
-          </select>
-          <label className={styles.label}>Datum & tijd</label>
-          <input type="datetime-local" className={styles.inputDatum}
-            value={datum} onChange={e => setDatum(e.target.value)} />
-          <div className={styles.teamRij}>
-            <div className={styles.teamBlok}>
-              <label className={styles.label}>Thuis</label>
-              <input className={styles.input} value={thuis}
-                onChange={e => handleThuisAfkorting(e.target.value)} placeholder="PSV" maxLength={3} />
-              <input className={styles.input} value={thuisNaam}
-                onChange={e => setThuisNaam(e.target.value)} placeholder="PSV Eindhoven" />
-            </div>
-            <div className={styles.teamBlok}>
-              <label className={styles.label}>Uit</label>
-              <input className={styles.input} value={uit}
-                onChange={e => handleUitAfkorting(e.target.value)} placeholder="AJX" maxLength={3} />
-              <input className={styles.input} value={uitNaam}
-                onChange={e => setUitNaam(e.target.value)} placeholder="Ajax" />
-            </div>
-          </div>
-          <button className={styles.btn} onClick={handleToevoegen}>Wedstrijd toevoegen</button>
-        </div>
-      )}
+    return res.status(200).json({ success: true, result, totals: result.totalen, punten: result.punten })
+  }
 
-      {tab === 'beheer' && (
-        <AdminBeheer
-          handmatig={handmatig}
-          setHandmatig={setHandmatig}
-          setMelding={setMelding}
-          alleWedstrijden={alleWedstrijden}
-          onWedstrijdenGewijzigd={onWedstrijdenGewijzigd}
-        />
-      )}
+  // Herberekent een AL verwerkte wedstrijd opnieuw, met de HUIDIGE
+  // spelerslijst en voorspellingen — handig als een speler zich pas ná het
+  // verwerken van de uitslag heeft aangemeld/geverifieerd, of als een
+  // voorspelling nog is bijgewerkt. Gebruikt dezelfde uitslag die al was
+  // vastgelegd, dus de score hoeft niet opnieuw te worden ingetypt.
+  if (req.method === 'POST' && action === 'herberekenen') {
+    const { matchId } = body
+    if (!matchId) return res.status(400).json({ error: 'matchId verplicht' })
 
-      {tab === 'spelers' && (
-        <AdminSpelers setMelding={setMelding} />
-      )}
-    </div>
-  )
+    const bestaandResultaat = await kvGet(`result:${matchId}`)
+    if (!bestaandResultaat) return res.status(404).json({ error: 'Deze wedstrijd heeft nog geen uitslag' })
+
+    const result = await berekenEnSlaResultaatOp({
+      matchId: bestaandResultaat.matchId,
+      volgnummer: bestaandResultaat.volgnummer,
+      datumISO: bestaandResultaat.datumISO,
+      datum: bestaandResultaat.datum,
+      competitie: bestaandResultaat.competitie,
+      thuis: bestaandResultaat.thuis,
+      uit: bestaandResultaat.uit,
+    }, bestaandResultaat.uitslag)
+
+    return res.status(200).json({ success: true, result, totals: result.totalen, punten: result.punten })
+  }
+
+  // Verwijdert een al vastgelegde uitslag weer volledig — kan ook nog nadat
+  // de wedstrijd al begonnen/afgelopen is, zodat een beheerder een fout
+  // altijd kan corrigeren. De voorspellingen van spelers blijven gewoon
+  // staan; alleen de uitslag en de daaraan toegekende punten verdwijnen.
+  if (req.method === 'POST' && action === 'verwijderUitslag') {
+    const { matchId } = body
+    if (!matchId) return res.status(400).json({ error: 'matchId verplicht' })
+
+    const bestaandResultaat = await kvGet(`result:${matchId}`)
+    if (!bestaandResultaat) return res.status(404).json({ error: 'Deze wedstrijd heeft nog geen uitslag' })
+
+    await kvSet(`result:${matchId}`, null)
+    const index = await kvGet('results:index') || []
+    const nieuweIndex = index.filter(id => String(id) !== String(matchId))
+    await kvSet('results:index', nieuweIndex)
+    await herberekenAlleTotalen()
+
+    // Bij een handmatig toegevoegde wedstrijd ook de uitslag/status in de
+    // lijst zelf resetten (de wedstrijd zelf blijft gewoon bestaan).
+    const wedstrijden = await kvGet('admin:wedstrijden') || []
+    const idx = wedstrijden.findIndex(w => String(w.matchId) === String(matchId))
+    if (idx !== -1) {
+      wedstrijden[idx].uitslag = null
+      wedstrijden[idx].status = 'NS'
+      await slaHandmatigOp(wedstrijden)
+    }
+
+    return res.status(200).json({ success: true })
+  }
+
+  return res.status(400).json({ error: 'Onbekende actie' })
 }
