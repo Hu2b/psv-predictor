@@ -35,7 +35,7 @@ export const TEAMS = {
   // Keuken Kampioen Divisie (Eerste divisie)
   ADO: { naam: 'ADO Den Haag', aliases: ['ADO Den Haag'], logo: 'https://en.wikipedia.org/wiki/Special:FilePath/ADO_Den_Haag_logo.svg' },
   ALM: { naam: 'Almere City', aliases: ['Almere City FC','Almere City'], logo: 'https://en.wikipedia.org/wiki/Special:FilePath/Almere_City_FC_logo.svg' },
-  CAM: { naam: 'SC Cambuur', aliases: ['SC Cambuur'], logo: null },
+  CAM: { naam: 'SC Cambuur', aliases: ['SC Cambuur','SC Cambuur-Leeuwarden'], logo: null },
   DEG: { naam: 'De Graafschap', aliases: ['De Graafschap'], logo: null },
   DBO: { naam: 'FC Den Bosch', aliases: ['FC Den Bosch'], logo: null },
   DOR: { naam: 'FC Dordrecht', aliases: ['FC Dordrecht'], logo: null },
