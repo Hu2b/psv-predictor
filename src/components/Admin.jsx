@@ -90,6 +90,57 @@ export default function Admin({ fixtures, onWedstrijdenGewijzigd }) {
     }
   }
 
+  // Herberekent een AL verwerkte wedstrijd opnieuw, met de HUIDIGE lijst van
+  // geverifieerde spelers en de al bekende uitslag (niets hoeft opnieuw
+  // ingetypt te worden). Nuttig als er na het verwerken van een uitslag nog
+  // een nieuwe speler is bijgekomen, of een voorspelling achteraf is
+  // gecorrigeerd — dit trekt de punten en lopende totalen recht.
+  async function handleHerberekenen() {
+    if (!gekozenMatch) return
+    const r = await fetch('/api/admin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'herberekenen',
+        sessionToken: localStorage.getItem(SESSION_KEY),
+        matchId: gekozen.matchId,
+      })
+    })
+    const data = await r.json()
+    if (data.success) {
+      setResultaat(data)
+      setMelding({ type: 'ok', tekst: 'Punten herberekend met de huidige spelerslijst!' })
+      if (onWedstrijdenGewijzigd) onWedstrijdenGewijzigd()
+    } else {
+      setMelding({ type: 'fout', tekst: data.error || 'Fout' })
+    }
+  }
+
+  // Verwijdert een al vastgelegde uitslag weer, zolang de wedstrijd nog niet
+  // is begonnen — bijvoorbeeld om een per ongeluk verkeerd of te vroeg
+  // ingevoerde uitslag terug te draaien.
+  async function handleVerwijderUitslag() {
+    if (!gekozen || !window.confirm(`Uitslag van ${gekozen.thuis} vs ${gekozen.uit} verwijderen?`)) return
+    const r = await fetch('/api/admin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'verwijderUitslag',
+        sessionToken: localStorage.getItem(SESSION_KEY),
+        matchId: gekozen.matchId,
+      })
+    })
+    const data = await r.json()
+    if (data.success) {
+      setResultaat(null)
+      setHomeScore(''); setAwayScore('')
+      setMelding({ type: 'ok', tekst: 'Uitslag verwijderd.' })
+      if (onWedstrijdenGewijzigd) onWedstrijdenGewijzigd()
+    } else {
+      setMelding({ type: 'fout', tekst: data.error || 'Fout' })
+    }
+  }
+
   async function handleToevoegen() {
     if (!thuis || !uit || !datum) {
       setMelding({ type: 'fout', tekst: 'Vul alle velden in' }); return
@@ -126,10 +177,10 @@ export default function Admin({ fixtures, onWedstrijdenGewijzigd }) {
     <div className={styles.wrapper}>
       <h2 className={styles.titel}>Admin</h2>
       <div className={styles.tabBar}>
-        <button className={`${styles.tabBtn} ${tab === 'uitslag' ? styles.tabActief : ''}`} onClick={() => setTab('uitslag')}>Uitslag</button>
-        <button className={`${styles.tabBtn} ${tab === 'toevoegen' ? styles.tabActief : ''}`} onClick={() => setTab('toevoegen')}>Toevoegen</button>
-        <button className={`${styles.tabBtn} ${tab === 'beheer' ? styles.tabActief : ''}`} onClick={() => setTab('beheer')}>Beheer</button>
-        <button className={`${styles.tabBtn} ${tab === 'spelers' ? styles.tabActief : ''}`} onClick={() => setTab('spelers')}>Spelers</button>
+        <button className={`${styles.tabBtn} ${tab === 'uitslag' ? styles.tabActief : ''}`} onClick={() => { setTab('uitslag'); setMelding(null) }}>Uitslag</button>
+        <button className={`${styles.tabBtn} ${tab === 'toevoegen' ? styles.tabActief : ''}`} onClick={() => { setTab('toevoegen'); setMelding(null) }}>Toevoegen</button>
+        <button className={`${styles.tabBtn} ${tab === 'beheer' ? styles.tabActief : ''}`} onClick={() => { setTab('beheer'); setMelding(null) }}>Beheer</button>
+        <button className={`${styles.tabBtn} ${tab === 'spelers' ? styles.tabActief : ''}`} onClick={() => { setTab('spelers'); setMelding(null) }}>Spelers</button>
       </div>
 
       {melding && (
@@ -175,6 +226,16 @@ export default function Admin({ fixtures, onWedstrijdenGewijzigd }) {
               <button className={styles.btn} onClick={handleUitslag}>
                 Uitslag opslaan & punten berekenen
               </button>
+              {gekozen.uitslag && (
+                <button className={styles.btn} onClick={handleHerberekenen} style={{ marginTop: 8, background: 'transparent', border: '1px solid var(--psv-border)' }}>
+                  🔄 Herbereken punten (huidige spelerslijst)
+                </button>
+              )}
+              {gekozen.uitslag && new Date() < new Date(gekozen.datumISO) && (
+                <button className={styles.btn} onClick={handleVerwijderUitslag} style={{ marginTop: 8, background: 'transparent', border: '1px solid rgba(225,0,14,0.3)', color: '#f87171' }}>
+                  🗑️ Uitslag verwijderen
+                </button>
+              )}
               {resultaat && (
                 <div className={styles.resultaatBlok}>
                   {Object.entries(resultaat.result.predicties || {}).map(([playerId, pred]) => (
