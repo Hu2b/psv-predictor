@@ -39,7 +39,7 @@ export const TEAMS = {
   DEG: { naam: 'De Graafschap', aliases: ['De Graafschap'], logo: null },
   DBO: { naam: 'FC Den Bosch', aliases: ['FC Den Bosch'], logo: null },
   DOR: { naam: 'FC Dordrecht', aliases: ['FC Dordrecht'], logo: null },
-  EIN: { naam: 'FC Eindhoven', aliases: ['FC Eindhoven'], logo: null },
+  EIN: { naam: 'FC Eindhoven', aliases: ['FC Eindhoven'], logo: 'https://en.wikipedia.org/wiki/Special:FilePath/FCEindhoven-logo-2022-officieel-RGB.png' },
   EMM: { naam: 'FC Emmen', aliases: ['FC Emmen'], logo: null },
   HEL: { naam: 'Helmond Sport', aliases: ['Helmond Sport'], logo: null },
   JAJ: { naam: 'Jong Ajax', aliases: ['Jong Ajax'], logo: null },
@@ -88,7 +88,7 @@ export const TEAMS = {
   SCP: { naam: 'Sporting CP', aliases: ['Sporting CP'], logo: 'https://en.wikipedia.org/wiki/Special:FilePath/Sporting_Clube_de_Portugal_(Logo).svg' },
   TOT: { naam: 'Tottenham Hotspur', aliases: ['Tottenham Hotspur','Tottenham'], logo: null },
   USG: { naam: 'Union Saint-Gilloise', aliases: ['Union Saint-Gilloise'], logo: 'https://en.wikipedia.org/wiki/Special:FilePath/Royale_Union_Saint-Gilloise_logo.svg' },
-  VIL: { naam: 'Villarreal', aliases: ['Villarreal'], logo: 'https://en.wikipedia.org/wiki/Special:FilePath/Villarreal_CF_logo.svg' },
+  VIL: { naam: 'Villarreal', aliases: ['Villarreal'], logo: 'https://en.wikipedia.org/wiki/Special:FilePath/Villarreal_CF_logo-en.svg' },
 }
 
 // Normaliseert een teamnaam voor vergelijking: hoofdletters weg, dubbele
@@ -132,3 +132,4 @@ export function zoekLogo(code) {
 export function teamNamenObject() {
   return Object.fromEntries(Object.entries(TEAMS).map(([code, t]) => [code, t.naam]))
 }
+```
