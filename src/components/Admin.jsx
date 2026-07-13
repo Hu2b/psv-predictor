@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react'
+ import { useState, useEffect } from 'react'
 import styles from './Admin.module.css'
 import AdminBeheer from './AdminBeheer.jsx'
 import AdminSpelers from './AdminSpelers.jsx'
 import { teamNamenObject } from '../../shared/teams.js'
 
-const COMPETITIES = ['JCS', 'ERE', 'KNVB', 'CL', 'UL']
+const COMPETITIES = ['JCS', 'ERE', 'KNVB', 'CL', 'UL', 'VRI', 'LICHT']
 const TEAM_NAMEN = teamNamenObject()
 const SESSION_KEY = 'psv_session_token'
 
@@ -322,7 +322,7 @@ export default function Admin({ fixtures, onWedstrijdenGewijzigd }) {
             <div className={styles.teamBlok}>
               <label className={styles.label}>Uit</label>
               <input className={styles.input} value={uit}
-                onChange={e => handleUitAfkorting(e.target.value)} placeholder="AJX" maxLength={3} />
+                onChange={e => handleUitAfkorting(e.target.value)} placeholder="AJA" maxLength={3} />
               <input className={styles.input} value={uitNaam}
                 onChange={e => setUitNaam(e.target.value)} placeholder="Ajax" />
             </div>
