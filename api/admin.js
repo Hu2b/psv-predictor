@@ -97,12 +97,13 @@ export default async function handler(req, res) {
       const index = await kvGet('results:index') || []
       const nieuweIndex = index.filter(id => String(id) !== String(matchId))
       await kvSet('results:index', nieuweIndex)
-
-      // Volledige herberekening in plaats van alleen het globale totaal
-      // bij te werken — zo blijven ook de per-wedstrijd "totaal"-momentopnames
-      // van de OVERIGE wedstrijden kloppend na deze verwijdering.
-      await herberekenAlleTotalen()
     }
+
+    // Altijd volledig herberekenen (niet alleen wanneer deze wedstrijd zelf
+    // al een resultaat had) — zo blijven ook de per-wedstrijd
+    // "totaal"-momentopnames van de OVERIGE wedstrijden gegarandeerd
+    // kloppend na elke verwijdering, zonder uitzonderingen.
+    await herberekenAlleTotalen()
 
     const predictionIndex = await kvGet(`predictionIndex:${matchId}`) || []
     for (const playerId of predictionIndex) {
