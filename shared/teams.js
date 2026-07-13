@@ -132,4 +132,3 @@ export function zoekLogo(code) {
 export function teamNamenObject() {
   return Object.fromEntries(Object.entries(TEAMS).map(([code, t]) => [code, t.naam]))
 }
-```
