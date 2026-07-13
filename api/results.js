@@ -12,10 +12,15 @@ export default async function handler(req, res) {
     const matchIds = await kvGet('results:index') || []
     const ruweResults = (await Promise.all(matchIds.map(id => kvGet(`result:${id}`)))).filter(Boolean)
 
-    // Lopend totaal altijd herberekenen in chronologische volgorde (op
-    // volgnummer), ongeacht de volgorde waarin uitslagen in Admin zijn
-    // ingevoerd. Zo blijft de reeks per speler gegarandeerd oplopend.
-    const chronologisch = [...ruweResults].sort((a, b) => (a.volgnummer || 0) - (b.volgnummer || 0))
+    // Lopend totaal altijd herberekenen in chronologische volgorde — op de
+    // echte wedstrijddatum (datumISO), NIET op `volgnummer`. `volgnummer`
+    // is een bevroren momentopname (positie in de wedstrijdenlijst op het
+    // moment van opslaan) en kan bij twee wedstrijden toevallig hetzelfde
+    // getal bevatten als de lijst tussentijds is gewijzigd (bijv. een nieuwe
+    // wedstrijd eerder in het seizoen toegevoegd) — dat maakt sorteren op
+    // volgnummer onbetrouwbaar en verpest de lopende optelling. datumISO is
+    // altijd uniek/stabiel genoeg.
+    const chronologisch = [...ruweResults].sort((a, b) => new Date(a.datumISO) - new Date(b.datumISO))
     const lopendTotaal = {}
 
     for (const r of chronologisch) {
@@ -27,16 +32,16 @@ export default async function handler(req, res) {
       r.totalen = nieuweTotalen
     }
 
-    // De thuis/uit-afkorting van een resultaat wordt bevroren op het moment
-    // dat de uitslag is vastgelegd. Als de team-matching (shared/teams.js)
-    // ná dat moment verbeterd is — bijv. een nieuwe schrijfwijze-alias
-    // toegevoegd — blijft een AL opgeslagen resultaat anders voor altijd de
-    // oude, foutieve afkorting tonen, ook na "Herbereken punten" (die
-    // hergebruikt bewust dezelfde bevroren thuis/uit). Fix: bij het
+    // thuis/uit/volgnummer worden bevroren op het moment dat de uitslag is
+    // vastgelegd. Als de team-matching (shared/teams.js) of de
+    // wedstrijdenlijst ná dat moment verandert — bijv. een nieuwe
+    // schrijfwijze-alias toegevoegd, of een nieuwe wedstrijd eerder in het
+    // seizoen ingepland — blijft een AL opgeslagen resultaat anders voor
+    // altijd de oude, mogelijk foutieve/dubbele waarden tonen. Fix: bij het
     // opbouwen van de resultatenlijst de huidige, actuele wedstrijdenlijst
-    // erbij zoeken en de afkorting daarvandaan overnemen als de wedstrijd
-    // nog bestaat. Dit is puur een weergave-correctie (de database zelf
-    // wordt niet aangepast) en werkt dus met terugwerkende kracht op ALLE
+    // erbij zoeken en deze velden daarvandaan overnemen als de wedstrijd nog
+    // bestaat. Dit is puur een weergave-correctie (de database zelf wordt
+    // niet aangepast) en werkt dus met terugwerkende kracht op ALLE
     // resultaten, zonder dat er per wedstrijd op "Herbereken" geklikt hoeft
     // te worden.
     const actueleWedstrijden = await haalAlleWedstrijden()
@@ -46,7 +51,7 @@ export default async function handler(req, res) {
     const bijgewerkt = chronologisch.map(r => {
       const actueel = actueleMap[String(r.matchId)]
       if (!actueel) return r
-      return { ...r, thuis: actueel.thuis, uit: actueel.uit }
+      return { ...r, thuis: actueel.thuis, uit: actueel.uit, volgnummer: actueel.volgnummer }
     })
 
     // Teamlogo's erbij zoeken voor weergave in het klassement-overzicht.
@@ -58,7 +63,7 @@ export default async function handler(req, res) {
 
     return res.status(200).json({
       totals: lopendTotaal,
-      results: metLogos.slice().sort((a, b) => (b.volgnummer || 0) - (a.volgnummer || 0))
+      results: metLogos.slice().sort((a, b) => new Date(b.datumISO) - new Date(a.datumISO))
     })
   }
 
