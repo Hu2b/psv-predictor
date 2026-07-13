@@ -178,9 +178,15 @@ export async function zoekVolgnummer(matchId) {
 export async function herberekenAlleTotalen() {
   const resultsIndex = await kvGet('results:index') || []
   const alleResults = await Promise.all(resultsIndex.map(id => kvGet(`result:${id}`)))
+  // Sorteren op de echte wedstrijddatum (datumISO), niet op `volgnummer`.
+  // `volgnummer` is een bevroren momentopname (positie in de wedstrijdenlijst
+  // op het moment van opslaan) en kan bij twee wedstrijden toevallig
+  // hetzelfde getal bevatten als de lijst tussentijds is gewijzigd — dat
+  // maakt de sorteervolgorde, en dus de lopende optelling, onbetrouwbaar.
+  // datumISO is altijd uniek/stabiel genoeg om chronologisch op te sorteren.
   const geldigeResults = alleResults
     .filter(Boolean)
-    .sort((a, b) => (a.volgnummer || 0) - (b.volgnummer || 0))
+    .sort((a, b) => new Date(a.datumISO) - new Date(b.datumISO))
 
   const lopendTotaal = {}
   const schrijfActies = []
