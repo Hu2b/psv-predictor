@@ -48,7 +48,7 @@ function bouwWhatsAppTekst(klassement, results, spelerNaamMap) {
   regels.push('')
   regels.push('_Alle wedstrijden:_')
 
-  const gesorteerd = [...results].sort((a, b) => (b.volgnummer || 0) - (a.volgnummer || 0))
+  const gesorteerd = [...results].sort((a, b) => new Date(b.datumISO) - new Date(a.datumISO))
   for (const r of gesorteerd) {
     regels.push('')
     regels.push(`#${r.volgnummer || '—'} ${r.datum} — ${r.competitie}`)
@@ -376,7 +376,7 @@ export default function Standings({ fixtures, speler }) {
     </div>
   )
 
-  const gesorteerdeResultaten = [...results].sort((a, b) => (b.volgnummer || 0) - (a.volgnummer || 0))
+  const gesorteerdeResultaten = [...results].sort((a, b) => new Date(b.datumISO) - new Date(a.datumISO))
 
   return (
     <div className={styles.wrapper}>
