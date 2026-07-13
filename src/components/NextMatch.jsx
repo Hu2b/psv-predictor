@@ -2,6 +2,7 @@ import { useState, useRef } from 'react'
 import H2H from './H2H.jsx'
 import PredictionForm from './PredictionForm.jsx'
 import LiveScore from './LiveScore.jsx'
+import { zoekLogo } from '../../shared/teams.js'
 import styles from './NextMatch.module.css'
 
 const COMP_LABELS = {
@@ -10,6 +11,8 @@ const COMP_LABELS = {
   KNVB: 'KNVB Beker',
   CL: 'Champions League',
   UL: 'UEFA League',
+  VRI: 'Vriendschappelijk',
+  LICHT: 'Lichtstadderby',
 }
 
 const SWIPE_DREMPEL = 50 // minimale swipe-afstand in pixels
@@ -130,7 +133,14 @@ export default function NextMatch({ fixture, fixtures, speler }) {
                 src={getoond.thuisLogo}
                 alt=""
                 className={styles.logo}
-                onError={e => { e.target.style.visibility = 'hidden' }}
+                onError={e => {
+                  const fallback = zoekLogo(getoond.thuis)
+                  if (fallback && e.target.src !== fallback) {
+                    e.target.src = fallback
+                  } else {
+                    e.target.style.visibility = 'hidden'
+                  }
+                }}
               />
             ) : (
               <span className={styles.logo} />
@@ -159,7 +169,14 @@ export default function NextMatch({ fixture, fixtures, speler }) {
                 src={getoond.uitLogo}
                 alt=""
                 className={styles.logo}
-                onError={e => { e.target.style.visibility = 'hidden' }}
+                onError={e => {
+                  const fallback = zoekLogo(getoond.uit)
+                  if (fallback && e.target.src !== fallback) {
+                    e.target.src = fallback
+                  } else {
+                    e.target.style.visibility = 'hidden'
+                  }
+                }}
               />
             ) : (
               <span className={styles.logo} />
