@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { zoekLogo } from '../../shared/teams.js'
 import styles from './Standings.module.css'
 
 // Vult een string met spaties tot vaste lengte (rechts uitlijnen tekst).
@@ -420,11 +421,39 @@ export default function Standings({ fixtures, speler }) {
                   <span className={styles.wedstrijdDatum}>#{r.volgnummer || '—'} · {r.datum}</span>
                 </div>
                 <div className={styles.wedstrijdTeams}>
-                  {r.thuisLogo && <img src={r.thuisLogo} alt="" className={styles.teamLogo} />}
+                  {r.thuisLogo && (
+                    <img
+                      src={r.thuisLogo}
+                      alt=""
+                      className={styles.teamLogo}
+                      onError={e => {
+                        const fallback = zoekLogo(r.thuis)
+                        if (fallback && e.target.src !== fallback) {
+                          e.target.src = fallback
+                        } else {
+                          e.target.style.visibility = 'hidden'
+                        }
+                      }}
+                    />
+                  )}
                   <span className={styles.teamCode}>{r.thuis}</span>
                   <span className={styles.uitslag}>{r.uitslag.home}–{r.uitslag.away}</span>
                   <span className={styles.teamCode}>{r.uit}</span>
-                  {r.uitLogo && <img src={r.uitLogo} alt="" className={styles.teamLogo} />}
+                  {r.uitLogo && (
+                    <img
+                      src={r.uitLogo}
+                      alt=""
+                      className={styles.teamLogo}
+                      onError={e => {
+                        const fallback = zoekLogo(r.uit)
+                        if (fallback && e.target.src !== fallback) {
+                          e.target.src = fallback
+                        } else {
+                          e.target.style.visibility = 'hidden'
+                        }
+                      }}
+                    />
+                  )}
                 </div>
                 <div className={styles.spelerTabel}>
                   <div className={styles.spelerTabelHeader}>
