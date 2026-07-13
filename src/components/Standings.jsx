@@ -111,7 +111,7 @@ async function bouwDeelAfbeelding(klassement, resultaten, spelerNaamMap) {
     // afbeelding (WhatsApp e.d. comprimeren vaak nog eens) wordt dat te
     // schraal om goed te lezen. Leesbaarheid weegt hier zwaarder dan exact
     // dezelfde tint als de rest van de app.
-    grijsLicht: '#A3AAB5',
+    grijsLicht: '#CBD1D9',
     goud: cssVar('--gold', '#F5B800'),
     groen: cssVar('--green', '#22C55E'),
   }
@@ -145,7 +145,7 @@ async function bouwDeelAfbeelding(klassement, resultaten, spelerNaamMap) {
   // en messenger-apps zoals WhatsApp schalen 'm vaak nog eens terug voor de
   // preview/thumbnail — een hogere brontekening voorkomt dat dat er
   // korrelig uitziet.
-  const dpr = 4
+  const dpr = 5
   const canvas = document.createElement('canvas')
   canvas.width = W * dpr
   canvas.height = H * dpr
@@ -164,13 +164,13 @@ async function bouwDeelAfbeelding(klassement, resultaten, spelerNaamMap) {
   cy += 46
 
   ctx.fillStyle = kleur.grijsLicht
-  ctx.font = `600 15px ${fontBody}`
+  ctx.font = `700 16px ${fontBody}`
   const datumTekst = new Date().toLocaleDateString('nl-NL', { day: 'numeric', month: 'long', year: 'numeric' })
   ctx.fillText(`Klassement · ${datumTekst}`, PAD, cy + 14)
   cy += 26 + 16
 
   ctx.fillStyle = kleur.grijsLicht
-  ctx.font = `700 13px ${fontBody}`
+  ctx.font = `800 14px ${fontBody}`
   ctx.fillText('KLASSEMENT', PAD, cy + 12)
   cy += 30
 
@@ -187,7 +187,7 @@ async function bouwDeelAfbeelding(klassement, resultaten, spelerNaamMap) {
     const midY = cy + rijH / 2 + 6
 
     ctx.fillStyle = kleur.grijsLicht
-    ctx.font = `800 16px ${fontDisplay}`
+    ctx.font = `800 17px ${fontDisplay}`
     ctx.fillText(String(i + 1), PAD + 16, midY)
 
     ctx.fillStyle = isLeider ? kleur.goud : kleur.wit
@@ -207,7 +207,7 @@ async function bouwDeelAfbeelding(klassement, resultaten, spelerNaamMap) {
 
   if (resultaten.length > 0) {
     ctx.fillStyle = kleur.grijsLicht
-    ctx.font = `700 13px ${fontBody}`
+    ctx.font = `800 14px ${fontBody}`
     ctx.fillText('ALLE WEDSTRIJDEN', PAD, cy + 12)
     cy += 30
 
@@ -223,16 +223,16 @@ async function bouwDeelAfbeelding(klassement, resultaten, spelerNaamMap) {
 
       let ry = cy + 16
 
-      ctx.font = `700 12px ${fontBody}`
+      ctx.font = `800 13px ${fontBody}`
       const compBreedte = ctx.measureText(r.competitie).width
-      tekenAfgerondeRect(ctx, kolX[0] - 6, ry - 4, compBreedte + 12, 20, 4)
-      ctx.fillStyle = 'rgba(225,0,14,0.12)'
+      tekenAfgerondeRect(ctx, kolX[0] - 6, ry - 5, compBreedte + 12, 21, 4)
+      ctx.fillStyle = 'rgba(225,0,14,0.22)'
       ctx.fill()
       ctx.fillStyle = kleur.rood
       ctx.textAlign = 'left'
       ctx.fillText(r.competitie, kolX[0], ry + 10)
       ctx.fillStyle = kleur.grijsLicht
-      ctx.font = `500 13px ${fontBody}`
+      ctx.font = `600 14px ${fontBody}`
       ctx.textAlign = 'right'
       ctx.fillText(`#${r.volgnummer || '—'} · ${r.datum}`, W - PAD - 16, ry + 10)
       ctx.textAlign = 'left'
@@ -244,7 +244,7 @@ async function bouwDeelAfbeelding(klassement, resultaten, spelerNaamMap) {
       ry += 34
 
       ctx.fillStyle = kleur.grijsLicht
-      ctx.font = `700 11px ${fontBody}`
+      ctx.font = `800 12px ${fontBody}`
       ctx.fillText('SPELER', kolX[0], ry + 10)
       ctx.fillText('VOORSPELLING', kolX[1], ry + 10)
       ctx.fillText('PUNTEN', kolX[2], ry + 10)
@@ -263,7 +263,7 @@ async function bouwDeelAfbeelding(klassement, resultaten, spelerNaamMap) {
         ctx.fillText(naam, kolX[0], ry + 14)
 
         ctx.fillStyle = pred ? kleur.wit : kleur.grijsLicht
-        ctx.font = pred ? `700 15px ${fontBody}` : `italic 400 13px ${fontBody}`
+        ctx.font = pred ? `700 15px ${fontBody}` : `italic 500 14px ${fontBody}`
         ctx.fillText(pred ? `${pred.home}–${pred.away}` : 'geen voorspelling', kolX[1], ry + 14)
 
         ctx.fillStyle = punten >= 10 ? kleur.goud : punten >= 7 ? kleur.groen : punten >= 5 ? '#3B82F6' : kleur.grijsLicht
