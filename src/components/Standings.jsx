@@ -298,6 +298,17 @@ export default function Standings({ fixtures, speler }) {
   const [results, setResults] = useState([])
   const [spelerNaamMap, setSpelerNaamMap] = useState({})
   const [loading, setLoading] = useState(true)
+  // De deel-afbeelding wordt vooraf (op de achtergrond) opgebouwd zodra de
+  // data binnen is, i.p.v. pas op het moment van de tik op "Delen". Reden:
+  // iOS Safari staat navigator.share() alleen toe als het vrijwel direct
+  // (synchroon) binnen de tik-actie van de gebruiker wordt aangeroepen. Met
+  // een `await` ervoor (zoals het opbouwen van de canvas-afbeelding) raakt
+  // die koppeling met de tik kwijt, en blokkeert Safari zowel de deel-actie
+  // als de terugval (window.open) stilzwijgend — geen foutmelding, gewoon
+  // geen enkele reactie. Vandaar dit verschil tussen Mac (werkt wel) en
+  // iPhone (geen respons). Met de afbeelding al klaarliggend hoeft
+  // handleDelen zelf niets meer te awaiten vóór navigator.share().
+  const deelBlobRef = useRef(null)
 
   useEffect(() => {
     async function laad() {
@@ -320,6 +331,24 @@ export default function Standings({ fixtures, speler }) {
     }
     laad()
   }, [])
+
+  // Zodra totals/results/spelerNaamMap bekend zijn, alvast de deel-
+  // afbeelding klaarzetten op de achtergrond (zie toelichting hierboven).
+  useEffect(() => {
+    if (Object.keys(totals).length === 0) return
+    const klassementNu = Object.entries(totals)
+      .map(([playerId, punten]) => ({ playerId, naam: spelerNaamMap[playerId] || '???', punten }))
+      .sort((a, b) => b.punten - a.punten)
+    const resultatenNu = [...results].sort((a, b) => new Date(b.datumISO) - new Date(a.datumISO))
+
+    let geannuleerd = false
+    bouwDeelAfbeelding(klassementNu, resultatenNu, spelerNaamMap).then(blob => {
+      if (!geannuleerd) deelBlobRef.current = blob
+    }).catch(() => {})
+
+    return () => { geannuleerd = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [totals, results, spelerNaamMap])
 
   function puntKleur(punt) {
     if (punt >= 10) return styles.puntGoud
@@ -356,7 +385,12 @@ export default function Standings({ fixtures, speler }) {
         valTerugOpTekst()
         return
       }
-      const blob = await bouwDeelAfbeelding(klassement, gesorteerdeResultaten, spelerNaamMap)
+      // Bij voorkeur de al-vooraf-opgebouwde afbeelding gebruiken (geen
+      // wachttijd, cruciaal voor iOS Safari — zie toelichting hierboven).
+      // Alleen als die om wat voor reden dan ook nog niet klaar is (bijv.
+      // supersnel geklikt vóór de achtergrondtaak klaar was), alsnog on-the-
+      // fly opbouwen als redelijke terugval.
+      const blob = deelBlobRef.current || await bouwDeelAfbeelding(klassement, gesorteerdeResultaten, spelerNaamMap)
       if (!blob) {
         valTerugOpTekst()
         return
