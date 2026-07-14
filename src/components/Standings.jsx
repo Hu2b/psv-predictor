@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { zoekLogo } from '../../shared/teams.js'
 import styles from './Standings.module.css'
 
@@ -227,9 +227,9 @@ async function bouwDeelAfbeelding(klassement, resultaten, spelerNaamMap) {
       ctx.font = `800 13px ${fontBody}`
       const compBreedte = ctx.measureText(r.competitie).width
       tekenAfgerondeRect(ctx, kolX[0] - 6, ry - 5, compBreedte + 12, 21, 4)
-      ctx.fillStyle = 'rgba(225,0,14,0.22)'
-      ctx.fill()
       ctx.fillStyle = kleur.rood
+      ctx.fill()
+      ctx.fillStyle = kleur.wit
       ctx.textAlign = 'left'
       ctx.fillText(r.competitie, kolX[0], ry + 10)
       ctx.fillStyle = kleur.grijsLicht
@@ -329,6 +329,12 @@ export default function Standings({ fixtures, speler }) {
     .sort((a, b) => b.punten - a.punten)
 
   const [delenBezig, setDelenBezig] = useState(false)
+  // React-state (delenBezig) wordt asynchroon/gebatcht bijgewerkt — bij een
+  // hele snelle dubbele tik kan de knop dan nog even niet-disabled zijn op
+  // het moment dat de tweede tik binnenkomt, waardoor de afbeelding twee
+  // keer wordt opgebouwd en gedeeld. Een ref is direct/synchroon en dekt dat
+  // gat helemaal af, ongeacht render-timing.
+  const delenBezigRef = useRef(false)
 
   function valTerugOpTekst() {
     const tekst = bouwWhatsAppTekst(klassement, results, spelerNaamMap)
@@ -337,7 +343,8 @@ export default function Standings({ fixtures, speler }) {
   }
 
   async function handleDelen() {
-    if (delenBezig) return
+    if (delenBezigRef.current) return
+    delenBezigRef.current = true
     setDelenBezig(true)
     try {
       const kanBestandenDelen = typeof navigator.canShare === 'function' && typeof navigator.share === 'function'
@@ -366,6 +373,7 @@ export default function Standings({ fixtures, speler }) {
         valTerugOpTekst()
       }
     } finally {
+      delenBezigRef.current = false
       setDelenBezig(false)
     }
   }
