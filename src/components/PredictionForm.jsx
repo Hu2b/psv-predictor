@@ -87,20 +87,6 @@ export default function PredictionForm({ fixture, speler }) {
     setStatus('idle')
   }
 
-  if (isSluiting && !mijnPred) {
-    return (
-      <div className={styles.card}>
-        <div className={styles.gesloten}>
-          <span className={styles.geslotenIcon}>🔒</span>
-          <p className={styles.geslotenTekst}>
-            Voorspellen is gesloten
-          </p>
-          <p className={styles.geslotenSub}>Je hebt niet op tijd voorspeld — 0 punten voor deze wedstrijd.</p>
-        </div>
-      </div>
-    )
-  }
-
   const toonInvoer = status !== 'confirmed' || wijzigenModus
 
   return (
@@ -109,6 +95,16 @@ export default function PredictionForm({ fixture, speler }) {
         Jouw voorspelling
         <span className={styles.spelerBadge}>{speler.naam}</span>
       </h2>
+
+      {isSluiting && !mijnPred && (
+        <div className={styles.gesloten}>
+          <span className={styles.geslotenIcon}>🔒</span>
+          <p className={styles.geslotenTekst}>
+            Voorspellen is gesloten
+          </p>
+          <p className={styles.geslotenSub}>Je hebt niet op tijd voorspeld — 0 punten voor deze wedstrijd.</p>
+        </div>
+      )}
 
       {toonInvoer && !isSluiting && (
         <div className={styles.invoer}>
