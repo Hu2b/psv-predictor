@@ -19,9 +19,6 @@ async function bouwWedstrijdAfbeelding(fixture, alleVoorspellingen, matchResulta
     border: cssVar('--psv-border', '#2E2E2E'),
     wit: cssVar('--psv-white', '#FFFFFF'),
     rood: cssVar('--psv-red', '#E1000E'),
-    // Zie toelichting bij de klassement-afbeelding: bewust lichter dan het
-    // --psv-gray-lt van de live app, voor leesbaarheid in een gedeelde/
-    // gecomprimeerde afbeelding.
     grijsLicht: '#CBD1D9',
     goud: cssVar('--gold', '#F5B800'),
     groen: cssVar('--green', '#22C55E'),
@@ -37,11 +34,11 @@ async function bouwWedstrijdAfbeelding(fixture, alleVoorspellingen, matchResulta
     : [PAD + 16, W - PAD - 16]
 
   let hoogte = PAD
-  hoogte += 46 // titel
-  hoogte += 26 + 16 // onderschrift + marge
-  hoogte += 22 // competitie/datum-regel
-  hoogte += 34 // teams+score-regel
-  hoogte += 24 // tabel-header
+  hoogte += 46
+  hoogte += 26 + 16
+  hoogte += 22
+  hoogte += 34
+  hoogte += 24
   hoogte += alleVoorspellingen.length * 26
   hoogte += PAD
   const H = Math.ceil(hoogte)
@@ -152,20 +149,11 @@ export default function PredictionForm({ fixture, speler }) {
   const [matchResultaat, setMatchResultaat] = useState(null)
   const [delenBezig, setDelenBezig] = useState(false)
   const delenBezigRef = useRef(false)
-  // Zie ../lib/deelHelpers.js: de afbeelding wordt vooraf opgebouwd zodra
-  // alles bekend is, zodat handleDelen zelf niets meer hoeft te awaiten
-  // vóór navigator.share() — cruciaal voor iOS Safari.
   const deelBlobRef = useRef(null)
 
   const isAfgelopen = ['FT','AET','PEN'].includes(fixture.status)
   const isBezig = ['1H','HT','2H','ET','BT','LIVE'].includes(fixture.status)
-  // Snelle, lokale inschatting op basis van de (mogelijk wat vertraagde)
-  // wedstrijdstatus — puur om vóór de eerste server-respons al een
-  // redelijk beeld te tonen.
   const isSluitingLokaal = isAfgelopen || isBezig
-  // De server bepaalt het definitieve antwoord: aftraptijd verstreken, óf
-  // uitslag al vastgelegd, óf iedereen heeft al voorspeld. Zodra de eerste
-  // fetch binnen is, is dit altijd leidend boven de lokale inschatting.
   const isSluiting = onthuld || isSluitingLokaal
 
   async function laad() {
@@ -201,10 +189,6 @@ export default function PredictionForm({ fixture, speler }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fixture.matchId, speler.id])
 
-  // Zodra voorspellingen onthuld zijn: eventuele al-verwerkte punten erbij
-  // ophalen (kan ontbreken als de wedstrijd net is begonnen maar nog niet
-  // definitief verwerkt is — dan toont de deel-afbeelding alleen de
-  // voorspellingen, zonder punten-kolom).
   useEffect(() => {
     if (!onthuld) return
     let geannuleerd = false
@@ -215,8 +199,6 @@ export default function PredictionForm({ fixture, speler }) {
     return () => { geannuleerd = true }
   }, [onthuld, fixture.matchId])
 
-  // Zodra alles bekend is, alvast de deel-afbeelding klaarzetten op de
-  // achtergrond (zie ../lib/deelHelpers.js voor de reden).
   useEffect(() => {
     if (!onthuld) return
     const alleVoorspellingen = [
