@@ -42,6 +42,22 @@ export function tekenAfgerondeRect(ctx, x, y, w, h, r) {
   ctx.closePath()
 }
 
+// Tekent tekst zo dat de daadwerkelijk zichtbare pixels (de "inkt") rechts
+// uitlijnen op rechterRand — in plaats van ctx.textAlign = 'right', dat
+// uitlijnt op de rekenkundige tekenbreedte (advance width). Cijfers als "0"
+// en "1" hebben van nature verschillend wit-ruimte aan hun rechterzijde in
+// de meeste lettertypen, waardoor bijv. "2–1" en "2–0" met textAlign='right'
+// zichtbaar net niet even ver uitlijnen, ook al is de rekenkundige breedte
+// identiek. Deze functie meet de werkelijke inkt-rand (actualBoundingBoxRight)
+// en compenseert daarvoor, zodat cijfers en tekst altijd pixel-precies
+// uitlijnen.
+export function fillTextRechtsUitgelijnd(ctx, tekst, rechterRand, y) {
+  const metrics = ctx.measureText(tekst)
+  const inktRand = metrics.actualBoundingBoxRight ?? metrics.width
+  ctx.textAlign = 'left'
+  ctx.fillText(tekst, rechterRand - inktRand, y)
+}
+
 // Veilige bovengrens (in pixels) voor een canvas-dimensie, ruim onder de
 // grens waar mobiele browsers (met name iOS Safari) op vastlopen.
 export const VEILIGE_MAX_AFMETING = 4096
