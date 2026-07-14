@@ -3,17 +3,8 @@ import H2H from './H2H.jsx'
 import PredictionForm from './PredictionForm.jsx'
 import LiveScore from './LiveScore.jsx'
 import { zoekLogo } from '../../shared/teams.js'
+import { COMP_LABELS } from '../../shared/competities.js'
 import styles from './NextMatch.module.css'
-
-const COMP_LABELS = {
-  JCS: 'Johan Cruijff Schaal',
-  ERE: 'Eredivisie',
-  KNVB: 'KNVB Beker',
-  CL: 'Champions League',
-  UL: 'UEFA League',
-  VRI: 'Vriendschappelijk',
-  LICHT: 'Lichtstadderby',
-}
 
 const SWIPE_DREMPEL = 50 // minimale swipe-afstand in pixels
 
