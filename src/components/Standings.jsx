@@ -456,7 +456,16 @@ export default function Standings({ fixtures, speler }) {
 
       {results.length > 0 && (
         <button className={styles.deelBtn} onClick={handleDelen} disabled={delenBezig}>
-          {delenBezig ? 'Bezig…' : '📤 Delen'}
+          {delenBezig ? 'Bezig…' : (
+            <>
+              <svg className={styles.deelIcoon} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <path d="M12 3v12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M7 8l5-5 5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M5 12v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              Delen
+            </>
+          )}
         </button>
       )}
 
