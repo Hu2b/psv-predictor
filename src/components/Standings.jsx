@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { zoekLogo } from '../../shared/teams.js'
 import { competitieNaam } from '../../shared/competities.js'
-import { cssVar, tekenAfgerondeRect, berekenAdaptieveDpr, VEILIGE_MAX_AFMETING, deelOfValTerug } from '../lib/deelHelpers.js'
+import { cssVar, tekenAfgerondeRect, berekenAdaptieveDpr, VEILIGE_MAX_AFMETING, deelOfValTerug, fillTextRechtsUitgelijnd } from '../lib/deelHelpers.js'
 import styles from './Standings.module.css'
 
 // Vult een string met spaties tot vaste lengte (rechts uitlijnen tekst).
@@ -85,11 +85,6 @@ async function bouwDeelAfbeelding(klassement, resultaten, spelerNaamMap) {
     border: cssVar('--psv-border', '#2E2E2E'),
     wit: cssVar('--psv-white', '#FFFFFF'),
     rood: cssVar('--psv-red', '#E1000E'),
-    // Bewust lichter dan de --psv-gray-lt van de live app: op een scherm in
-    // de app is dat contrast prima, maar in een gedeelde/gecomprimeerde
-    // afbeelding (WhatsApp e.d. comprimeren vaak nog eens) wordt dat te
-    // schraal om goed te lezen. Leesbaarheid weegt hier zwaarder dan exact
-    // dezelfde tint als de rest van de app.
     grijsLicht: '#CBD1D9',
     goud: cssVar('--gold', '#F5B800'),
     groen: cssVar('--green', '#22C55E'),
@@ -107,22 +102,14 @@ async function bouwDeelAfbeelding(klassement, resultaten, spelerNaamMap) {
     return 16 + 22 + 34 + 24 + aantalSpelers * 26 + 16 + 16
   }
 
-  // --- Hoogte vooraf berekenen zodat het canvas meteen de juiste grootte heeft ---
   let basisHoogte = PAD
-  basisHoogte += 46 // titel
-  basisHoogte += 26 + 16 // onderschrift + marge
-  basisHoogte += 30 // "KLASSEMENT"-label
+  basisHoogte += 46
+  basisHoogte += 26 + 16
+  basisHoogte += 30
   basisHoogte += klassement.length * klassementRijHoogte
   basisHoogte += 20
-  if (resultaten.length > 0) basisHoogte += 30 // "ALLE WEDSTRIJDEN"-label
+  if (resultaten.length > 0) basisHoogte += 30
 
-  // Bij (heel) veel wedstrijden zou de afbeelding zelfs bij de laagst
-  // mogelijke resolutie (dpr 1) nog altijd hoger worden dan wat canvas op
-  // mobiele browsers (met name iOS Safari) betrouwbaar aankan. In dat geval
-  // liever alleen de meest recente wedstrijden tonen (die staan al vooraan,
-  // de lijst komt binnen al nieuwste-eerst gesorteerd) met een duidelijke
-  // notitie, dan de hele afbeelding stuk laten gaan. De WhatsApp-tekst-
-  // terugval bevat sowieso altijd de volledige lijst.
   const RUIMTE_VOOR_NOTITIE = 30
   let resultatenGetoond = resultaten
   let hoogte = basisHoogte
@@ -140,16 +127,6 @@ async function bouwDeelAfbeelding(klassement, resultaten, spelerNaamMap) {
   hoogte += PAD
   const H = Math.ceil(hoogte)
 
-  // Resolutie adaptief bepalen i.p.v. een vaste hoge dpr. iOS Safari
-  // hanteert (in tegenstelling tot desktop-browsers) een relatief lage
-  // grens aan hoe groot een canvas in daadwerkelijke pixels mag zijn. Bij
-  // veel wedstrijden wordt de afbeelding lang; een vaste dpr van bijv. 6
-  // kan de canvas-hoogte dan ver over die grens duwen, waardoor
-  // canvas.toBlob() stilletjes faalt (geen fout, gewoon geen afbeelding) —
-  // en de deel-actie zonder waarschuwing terugvalt op tekst-only. Door de
-  // dpr te begrenzen op basis van de daadwerkelijke afbeeldingshoogte blijft
-  // de canvas altijd binnen een veilige marge, ongeacht het aantal
-  // wedstrijden.
   const dpr = berekenAdaptieveDpr(W, H, 5)
   const canvas = document.createElement('canvas')
   canvas.width = W * dpr
@@ -201,9 +178,7 @@ async function bouwDeelAfbeelding(klassement, resultaten, spelerNaamMap) {
 
     ctx.fillStyle = isLeider ? kleur.goud : kleur.wit
     ctx.font = `900 22px ${fontDisplay}`
-    ctx.textAlign = 'right'
-    ctx.fillText(String(s.punten), W - PAD - 16, midY + 1)
-    ctx.textAlign = 'left'
+    fillTextRechtsUitgelijnd(ctx, String(s.punten), W - PAD - 16, midY + 1)
 
     cy += klassementRijHoogte
   })
@@ -239,9 +214,7 @@ async function bouwDeelAfbeelding(klassement, resultaten, spelerNaamMap) {
       ctx.fillText(compTekst, kolX[0], ry + 10)
       ctx.fillStyle = kleur.grijsLicht
       ctx.font = `600 14px ${fontBody}`
-      ctx.textAlign = 'right'
-      ctx.fillText(`#${r.volgnummer || '—'} · ${r.datum}`, W - PAD - 16, ry + 10)
-      ctx.textAlign = 'left'
+      fillTextRechtsUitgelijnd(ctx, `#${r.volgnummer || '—'} · ${r.datum}`, W - PAD - 16, ry + 10)
       ry += 22
 
       ctx.fillStyle = kleur.wit
@@ -254,9 +227,7 @@ async function bouwDeelAfbeelding(klassement, resultaten, spelerNaamMap) {
       ctx.fillText('SPELER', kolX[0], ry + 10)
       ctx.fillText('VOORSPELLING', kolX[1], ry + 10)
       ctx.fillText('PUNTEN', kolX[2], ry + 10)
-      ctx.textAlign = 'right'
-      ctx.fillText('TOTAAL', kolX[3], ry + 10)
-      ctx.textAlign = 'left'
+      fillTextRechtsUitgelijnd(ctx, 'TOTAAL', kolX[3], ry + 10)
       ry += 24
 
       for (const [playerId, pred] of spelers) {
@@ -278,9 +249,7 @@ async function bouwDeelAfbeelding(klassement, resultaten, spelerNaamMap) {
 
         ctx.fillStyle = kleur.wit
         ctx.font = `700 15px ${fontBody}`
-        ctx.textAlign = 'right'
-        ctx.fillText(String(totaal), kolX[3], ry + 14)
-        ctx.textAlign = 'left'
+        fillTextRechtsUitgelijnd(ctx, String(totaal), kolX[3], ry + 14)
 
         ry += 26
       }
@@ -307,16 +276,6 @@ export default function Standings({ fixtures, speler }) {
   const [results, setResults] = useState([])
   const [spelerNaamMap, setSpelerNaamMap] = useState({})
   const [loading, setLoading] = useState(true)
-  // De deel-afbeelding wordt vooraf (op de achtergrond) opgebouwd zodra de
-  // data binnen is, i.p.v. pas op het moment van de tik op "Delen". Reden:
-  // iOS Safari staat navigator.share() alleen toe als het vrijwel direct
-  // (synchroon) binnen de tik-actie van de gebruiker wordt aangeroepen. Met
-  // een `await` ervoor (zoals het opbouwen van de canvas-afbeelding) raakt
-  // die koppeling met de tik kwijt, en blokkeert Safari zowel de deel-actie
-  // als de terugval (window.open) stilzwijgend — geen foutmelding, gewoon
-  // geen enkele reactie. Vandaar dit verschil tussen Mac (werkt wel) en
-  // iPhone (geen respons). Met de afbeelding al klaarliggend hoeft
-  // handleDelen zelf niets meer te awaiten vóór navigator.share().
   const deelBlobRef = useRef(null)
 
   useEffect(() => {
@@ -341,8 +300,6 @@ export default function Standings({ fixtures, speler }) {
     laad()
   }, [])
 
-  // Zodra totals/results/spelerNaamMap bekend zijn, alvast de deel-
-  // afbeelding klaarzetten op de achtergrond (zie toelichting hierboven).
   useEffect(() => {
     if (Object.keys(totals).length === 0) return
     const klassementNu = Object.entries(totals)
@@ -371,11 +328,6 @@ export default function Standings({ fixtures, speler }) {
     .sort((a, b) => b.punten - a.punten)
 
   const [delenBezig, setDelenBezig] = useState(false)
-  // React-state (delenBezig) wordt asynchroon/gebatcht bijgewerkt — bij een
-  // hele snelle dubbele tik kan de knop dan nog even niet-disabled zijn op
-  // het moment dat de tweede tik binnenkomt, waardoor de afbeelding twee
-  // keer wordt opgebouwd en gedeeld. Een ref is direct/synchroon en dekt dat
-  // gat helemaal af, ongeacht render-timing.
   const delenBezigRef = useRef(false)
 
   async function handleDelen() {
@@ -383,11 +335,6 @@ export default function Standings({ fixtures, speler }) {
     delenBezigRef.current = true
     setDelenBezig(true)
     try {
-      // Bij voorkeur de al-vooraf-opgebouwde afbeelding gebruiken (geen
-      // wachttijd, cruciaal voor iOS Safari — zie toelichting hierboven).
-      // Alleen als die om wat voor reden dan ook nog niet klaar is (bijv.
-      // supersnel geklikt vóór de achtergrondtaak klaar was), alsnog on-the-
-      // fly opbouwen als redelijke terugval.
       const blob = deelBlobRef.current || await bouwDeelAfbeelding(klassement, gesorteerdeResultaten, spelerNaamMap)
       await deelOfValTerug({
         blob,
