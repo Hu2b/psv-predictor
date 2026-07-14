@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { zoekLogo } from '../../shared/teams.js'
 import { competitieNaam } from '../../shared/competities.js'
+import { cssVar, tekenAfgerondeRect, berekenAdaptieveDpr, VEILIGE_MAX_AFMETING, deelOfValTerug } from '../lib/deelHelpers.js'
 import styles from './Standings.module.css'
 
 // Vult een string met spaties tot vaste lengte (rechts uitlijnen tekst).
@@ -66,31 +67,7 @@ function bouwWhatsAppTekst(klassement, results, spelerNaamMap) {
   return regels.join('\n')
 }
 
-// Leest een CSS custom property (--psv-red e.d.) op zodat de afbeelding
-// automatisch hetzelfde kleurenschema volgt als de rest van de app, zonder
-// kleuren dubbel te hoeven onderhouden.
-function cssVar(naam, fallback) {
-  const waarde = getComputedStyle(document.documentElement).getPropertyValue(naam).trim()
-  return waarde || fallback
-}
-
-// Handmatige afgeronde rechthoek i.p.v. ctx.roundRect(), voor bredere
-// browserondersteuning (ook oudere WebViews die apps soms gebruiken om
-// share-doelwitten te openen).
-function tekenAfgerondeRect(ctx, x, y, w, h, r) {
-  const radius = Math.min(r, w / 2, h / 2)
-  ctx.beginPath()
-  ctx.moveTo(x + radius, y)
-  ctx.lineTo(x + w - radius, y)
-  ctx.arcTo(x + w, y, x + w, y + radius, radius)
-  ctx.lineTo(x + w, y + h - radius)
-  ctx.arcTo(x + w, y + h, x + w - radius, y + h, radius)
-  ctx.lineTo(x + radius, y + h)
-  ctx.arcTo(x, y + h, x, y + h - radius, radius)
-  ctx.lineTo(x, y + radius)
-  ctx.arcTo(x, y, x + radius, y, radius)
-  ctx.closePath()
-}
+// Handmatige afgeronde rechthoek en cssVar komen nu uit ../lib/deelHelpers.js
 
 // Bouwt een PNG-afbeelding (canvas) van klassement + alle wedstrijden, in de
 // stijl van de app zelf. Geeft een Blob terug die via de Web Share API
@@ -124,7 +101,6 @@ async function bouwDeelAfbeelding(klassement, resultaten, spelerNaamMap) {
   const W = 760
   const klassementRijHoogte = 52
   const kolX = [PAD + 16, PAD + 200, PAD + 380, W - PAD - 16]
-  const VEILIGE_MAX_AFMETING = 4096
 
   function matchHoogte(r) {
     const aantalSpelers = Object.keys(r.predicties || {}).length
@@ -174,9 +150,7 @@ async function bouwDeelAfbeelding(klassement, resultaten, spelerNaamMap) {
   // dpr te begrenzen op basis van de daadwerkelijke afbeeldingshoogte blijft
   // de canvas altijd binnen een veilige marge, ongeacht het aantal
   // wedstrijden.
-  let dpr = 5
-  if (H * dpr > VEILIGE_MAX_AFMETING) dpr = Math.max(1, Math.floor(VEILIGE_MAX_AFMETING / H))
-  if (W * dpr > VEILIGE_MAX_AFMETING) dpr = Math.max(1, Math.min(dpr, Math.floor(VEILIGE_MAX_AFMETING / W)))
+  const dpr = berekenAdaptieveDpr(W, H, 5)
   const canvas = document.createElement('canvas')
   canvas.width = W * dpr
   canvas.height = H * dpr
@@ -404,27 +378,6 @@ export default function Standings({ fixtures, speler }) {
   // gat helemaal af, ongeacht render-timing.
   const delenBezigRef = useRef(false)
 
-  function valTerugOpTekst() {
-    const tekst = bouwWhatsAppTekst(klassement, results, spelerNaamMap)
-    const url = `https://wa.me/?text=${encodeURIComponent(tekst)}`
-    // window.open() met een nieuw tabblad wordt door mobiele Safari vaak
-    // stilzwijgend geblokkeerd (veel strenger dan desktop Safari) — een
-    // gewone paginanavigatie via location.href wordt niet als pop-up gezien
-    // en werkt daardoor betrouwbaarder, ook op iPhone.
-    window.location.href = url
-  }
-
-  // Terugval als navigator.share() de afbeelding niet kan/wil meesturen
-  // (op sommige iPhones faalt dat stilletjes): de afbeelding zelf openen
-  // i.p.v. alleen kale tekst — dan kan de gebruiker 'm met een lange druk
-  // opslaan in Foto's en van daaruit gewoon handmatig delen naar WhatsApp.
-  // Zo gaat de afbeelding zelf nooit meer verloren, ook als de "in-app"
-  // deel-actie faalt.
-  function valTerugOpAfbeelding(blob) {
-    const url = URL.createObjectURL(blob)
-    window.location.href = url
-  }
-
   async function handleDelen() {
     if (delenBezigRef.current) return
     delenBezigRef.current = true
@@ -436,34 +389,13 @@ export default function Standings({ fixtures, speler }) {
       // supersnel geklikt vóór de achtergrondtaak klaar was), alsnog on-the-
       // fly opbouwen als redelijke terugval.
       const blob = deelBlobRef.current || await bouwDeelAfbeelding(klassement, gesorteerdeResultaten, spelerNaamMap)
-      if (!blob) {
-        valTerugOpTekst()
-        return
-      }
-
-      const bestand = new File([blob], 'psv-poule-klassement.png', { type: 'image/png' })
-      const kanBestandenDelen = typeof navigator.canShare === 'function'
-        && typeof navigator.share === 'function'
-        && navigator.canShare({ files: [bestand] })
-
-      if (kanBestandenDelen) {
-        try {
-          await navigator.share({
-            files: [bestand],
-            title: 'PSV Poule',
-            text: 'Bekijk het klassement van de PSV Poule!'
-          })
-          return
-        } catch (e) {
-          // AbortError = gebruiker heeft de deel-dialoog zelf geannuleerd — dan
-          // niet alsnog de afbeelding-terugval tonen, dat voelt als een bug.
-          if (e && e.name === 'AbortError') return
-          // Andere fout (bijv. het stilzwijgend falen dat op sommige iPhones
-          // gebeurt): val door naar de afbeelding-terugval hieronder.
-        }
-      }
-
-      valTerugOpAfbeelding(blob)
+      await deelOfValTerug({
+        blob,
+        bestandsnaam: 'psv-poule-klassement.png',
+        titel: 'PSV Poule',
+        tekst: 'Bekijk het klassement van de PSV Poule!',
+        tekstFallbackUrl: `https://wa.me/?text=${encodeURIComponent(bouwWhatsAppTekst(klassement, results, spelerNaamMap))}`,
+      })
     } finally {
       delenBezigRef.current = false
       setDelenBezig(false)
