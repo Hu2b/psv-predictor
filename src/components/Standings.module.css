@@ -123,6 +123,16 @@
   font-weight: 700;
   width: 100%;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.deelIcoon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
 }
 
 .deelBtn:active {
