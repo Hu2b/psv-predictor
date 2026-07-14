@@ -124,32 +124,59 @@ async function bouwDeelAfbeelding(klassement, resultaten, spelerNaamMap) {
   const W = 760
   const klassementRijHoogte = 52
   const kolX = [PAD + 16, PAD + 200, PAD + 380, W - PAD - 16]
+  const VEILIGE_MAX_AFMETING = 4096
+
+  function matchHoogte(r) {
+    const aantalSpelers = Object.keys(r.predicties || {}).length
+    return 16 + 22 + 34 + 24 + aantalSpelers * 26 + 16 + 16
+  }
 
   // --- Hoogte vooraf berekenen zodat het canvas meteen de juiste grootte heeft ---
-  let hoogte = PAD
-  hoogte += 46 // titel
-  hoogte += 26 + 16 // onderschrift + marge
-  hoogte += 30 // "KLASSEMENT"-label
-  hoogte += klassement.length * klassementRijHoogte
-  hoogte += 20
+  let basisHoogte = PAD
+  basisHoogte += 46 // titel
+  basisHoogte += 26 + 16 // onderschrift + marge
+  basisHoogte += 30 // "KLASSEMENT"-label
+  basisHoogte += klassement.length * klassementRijHoogte
+  basisHoogte += 20
+  if (resultaten.length > 0) basisHoogte += 30 // "ALLE WEDSTRIJDEN"-label
 
-  if (resultaten.length > 0) {
-    hoogte += 30 // "ALLE WEDSTRIJDEN"-label
-    for (const r of resultaten) {
-      const aantalSpelers = Object.keys(r.predicties || {}).length
-      hoogte += 16 + 22 + 34 + 24 + aantalSpelers * 26 + 16 + 16
+  // Bij (heel) veel wedstrijden zou de afbeelding zelfs bij de laagst
+  // mogelijke resolutie (dpr 1) nog altijd hoger worden dan wat canvas op
+  // mobiele browsers (met name iOS Safari) betrouwbaar aankan. In dat geval
+  // liever alleen de meest recente wedstrijden tonen (die staan al vooraan,
+  // de lijst komt binnen al nieuwste-eerst gesorteerd) met een duidelijke
+  // notitie, dan de hele afbeelding stuk laten gaan. De WhatsApp-tekst-
+  // terugval bevat sowieso altijd de volledige lijst.
+  const RUIMTE_VOOR_NOTITIE = 30
+  let resultatenGetoond = resultaten
+  let hoogte = basisHoogte
+  for (let i = 0; i < resultaten.length; i++) {
+    const volgende = hoogte + matchHoogte(resultaten[i])
+    const restRuimte = i < resultaten.length - 1 ? RUIMTE_VOOR_NOTITIE : 0
+    if (volgende + restRuimte + PAD > VEILIGE_MAX_AFMETING) {
+      resultatenGetoond = resultaten.slice(0, i)
+      break
     }
+    hoogte = volgende
   }
+  const aantalWeggelaten = resultaten.length - resultatenGetoond.length
+  if (aantalWeggelaten > 0) hoogte += RUIMTE_VOOR_NOTITIE
   hoogte += PAD
   const H = Math.ceil(hoogte)
 
-  // 6x resolutie: bij veel wedstrijden wordt de afbeelding lang, en
-  // messenger-apps zoals WhatsApp schalen 'm vaak nog eens terug voor de
-  // preview/thumbnail. Let op: dit lost het "blurry worden bij inzoomen"
-  // niet volledig op — dat is inherent aan elke pixel-gebaseerde afbeelding
-  // (PNG incluis) zodra je verder inzoomt dan de daadwerkelijke resolutie.
-  // Een hogere resolutie hier verschuift alleen het punt waarop dat gebeurt.
-  const dpr = 6
+  // Resolutie adaptief bepalen i.p.v. een vaste hoge dpr. iOS Safari
+  // hanteert (in tegenstelling tot desktop-browsers) een relatief lage
+  // grens aan hoe groot een canvas in daadwerkelijke pixels mag zijn. Bij
+  // veel wedstrijden wordt de afbeelding lang; een vaste dpr van bijv. 6
+  // kan de canvas-hoogte dan ver over die grens duwen, waardoor
+  // canvas.toBlob() stilletjes faalt (geen fout, gewoon geen afbeelding) —
+  // en de deel-actie zonder waarschuwing terugvalt op tekst-only. Door de
+  // dpr te begrenzen op basis van de daadwerkelijke afbeeldingshoogte blijft
+  // de canvas altijd binnen een veilige marge, ongeacht het aantal
+  // wedstrijden.
+  let dpr = 5
+  if (H * dpr > VEILIGE_MAX_AFMETING) dpr = Math.max(1, Math.floor(VEILIGE_MAX_AFMETING / H))
+  if (W * dpr > VEILIGE_MAX_AFMETING) dpr = Math.max(1, Math.min(dpr, Math.floor(VEILIGE_MAX_AFMETING / W)))
   const canvas = document.createElement('canvas')
   canvas.width = W * dpr
   canvas.height = H * dpr
@@ -215,7 +242,7 @@ async function bouwDeelAfbeelding(klassement, resultaten, spelerNaamMap) {
     ctx.fillText('ALLE WEDSTRIJDEN', PAD, cy + 12)
     cy += 30
 
-    for (const r of resultaten) {
+    for (const r of resultatenGetoond) {
       const spelers = Object.entries(r.predicties || {})
       const kaartHoogte = 16 + 22 + 34 + 24 + spelers.length * 26 + 16
 
@@ -285,6 +312,14 @@ async function bouwDeelAfbeelding(klassement, resultaten, spelerNaamMap) {
       }
 
       cy += kaartHoogte + 16
+    }
+
+    if (aantalWeggelaten > 0) {
+      ctx.fillStyle = kleur.grijsLicht
+      ctx.font = `italic 600 13px ${fontBody}`
+      ctx.textAlign = 'center'
+      ctx.fillText(`+ ${aantalWeggelaten} eerdere wedstrijd${aantalWeggelaten === 1 ? '' : 'en'} — zie de app voor het volledige overzicht`, W / 2, cy + 10)
+      ctx.textAlign = 'left'
     }
   }
 
@@ -379,16 +414,22 @@ export default function Standings({ fixtures, speler }) {
     window.location.href = url
   }
 
+  // Terugval als navigator.share() de afbeelding niet kan/wil meesturen
+  // (op sommige iPhones faalt dat stilletjes): de afbeelding zelf openen
+  // i.p.v. alleen kale tekst — dan kan de gebruiker 'm met een lange druk
+  // opslaan in Foto's en van daaruit gewoon handmatig delen naar WhatsApp.
+  // Zo gaat de afbeelding zelf nooit meer verloren, ook als de "in-app"
+  // deel-actie faalt.
+  function valTerugOpAfbeelding(blob) {
+    const url = URL.createObjectURL(blob)
+    window.location.href = url
+  }
+
   async function handleDelen() {
     if (delenBezigRef.current) return
     delenBezigRef.current = true
     setDelenBezig(true)
     try {
-      const kanBestandenDelen = typeof navigator.canShare === 'function' && typeof navigator.share === 'function'
-      if (!kanBestandenDelen) {
-        valTerugOpTekst()
-        return
-      }
       // Bij voorkeur de al-vooraf-opgebouwde afbeelding gebruiken (geen
       // wachttijd, cruciaal voor iOS Safari — zie toelichting hierboven).
       // Alleen als die om wat voor reden dan ook nog niet klaar is (bijv.
@@ -399,21 +440,30 @@ export default function Standings({ fixtures, speler }) {
         valTerugOpTekst()
         return
       }
+
       const bestand = new File([blob], 'psv-poule-klassement.png', { type: 'image/png' })
-      if (!navigator.canShare({ files: [bestand] })) {
-        valTerugOpTekst()
-        return
+      const kanBestandenDelen = typeof navigator.canShare === 'function'
+        && typeof navigator.share === 'function'
+        && navigator.canShare({ files: [bestand] })
+
+      if (kanBestandenDelen) {
+        try {
+          await navigator.share({
+            files: [bestand],
+            title: 'PSV Poule',
+            text: 'Bekijk het klassement van de PSV Poule!'
+          })
+          return
+        } catch (e) {
+          // AbortError = gebruiker heeft de deel-dialoog zelf geannuleerd — dan
+          // niet alsnog de afbeelding-terugval tonen, dat voelt als een bug.
+          if (e && e.name === 'AbortError') return
+          // Andere fout (bijv. het stilzwijgend falen dat op sommige iPhones
+          // gebeurt): val door naar de afbeelding-terugval hieronder.
+        }
       }
-      await navigator.share({
-        files: [bestand],
-        title: 'PSV Poule',
-        text: 'Bekijk het klassement van de PSV Poule!'
-      })
-    } catch (e) {
-      // AbortError = gebruiker heeft de deel-dialoog zelf geannuleerd, geen actie nodig.
-      if (e && e.name !== 'AbortError') {
-        valTerugOpTekst()
-      }
+
+      valTerugOpAfbeelding(blob)
     } finally {
       delenBezigRef.current = false
       setDelenBezig(false)
