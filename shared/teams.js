@@ -39,7 +39,7 @@ export const TEAMS = {
   DEG: { naam: 'De Graafschap', aliases: ['De Graafschap'], logo: null },
   DBO: { naam: 'FC Den Bosch', aliases: ['FC Den Bosch'], logo: null },
   DOR: { naam: 'FC Dordrecht', aliases: ['FC Dordrecht'], logo: null },
-  EIN: { naam: 'FC Eindhoven', aliases: ['FC Eindhoven'], logo: '/logos/fc-eindhoven.jpg' },
+  EIN: { naam: 'FC Eindhoven', aliases: ['FC Eindhoven'], logo: '/logos/fc-eindhoven.png' },
   EMM: { naam: 'FC Emmen', aliases: ['FC Emmen'], logo: null },
   HEL: { naam: 'Helmond Sport', aliases: ['Helmond Sport'], logo: null },
   JAJ: { naam: 'Jong Ajax', aliases: ['Jong Ajax'], logo: null },
