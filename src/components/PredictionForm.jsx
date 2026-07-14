@@ -93,7 +93,7 @@ export default function PredictionForm({ fixture, speler }) {
         <div className={styles.gesloten}>
           <span className={styles.geslotenIcon}>🔒</span>
           <p className={styles.geslotenTekst}>
-            {isBezig ? 'Wedstrijd is begonnen' : 'Wedstrijd afgelopen'}
+            Voorspellen is gesloten
           </p>
           <p className={styles.geslotenSub}>Je hebt niet op tijd voorspeld — 0 punten voor deze wedstrijd.</p>
         </div>
