@@ -238,7 +238,7 @@
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--psv-gray-md);
+  color: var(--psv-gray-lt);
 }
 
 .spelerTabelHeader span:not(:first-child) {
@@ -271,7 +271,7 @@
 
 .predLeeg {
   font-size: 10px;
-  color: var(--psv-gray-md);
+  color: var(--psv-gray-lt);
   font-style: italic;
   text-align: center;
 }
@@ -311,5 +311,5 @@
 
 .leegSub {
   font-size: 12px;
-  color: var(--psv-gray-md);
+  color: var(--psv-gray-lt);
 }
