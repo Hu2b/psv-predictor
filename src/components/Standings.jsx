@@ -372,7 +372,11 @@ export default function Standings({ fixtures, speler }) {
   function valTerugOpTekst() {
     const tekst = bouwWhatsAppTekst(klassement, results, spelerNaamMap)
     const url = `https://wa.me/?text=${encodeURIComponent(tekst)}`
-    window.open(url, '_blank')
+    // window.open() met een nieuw tabblad wordt door mobiele Safari vaak
+    // stilzwijgend geblokkeerd (veel strenger dan desktop Safari) — een
+    // gewone paginanavigatie via location.href wordt niet als pop-up gezien
+    // en werkt daardoor betrouwbaarder, ook op iPhone.
+    window.location.href = url
   }
 
   async function handleDelen() {
