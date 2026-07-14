@@ -38,8 +38,17 @@ export default function NextMatch({ fixture, fixtures, speler }) {
     return <div className={styles.leeg}><p>Geen PSV wedstrijden gevonden.</p></div>
   }
 
-  const standaard = alleWedstrijden.find(f => !['FT','AET','PEN'].includes(f.status))
-    || alleWedstrijden[alleWedstrijden.length - 1]
+  // Bepaalt welke wedstrijd standaard getoond wordt bij het openen van de
+  // app: 1) een wedstrijd die vandaag gepland staat (ongeacht status —
+  // ook als hij al bezig/afgelopen is), 2) anders de eerstvolgende nog te
+  // spelen wedstrijd (op datum, niet op status), 3) anders de laatste
+  // wedstrijd in de lijst (bijv. als het seizoen al helemaal voorbij is).
+  const nu = new Date()
+  const vandaag = nu.toDateString()
+  const standaard =
+    alleWedstrijden.find(f => new Date(f.datumISO).toDateString() === vandaag) ||
+    alleWedstrijden.find(f => new Date(f.datumISO) > nu) ||
+    alleWedstrijden[alleWedstrijden.length - 1]
 
   const getoond = gekozenId !== null
     ? alleWedstrijden.find(f => String(f.matchId) === String(gekozenId)) || standaard
