@@ -3,11 +3,6 @@ import { cssVar, tekenAfgerondeRect, berekenAdaptieveDpr, deelOfValTerug } from 
 import { competitieNaam } from '../../shared/competities.js'
 import styles from './PredictionForm.module.css'
 
-// Bouwt een PNG-afbeelding (canvas) van deze ene wedstrijd: teams, eventuele
-// eindstand, en de voorspelling van iedere speler (met punten/totaal als de
-// uitslag al verwerkt is). Zelfde stijl/aanpak als de klassement-afbeelding
-// op het Totaal-scherm, zie ../lib/deelHelpers.js voor de gedeelde,
-// iOS-bestendige bouwstenen.
 async function bouwWedstrijdAfbeelding(fixture, alleVoorspellingen, matchResultaat) {
   if (document.fonts && document.fonts.ready) {
     try { await document.fonts.ready } catch (_) {}
@@ -28,21 +23,17 @@ async function bouwWedstrijdAfbeelding(fixture, alleVoorspellingen, matchResulta
 
   const PAD = 28
   const heeftPunten = !!matchResultaat
-  // Zonder puntenkolom (wedstrijd nog niet verwerkt) is er maar 2 kolommen
-  // nodig — dan past een smallere canvas beter, en staat de voorspelling
-  // dicht bij de naam i.p.v. helemaal tot de rechterrand uitgerekt te worden
-  // (wat op een brede canvas een kaal, uit elkaar getrokken beeld gaf).
   const W = heeftPunten ? 760 : 480
   const kolX = heeftPunten
     ? [PAD, PAD + 200, PAD + 380, W - PAD - 16]
-    : [PAD, PAD + 220]
+    : [PAD, W - PAD]
 
   let hoogte = PAD
-  hoogte += 46 // titel
-  hoogte += 26 + 16 // onderschrift + marge
-  hoogte += 22 // competitie/datum-regel
-  hoogte += 34 // teams+score-regel
-  hoogte += 24 // tabel-header
+  hoogte += 46
+  hoogte += 26 + 16
+  hoogte += 22
+  hoogte += 34
+  hoogte += 24
   hoogte += alleVoorspellingen.length * 26
   hoogte += PAD
   const H = Math.ceil(hoogte)
@@ -96,6 +87,7 @@ async function bouwWedstrijdAfbeelding(fixture, alleVoorspellingen, matchResulta
   ctx.fillStyle = kleur.grijsLicht
   ctx.font = `800 12px ${fontBody}`
   ctx.fillText('SPELER', kolX[0], cy + 10)
+  ctx.textAlign = heeftPunten ? 'left' : 'right'
   ctx.fillText('VOORSPELLING', kolX[1], cy + 10)
   if (heeftPunten) {
     ctx.fillText('PUNTEN', kolX[2], cy + 10)
@@ -112,7 +104,9 @@ async function bouwWedstrijdAfbeelding(fixture, alleVoorspellingen, matchResulta
 
     ctx.fillStyle = p.pred ? kleur.wit : kleur.grijsLicht
     ctx.font = p.pred ? `700 15px ${fontBody}` : `italic 500 14px ${fontBody}`
+    ctx.textAlign = heeftPunten ? 'left' : 'right'
     ctx.fillText(p.pred ? `${p.pred.home}–${p.pred.away}` : 'geen voorspelling', kolX[1], cy + 14)
+    ctx.textAlign = 'left'
 
     if (heeftPunten) {
       const punten = matchResultaat.punten?.[p.playerId] ?? 0
