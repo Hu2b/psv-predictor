@@ -1,378 +1,251 @@
-import { useState, useEffect, useRef } from 'react'
-import { cssVar, tekenAfgerondeRect, berekenAdaptieveDpr, deelOfValTerug } from '../lib/deelHelpers.js'
-import { competitieNaam } from '../../shared/competities.js'
-import styles from './PredictionForm.module.css'
-
-// Bouwt een PNG-afbeelding (canvas) van deze ene wedstrijd: teams, eventuele
-// eindstand, en de voorspelling van iedere speler (met punten/totaal als de
-// uitslag al verwerkt is). Zelfde stijl/aanpak als de klassement-afbeelding
-// op het Totaal-scherm, zie ../lib/deelHelpers.js voor de gedeelde,
-// iOS-bestendige bouwstenen.
-async function bouwWedstrijdAfbeelding(fixture, alleVoorspellingen, matchResultaat) {
-  if (document.fonts && document.fonts.ready) {
-    try { await document.fonts.ready } catch (_) {}
-  }
-
-  const kleur = {
-    bg: cssVar('--psv-bg', '#111111'),
-    surface: cssVar('--psv-surface', '#1E1E1E'),
-    border: cssVar('--psv-border', '#2E2E2E'),
-    wit: cssVar('--psv-white', '#FFFFFF'),
-    rood: cssVar('--psv-red', '#E1000E'),
-    grijsLicht: '#CBD1D9',
-    goud: cssVar('--gold', '#F5B800'),
-    groen: cssVar('--green', '#22C55E'),
-  }
-  const fontDisplay = "'Barlow Condensed', Arial, sans-serif"
-  const fontBody = "'Inter', -apple-system, sans-serif"
-
-  const PAD = 28
-  const W = 760
-  const heeftPunten = !!matchResultaat
-  const kolX = heeftPunten
-    ? [PAD + 16, PAD + 200, PAD + 380, W - PAD - 16]
-    : [PAD + 16, W - PAD - 16]
-
-  let hoogte = PAD
-  hoogte += 46
-  hoogte += 26 + 16
-  hoogte += 22
-  hoogte += 34
-  hoogte += 24
-  hoogte += alleVoorspellingen.length * 26
-  hoogte += PAD
-  const H = Math.ceil(hoogte)
-
-  const dpr = berekenAdaptieveDpr(W, H, 5)
-  const canvas = document.createElement('canvas')
-  canvas.width = W * dpr
-  canvas.height = H * dpr
-  const ctx = canvas.getContext('2d')
-  ctx.scale(dpr, dpr)
-
-  ctx.fillStyle = kleur.bg
-  ctx.fillRect(0, 0, W, H)
-
-  let cy = PAD
-
-  ctx.fillStyle = kleur.rood
-  ctx.font = `900 34px ${fontDisplay}`
-  ctx.textAlign = 'left'
-  ctx.fillText('PSV POULE', PAD, cy + 32)
-  cy += 46
-
-  ctx.fillStyle = kleur.grijsLicht
-  ctx.font = `700 16px ${fontBody}`
-  ctx.fillText('Voorspellingen', PAD, cy + 14)
-  cy += 26 + 16
-
-  ctx.font = `800 13px ${fontBody}`
-  const compTekst = competitieNaam(fixture.competitie)
-  const compBreedte = ctx.measureText(compTekst).width
-  tekenAfgerondeRect(ctx, PAD - 6, cy - 5, compBreedte + 12, 21, 4)
-  ctx.fillStyle = kleur.rood
-  ctx.fill()
-  ctx.fillStyle = kleur.wit
-  ctx.fillText(compTekst, PAD, cy + 10)
-  ctx.fillStyle = kleur.grijsLicht
-  ctx.font = `600 14px ${fontBody}`
-  ctx.textAlign = 'right'
-  ctx.fillText(`#${fixture.volgnummer || '—'} · ${fixture.datum}`, W - PAD, cy + 10)
-  ctx.textAlign = 'left'
-  cy += 22
-
-  ctx.fillStyle = kleur.wit
-  ctx.font = `900 26px ${fontDisplay}`
-  const eindstandTekst = matchResultaat
-    ? `${fixture.thuis}  ${matchResultaat.uitslag.home}–${matchResultaat.uitslag.away}  ${fixture.uit}`
-    : `${fixture.thuis}  vs  ${fixture.uit}`
-  ctx.fillText(eindstandTekst, PAD, cy + 22)
-  cy += 34
-
-  ctx.fillStyle = kleur.grijsLicht
-  ctx.font = `800 12px ${fontBody}`
-  ctx.fillText('SPELER', kolX[0], cy + 10)
-  ctx.textAlign = heeftPunten ? 'left' : 'right'
-  ctx.fillText('VOORSPELLING', kolX[1], cy + 10)
-  if (heeftPunten) {
-    ctx.fillText('PUNTEN', kolX[2], cy + 10)
-    ctx.textAlign = 'right'
-    ctx.fillText('TOTAAL', kolX[3], cy + 10)
-  }
-  ctx.textAlign = 'left'
-  cy += 24
-
-  for (const p of alleVoorspellingen) {
-    ctx.fillStyle = kleur.wit
-    ctx.font = `700 15px ${fontBody}`
-    ctx.fillText(p.naam, kolX[0], cy + 14)
-
-    ctx.fillStyle = p.pred ? kleur.wit : kleur.grijsLicht
-    ctx.font = p.pred ? `700 15px ${fontBody}` : `italic 500 14px ${fontBody}`
-    ctx.textAlign = heeftPunten ? 'left' : 'right'
-    ctx.fillText(p.pred ? `${p.pred.home}–${p.pred.away}` : 'geen voorspelling', kolX[1], cy + 14)
-    ctx.textAlign = 'left'
-
-    if (heeftPunten) {
-      const punten = matchResultaat.punten?.[p.playerId] ?? 0
-      const totaal = matchResultaat.totalen?.[p.playerId] ?? '—'
-      ctx.fillStyle = punten >= 10 ? kleur.goud : punten >= 7 ? kleur.groen : punten >= 5 ? '#3B82F6' : kleur.grijsLicht
-      ctx.font = `800 15px ${fontBody}`
-      ctx.fillText(`+${punten}`, kolX[2], cy + 14)
-
-      ctx.fillStyle = kleur.wit
-      ctx.font = `700 15px ${fontBody}`
-      ctx.textAlign = 'right'
-      ctx.fillText(String(totaal), kolX[3], cy + 14)
-      ctx.textAlign = 'left'
-    }
-
-    cy += 26
-  }
-
-  return new Promise(resolve => {
-    canvas.toBlob(blob => resolve(blob), 'image/png', 0.95)
-  })
+.card {
+  background: var(--psv-surface);
+  border: 1px solid var(--psv-border);
+  border-radius: var(--radius-lg);
+  padding: 20px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
-export default function PredictionForm({ fixture, speler }) {
-  const [homeScore, setHomeScore] = useState('')
-  const [awayScore, setAwayScore] = useState('')
-  const [status, setStatus] = useState('idle')
-  const [mijnPred, setMijnPred] = useState(null)
-  const [anderePredicties, setAnderePredicties] = useState([])
-  const [onthuld, setOnthuld] = useState(false)
-  const [aantalVoorspeld, setAantalVoorspeld] = useState(0)
-  const [totaalSpelers, setTotaalSpelers] = useState(0)
-  const [errorMsg, setErrorMsg] = useState('')
-  const [wijzigenModus, setWijzigenModus] = useState(false)
-  const [matchResultaat, setMatchResultaat] = useState(null)
-  const [delenBezig, setDelenBezig] = useState(false)
-  const delenBezigRef = useRef(false)
-  const deelBlobRef = useRef(null)
-
-  const isAfgelopen = ['FT','AET','PEN'].includes(fixture.status)
-  const isBezig = ['1H','HT','2H','ET','BT','LIVE'].includes(fixture.status)
-  const isSluitingLokaal = isAfgelopen || isBezig
-  const isSluiting = onthuld || isSluitingLokaal
-
-  async function laad() {
-    try {
-      const r = await fetch(`/api/prediction?matchId=${fixture.matchId}&playerId=${speler.id}&datumISO=${encodeURIComponent(fixture.datumISO)}`)
-      const data = await r.json()
-
-      if (data.mijnPrediction?.confirmed) {
-        setMijnPred(data.mijnPrediction)
-        setStatus('confirmed')
-        setHomeScore(String(data.mijnPrediction.home))
-        setAwayScore(String(data.mijnPrediction.away))
-      } else {
-        setMijnPred(null)
-        setStatus('idle')
-        setHomeScore('')
-        setAwayScore('')
-      }
-
-      setOnthuld(data.onthuld)
-      setAnderePredicties(data.anderePredicties || [])
-      setAantalVoorspeld(data.aantalVoorspeld || 0)
-      setTotaalSpelers(data.totaalSpelers || 0)
-    } catch (e) {}
-  }
-
-  useEffect(() => {
-    setWijzigenModus(false)
-    setErrorMsg('')
-    setMatchResultaat(null)
-    deelBlobRef.current = null
-    laad()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fixture.matchId, speler.id])
-
-  useEffect(() => {
-    if (!onthuld) return
-    let geannuleerd = false
-    fetch(`/api/results?matchId=${fixture.matchId}`)
-      .then(r => r.json())
-      .then(data => { if (!geannuleerd) setMatchResultaat(data.result || null) })
-      .catch(() => {})
-    return () => { geannuleerd = true }
-  }, [onthuld, fixture.matchId])
-
-  useEffect(() => {
-    if (!onthuld) return
-    const alleVoorspellingen = [
-      { playerId: speler.id, naam: speler.naam, pred: mijnPred },
-      ...anderePredicties.map(p => ({ playerId: p.playerId, naam: p.naam, pred: { home: p.home, away: p.away } })),
-    ]
-    let geannuleerd = false
-    bouwWedstrijdAfbeelding(fixture, alleVoorspellingen, matchResultaat).then(blob => {
-      if (!geannuleerd) deelBlobRef.current = blob
-    }).catch(() => {})
-    return () => { geannuleerd = true }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [onthuld, mijnPred, anderePredicties, matchResultaat, fixture.matchId])
-
-  async function handleBevestigen() {
-    if (homeScore === '' || awayScore === '') { setErrorMsg('Vul beide scores in'); return }
-    setErrorMsg('')
-    setStatus('loading')
-    try {
-      const r = await fetch('/api/prediction', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          matchId: fixture.matchId, playerId: speler.id,
-          home: Number(homeScore), away: Number(awayScore),
-          datumISO: fixture.datumISO,
-        })
-      })
-      const data = await r.json()
-      if (!r.ok || !data.success) {
-        setErrorMsg(data.error || 'Opslaan mislukt')
-        setStatus(mijnPred ? 'confirmed' : 'idle')
-        return
-      }
-      setMijnPred(data.prediction)
-      setStatus('confirmed')
-      setWijzigenModus(false)
-      await laad()
-    } catch (e) { setErrorMsg('Netwerkfout'); setStatus(mijnPred ? 'confirmed' : 'idle') }
-  }
-
-  function handleWijzigen() {
-    setWijzigenModus(true)
-    setStatus('idle')
-  }
-
-  async function handleDelen() {
-    if (delenBezigRef.current) return
-    delenBezigRef.current = true
-    setDelenBezig(true)
-    try {
-      const alleVoorspellingen = [
-        { playerId: speler.id, naam: speler.naam, pred: mijnPred },
-        ...anderePredicties.map(p => ({ playerId: p.playerId, naam: p.naam, pred: { home: p.home, away: p.away } })),
-      ]
-      const blob = deelBlobRef.current || await bouwWedstrijdAfbeelding(fixture, alleVoorspellingen, matchResultaat)
-      const tekstRegels = [
-        `⚽ *${fixture.thuis} - ${fixture.uit}*`,
-        matchResultaat ? `Eindstand: *${matchResultaat.uitslag.home}-${matchResultaat.uitslag.away}*` : '',
-        '',
-        ...alleVoorspellingen.map(p => `${p.naam}: ${p.pred ? `${p.pred.home}-${p.pred.away}` : 'geen voorspelling'}`),
-      ].filter(Boolean)
-      await deelOfValTerug({
-        blob,
-        bestandsnaam: `psv-poule-${fixture.thuis}-${fixture.uit}.png`,
-        titel: 'PSV Poule',
-        tekst: `${fixture.thuis} - ${fixture.uit}`,
-        tekstFallbackUrl: `https://wa.me/?text=${encodeURIComponent(tekstRegels.join('\n'))}`,
-      })
-    } finally {
-      delenBezigRef.current = false
-      setDelenBezig(false)
-    }
-  }
-
-  const toonInvoer = status !== 'confirmed' || wijzigenModus
-
-  return (
-    <div className={styles.card}>
-      <h2 className={styles.titel}>
-        Jouw voorspelling
-        <span className={styles.spelerBadge}>{speler.naam}</span>
-      </h2>
-
-      {isSluiting && !mijnPred && (
-        <div className={styles.gesloten}>
-          <span className={styles.geslotenIcon}>🔒</span>
-          <p className={styles.geslotenTekst}>
-            Voorspellen is gesloten
-          </p>
-          <p className={styles.geslotenSub}>Je hebt niet op tijd voorspeld — 0 punten voor deze wedstrijd.</p>
-        </div>
-      )}
-
-      {toonInvoer && !isSluiting && (
-        <div className={styles.invoer}>
-          <div className={styles.scoreRij}>
-            <div className={styles.scoreBlok}>
-              <label className={styles.scoreLabel}>{fixture.thuis}</label>
-              <input type="number" min="0" max="20"
-                value={homeScore} onChange={e => setHomeScore(e.target.value)}
-                className={styles.scoreInput} placeholder="0" inputMode="numeric" />
-            </div>
-            <div className={styles.scoreDash}>-</div>
-            <div className={styles.scoreBlok}>
-              <label className={styles.scoreLabel}>{fixture.uit}</label>
-              <input type="number" min="0" max="20"
-                value={awayScore} onChange={e => setAwayScore(e.target.value)}
-                className={styles.scoreInput} placeholder="0" inputMode="numeric" />
-            </div>
-          </div>
-          {errorMsg && <p className={styles.fout}>{errorMsg}</p>}
-          <button className={styles.bevestigBtn} onClick={handleBevestigen} disabled={status === 'loading'}>
-            {status === 'loading' ? <span className={styles.btnSpinner} /> : 'Voorspelling bevestigen'}
-          </button>
-          {wijzigenModus && (
-            <button className={styles.annuleerBtn} onClick={() => { setWijzigenModus(false); setStatus('confirmed') }}>
-              Annuleren
-            </button>
-          )}
-        </div>
-      )}
-
-      {status === 'confirmed' && mijnPred && !wijzigenModus && (
-        <div className={styles.bevestigd}>
-          <div className={styles.bevestigdScore}>
-            <span className={styles.bevestigdGetal}>{mijnPred.home}</span>
-            <span className={styles.bevestigdDash}>-</span>
-            <span className={styles.bevestigdGetal}>{mijnPred.away}</span>
-          </div>
-          <div className={styles.bevestigdCheck}>✓ Bevestigd</div>
-          {!onthuld && !isSluiting && (
-            <>
-              <p className={styles.wacht}>
-                {aantalVoorspeld} van {totaalSpelers} spelers hebben voorspeld…
-              </p>
-              <button className={styles.wijzigenBtn} onClick={handleWijzigen}>Wijzigen</button>
-            </>
-          )}
-          {onthuld && (
-            <p className={styles.vergrendeld}>🔒 Voorspellingen zijn onthuld</p>
-          )}
-        </div>
-      )}
-
-      {onthuld && anderePredicties.length > 0 && (
-        <div className={styles.andereWrap}>
-          <div className={styles.scheidingslijn} />
-          <h3 className={styles.andereLabel}>Voorspellingen andere spelers</h3>
-          <div className={styles.andereLijst}>
-            {anderePredicties.map(p => (
-              <div key={p.playerId} className={styles.andereRij}>
-                <span className={styles.andereNaam}>{p.naam}</span>
-                <span className={styles.andereScoreKlein}>{p.home} – {p.away}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {onthuld && (
-        <button className={styles.deelBtn} onClick={handleDelen} disabled={delenBezig}>
-          {delenBezig ? 'Bezig…' : (
-            <>
-              <svg className={styles.deelIcoon} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                <path d="M12 3v12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                <path d="M7 8l5-5 5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                <path d="M5 12v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-              Delen
-            </>
-          )}
-        </button>
-      )}
-    </div>
-  )
+.titel {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--psv-white);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
+
+.spelerBadge {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--psv-red);
+  background: rgba(225,0,14,0.1);
+  border: 1px solid rgba(225,0,14,0.3);
+  border-radius: 4px;
+  padding: 2px 8px;
+}
+
+.invoer { display: flex; flex-direction: column; gap: 16px; }
+
+.scoreRij {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 12px;
+  align-items: center;
+}
+
+.scoreBlok {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: center;
+}
+
+.scoreLabel {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--psv-gray-lt);
+}
+
+.scoreInput {
+  width: 100%;
+  background: var(--psv-gray);
+  border: 2px solid var(--psv-border);
+  border-radius: var(--radius-sm);
+  color: var(--psv-white);
+  font-size: 36px;
+  font-family: var(--font-display);
+  font-weight: 900;
+  text-align: center;
+  padding: 12px 8px;
+  transition: border-color 0.15s;
+  -moz-appearance: textfield;
+}
+
+.scoreInput::-webkit-inner-spin-button,
+.scoreInput::-webkit-outer-spin-button { -webkit-appearance: none; }
+.scoreInput:focus { border-color: var(--psv-red); }
+
+.scoreDash {
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 900;
+  color: var(--psv-gray-md);
+  margin-top: 20px;
+}
+
+.fout { font-size: 13px; color: #FF6B6B; text-align: center; }
+
+.bevestigBtn {
+  width: 100%;
+  background: var(--psv-red);
+  color: white;
+  padding: 16px;
+  border-radius: var(--radius);
+  font-size: 16px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 54px;
+  transition: background 0.15s;
+}
+
+.bevestigBtn:active:not(:disabled) { background: var(--psv-red-dk); }
+.bevestigBtn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.annuleerBtn {
+  width: 100%;
+  background: transparent;
+  color: var(--psv-gray-lt);
+  padding: 12px;
+  border-radius: var(--radius);
+  font-size: 14px;
+  font-weight: 600;
+  border: 1px solid var(--psv-border);
+}
+
+.btnSpinner {
+  width: 20px; height: 20px;
+  border: 3px solid rgba(255,255,255,0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.bevestigd { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+
+.bevestigdScore { display: flex; align-items: center; gap: 8px; }
+
+.bevestigdGetal {
+  font-family: var(--font-display);
+  font-size: 52px;
+  font-weight: 900;
+  color: var(--psv-white);
+  line-height: 1;
+}
+
+.bevestigdDash {
+  font-family: var(--font-display);
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--psv-gray-md);
+}
+
+.toto { font-size: 13px; color: var(--psv-gray-lt); }
+.toto strong { color: var(--psv-white); font-weight: 700; }
+
+.bevestigdCheck { font-size: 13px; font-weight: 700; color: var(--green); }
+
+.wacht {
+  font-size: 12px;
+  color: var(--psv-gray-lt);
+  text-align: center;
+  animation: pulse 2s ease infinite;
+}
+
+.wijzigenBtn {
+  background: transparent;
+  color: var(--psv-gray-lt);
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 600;
+  border: 1px solid var(--psv-border);
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.wijzigenBtn:active {
+  color: var(--psv-white);
+  border-color: var(--psv-gray-md);
+}
+
+.vergrendeld {
+  font-size: 12px;
+  color: var(--psv-gray-lt);
+  text-align: center;
+}
+
+.deelBtn {
+  background: transparent;
+  color: var(--psv-white);
+  border: 1px solid var(--psv-border);
+  border-radius: var(--radius-lg);
+  padding: 12px 16px;
+  font-size: 14px;
+  font-weight: 700;
+  width: 100%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.deelBtn:active {
+  border-color: var(--psv-gray-md);
+}
+
+.deelBtn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.deelIcoon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.andereWrap { display: flex; flex-direction: column; gap: 10px; }
+.scheidingslijn { width: 100%; height: 1px; background: var(--psv-border); }
+
+.andereLabel {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--psv-gray-lt);
+  text-align: center;
+}
+
+.andereLijst {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.andereRij {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: rgba(255,255,255,0.03);
+  border-radius: var(--radius-sm);
+}
+
+.andereNaam {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--psv-white);
+  min-width: 70px;
+}
+
+.andereScoreKlein {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--gold);
+}
+
+.gesloten { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 12px 0; }
+.geslotenIcon { font-size: 28px; }
+.geslotenTekst { font-size: 14px; color: var(--psv-gray-lt); text-align: center; }
+.geslotenSub { font-size: 12px; color: var(--psv-gray-lt); text-align: center; }
