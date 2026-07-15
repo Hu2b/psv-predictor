@@ -61,7 +61,7 @@ export default function AdminVoorspellingen({ alleWedstrijden, setMelding }) {
         <div className={styles.predBlok}>
           {!onthuld && (
             <p className={styles.leegTekst}>
-              🔒 Nog niet iedereen heeft voorspeld en de aftrap is nog niet geweest — scores zijn nog verborgen, ook voor jou, om vastspelen te voorkomen.
+              🔒 Nog niet iedereen heeft voorspeld en de aftrap is nog niet geweest — scores zijn nog verborgen, ook voor jou.
             </p>
           )}
           {predicties.map(p => (
