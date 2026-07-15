@@ -7,6 +7,7 @@ export default function AdminVoorspellingen({ alleWedstrijden, setMelding }) {
   const [predMatch, setPredMatch] = useState('')
   const [predicties, setPredicties] = useState([])
   const [predLaden, setPredLaden] = useState(false)
+  const [onthuld, setOnthuld] = useState(true)
 
   async function laadVoorspellingen(matchId) {
     setPredLaden(true)
@@ -15,6 +16,7 @@ export default function AdminVoorspellingen({ alleWedstrijden, setMelding }) {
       const r = await fetch(`/api/admin?action=voorspellingen&matchId=${matchId}&sessionToken=${encodeURIComponent(sessionToken)}`)
       const data = await r.json()
       setPredicties(data.predicties || [])
+      setOnthuld(data.onthuld ?? true)
     } catch (_) {}
     setPredLaden(false)
   }
@@ -57,11 +59,16 @@ export default function AdminVoorspellingen({ alleWedstrijden, setMelding }) {
 
       {!predLaden && predicties.length > 0 && (
         <div className={styles.predBlok}>
+          {!onthuld && (
+            <p className={styles.leegTekst}>
+              🔒 Nog niet iedereen heeft voorspeld en de aftrap is nog niet geweest — scores zijn nog verborgen, ook voor jou, om vastspelen te voorkomen.
+            </p>
+          )}
           {predicties.map(p => (
             <div key={p.playerId} className={styles.predRij}>
               <div className={styles.predInfo}>
                 <span className={styles.predNaam}>{p.naam}</span>
-                <span className={styles.predScore}>{p.home}-{p.away}</span>
+                <span className={styles.predScore}>{p.verborgen ? '*****' : `${p.home}-${p.away}`}</span>
               </div>
               <button className={styles.btnKleinRood}
                 onClick={() => verwijderVoorspelling(predMatch, p.playerId)}>🗑️</button>
