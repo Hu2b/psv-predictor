@@ -54,12 +54,17 @@ export default async function handler(req, res) {
       const pred = await kvGet(`prediction:${matchId}:${playerId}`)
       if (!pred) return null
       const speler = await getPlayerById(playerId)
+      // De beheerder is zelf ook speler en mag zijn EIGEN voorspelling altijd
+      // zien (die heeft hij immers zelf al ingevuld) — alleen de scores van
+      // ándere spelers blijven verborgen tot het onthul-moment.
+      const isEigenVoorspelling = String(playerId) === String(check.beheerder.id)
+      const tonen = onthuld || isEigenVoorspelling
       return {
         playerId,
         naam: speler?.naam || '???',
-        home: onthuld ? pred.home : null,
-        away: onthuld ? pred.away : null,
-        verborgen: !onthuld,
+        home: tonen ? pred.home : null,
+        away: tonen ? pred.away : null,
+        verborgen: !tonen,
         confirmed: pred.confirmed,
       }
     }))
