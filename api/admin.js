@@ -1,6 +1,6 @@
 import { kvGet, kvSet } from './_kv.js'
 import { zoekVolgnummer, berekenEnSlaResultaatOp, herberekenAlleTotalen, haalAlleWedstrijden } from './_wedstrijden.js'
-import { getPlayerById } from './_players.js'
+import { getPlayerById, telGeverifieerdeSpelers } from './_players.js'
 import { verifieerBeheerderSessie } from './_auth.js'
 
 async function slaHandmatigOp(wedstrijden) {
@@ -32,14 +32,38 @@ export default async function handler(req, res) {
   if (req.method === 'GET' && req.query.action === 'voorspellingen') {
     const { matchId } = req.query
     if (!matchId) return res.status(400).json({ error: 'matchId verplicht' })
+
     const index = await kvGet(`predictionIndex:${matchId}`) || []
+    const totaalSpelers = await telGeverifieerdeSpelers()
+    const bestaandResultaat = await kvGet(`result:${matchId}`)
+
+    // Zelfde onthul-regel als tussen spelers onderling (zie api/prediction.js):
+    // pas zichtbaar zodra de aftraptijd voorbij is, óf iedereen heeft
+    // voorspeld, óf de uitslag al is vastgelegd. Zonder dit zou de
+    // beheerder (die zelf ook meespeelt) hier vroegtijdig ieders score
+    // kunnen zien en zich daardoor kunnen laten beïnvloeden bij de eigen
+    // voorspelling — vandaar dat de scores tot dat moment gemaskeerd worden.
+    const alleWedstrijden = await haalAlleWedstrijden()
+    const fixture = alleWedstrijden.find(f => String(f.matchId) === String(matchId))
+    const kickoff = fixture?.datumISO ? new Date(fixture.datumISO).getTime() : null
+    const kickoffVoorbij = kickoff ? Date.now() >= kickoff : false
+    const iedereenVoorspeld = totaalSpelers > 0 && index.length >= totaalSpelers
+    const onthuld = kickoffVoorbij || iedereenVoorspeld || !!bestaandResultaat
+
     const predicties = await Promise.all(index.map(async playerId => {
       const pred = await kvGet(`prediction:${matchId}:${playerId}`)
       if (!pred) return null
       const speler = await getPlayerById(playerId)
-      return { playerId, naam: speler?.naam || '???', home: pred.home, away: pred.away, confirmed: pred.confirmed }
+      return {
+        playerId,
+        naam: speler?.naam || '???',
+        home: onthuld ? pred.home : null,
+        away: onthuld ? pred.away : null,
+        verborgen: !onthuld,
+        confirmed: pred.confirmed,
+      }
     }))
-    return res.status(200).json({ predicties: predicties.filter(Boolean) })
+    return res.status(200).json({ predicties: predicties.filter(Boolean), onthuld })
   }
 
   if (req.method === 'POST' && action === 'toevoegen') {
