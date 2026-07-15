@@ -3,11 +3,6 @@ import { cssVar, tekenAfgerondeRect, berekenAdaptieveDpr, deelOfValTerug, fillTe
 import { competitieNaam } from '../../shared/competities.js'
 import styles from './PredictionForm.module.css'
 
-// Bouwt een PNG-afbeelding (canvas) van deze ene wedstrijd: teams, eventuele
-// eindstand, en de voorspelling van iedere speler (met punten/totaal als de
-// uitslag al verwerkt is). Zelfde stijl/aanpak als de klassement-afbeelding
-// op het Totaal-scherm, zie ../lib/deelHelpers.js voor de gedeelde,
-// iOS-bestendige bouwstenen.
 async function bouwWedstrijdAfbeelding(fixture, alleVoorspellingen, matchResultaat) {
   if (document.fonts && document.fonts.ready) {
     try { await document.fonts.ready } catch (_) {}
@@ -264,4 +259,113 @@ export default function PredictionForm({ fixture, speler }) {
         bestandsnaam: `psv-poule-${fixture.thuis}-${fixture.uit}.png`,
         titel: 'PSV Poule',
         tekst: `${fixture.thuis} - ${fixture.uit}`,
-        tekstFallbackUrl: `https://wa.me/?text=${encodeURIComponent(tekstRegels.join('\n'
+        tekstFallbackUrl: `https://wa.me/?text=${encodeURIComponent(tekstRegels.join('\n'))}`,
+      })
+    } finally {
+      delenBezigRef.current = false
+      setDelenBezig(false)
+    }
+  }
+
+  const toonInvoer = status !== 'confirmed' || wijzigenModus
+
+  return (
+    <div className={styles.card}>
+      <h2 className={styles.titel}>
+        Jouw voorspelling
+        <span className={styles.spelerBadge}>{speler.naam}</span>
+      </h2>
+
+      {isSluiting && !mijnPred && (
+        <div className={styles.gesloten}>
+          <span className={styles.geslotenIcon}>🔒</span>
+          <p className={styles.geslotenTekst}>
+            Voorspellen is gesloten
+          </p>
+          <p className={styles.geslotenSub}>Je hebt niet op tijd voorspeld — 0 punten voor deze wedstrijd.</p>
+        </div>
+      )}
+
+      {toonInvoer && !isSluiting && (
+        <div className={styles.invoer}>
+          <div className={styles.scoreRij}>
+            <div className={styles.scoreBlok}>
+              <label className={styles.scoreLabel}>{fixture.thuis}</label>
+              <input type="number" min="0" max="20"
+                value={homeScore} onChange={e => setHomeScore(e.target.value)}
+                className={styles.scoreInput} placeholder="0" inputMode="numeric" />
+            </div>
+            <div className={styles.scoreDash}>-</div>
+            <div className={styles.scoreBlok}>
+              <label className={styles.scoreLabel}>{fixture.uit}</label>
+              <input type="number" min="0" max="20"
+                value={awayScore} onChange={e => setAwayScore(e.target.value)}
+                className={styles.scoreInput} placeholder="0" inputMode="numeric" />
+            </div>
+          </div>
+          {errorMsg && <p className={styles.fout}>{errorMsg}</p>}
+          <button className={styles.bevestigBtn} onClick={handleBevestigen} disabled={status === 'loading'}>
+            {status === 'loading' ? <span className={styles.btnSpinner} /> : 'Voorspelling bevestigen'}
+          </button>
+          {wijzigenModus && (
+            <button className={styles.annuleerBtn} onClick={() => { setWijzigenModus(false); setStatus('confirmed') }}>
+              Annuleren
+            </button>
+          )}
+        </div>
+      )}
+
+      {status === 'confirmed' && mijnPred && !wijzigenModus && (
+        <div className={styles.bevestigd}>
+          <div className={styles.bevestigdScore}>
+            <span className={styles.bevestigdGetal}>{mijnPred.home}</span>
+            <span className={styles.bevestigdDash}>-</span>
+            <span className={styles.bevestigdGetal}>{mijnPred.away}</span>
+          </div>
+          <div className={styles.bevestigdCheck}>✓ Bevestigd</div>
+          {!onthuld && !isSluiting && (
+            <>
+              <p className={styles.wacht}>
+                {aantalVoorspeld} van {totaalSpelers} spelers hebben voorspeld…
+              </p>
+              <button className={styles.wijzigenBtn} onClick={handleWijzigen}>Wijzigen</button>
+            </>
+          )}
+          {onthuld && (
+            <p className={styles.vergrendeld}>🔒 Voorspellingen zijn onthuld</p>
+          )}
+        </div>
+      )}
+
+      {onthuld && anderePredicties.length > 0 && (
+        <div className={styles.andereWrap}>
+          <div className={styles.scheidingslijn} />
+          <h3 className={styles.andereLabel}>Voorspellingen andere spelers</h3>
+          <div className={styles.andereLijst}>
+            {anderePredicties.map(p => (
+              <div key={p.playerId} className={styles.andereRij}>
+                <span className={styles.andereNaam}>{p.naam}</span>
+                <span className={styles.andereScoreKlein}>{p.home} – {p.away}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {onthuld && (
+        <button className={styles.deelBtn} onClick={handleDelen} disabled={delenBezig}>
+          {delenBezig ? 'Bezig…' : (
+            <>
+              <svg className={styles.deelIcoon} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <path d="M12 3v12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M7 8l5-5 5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M5 12v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              Delen
+            </>
+          )}
+        </button>
+      )}
+    </div>
+  )
+}
