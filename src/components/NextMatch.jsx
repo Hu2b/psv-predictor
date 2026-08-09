@@ -21,6 +21,7 @@ function formatTijd(datumISO) {
 export default function NextMatch({ fixture, fixtures, speler }) {
   const [gekozenId, setGekozenId] = useState(null)
   const [randMelding, setRandMelding] = useState(null)
+  const [onthuld, setOnthuld] = useState(false)
   const touchStartX = useRef(null)
 
   const alleWedstrijden = [...fixtures].sort((a, b) => new Date(a.datumISO) - new Date(b.datumISO))
@@ -87,6 +88,14 @@ export default function NextMatch({ fixture, fixtures, speler }) {
 
   const isAfgelopen = ['FT','AET','PEN'].includes(getoond.status)
   const isLive = ['1H','HT','2H','ET','BT','LIVE'].includes(getoond.status)
+
+  // "Laatste ontmoetingen" (H2H) alleen tonen bij een nog te spelen wedstrijd
+  // waarvan de voorspellingen nog verborgen zijn. Zodra de aftrap voorbij is
+  // óf iedereen heeft voorspeld (onthuld, gemeld door PredictionForm), verdwijnt
+  // dit blok — dan verschijnen de eindstand/andere voorspellingen en zou het
+  // geheel anders niet meer op één iPhone-scherm passen.
+  const kickoffVoorbij = getoond.datumISO ? new Date(getoond.datumISO) <= nu : false
+  const toonH2H = !kickoffVoorbij && !onthuld
 
   return (
     <div className={styles.wrapper}>
@@ -188,8 +197,8 @@ export default function NextMatch({ fixture, fixtures, speler }) {
       </div>
 
       {isLive && <LiveScore fixture={getoond} />}
-      <H2H matchId={getoond.matchId} />
-      <PredictionForm fixture={getoond} speler={speler} />
+      {toonH2H && <H2H matchId={getoond.matchId} />}
+      <PredictionForm fixture={getoond} speler={speler} onOnthuld={setOnthuld} />
     </div>
   )
 }
