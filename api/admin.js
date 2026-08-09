@@ -2,15 +2,14 @@ import { kvGet, kvSet } from './_kv.js'
 import { zoekVolgnummer, berekenEnSlaResultaatOp, herberekenAlleTotalen, haalAlleWedstrijden } from './_wedstrijden.js'
 import { getPlayerById, telGeverifieerdeSpelers } from './_players.js'
 import { verifieerBeheerderSessie } from './_auth.js'
+import { zetCors } from './_cors.js'
 
 async function slaHandmatigOp(wedstrijden) {
   await kvSet('admin:wedstrijden', wedstrijden)
 }
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*')
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
+  zetCors(res)
   if (req.method === 'OPTIONS') return res.status(200).end()
 
   let body = req.body

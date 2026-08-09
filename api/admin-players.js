@@ -10,6 +10,7 @@ import {
   stuurEmailGewijzigdMail, stuurBeheerNotificaties,
 } from './_email.js'
 import { verifieerBeheerder, verifieerBeheerderSessie, getAdminEmails } from './_auth.js'
+import { zetCors } from './_cors.js'
 
 function genereerNieuwePincode() {
   return String(Math.floor(1000 + Math.random() * 9000))
@@ -71,9 +72,7 @@ async function verwijderAlleDataVanSpeler(playerId) {
 }
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*')
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
+  zetCors(res)
   if (req.method === 'OPTIONS') return res.status(200).end()
 
   if (req.method === 'GET') {

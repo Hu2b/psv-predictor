@@ -1,21 +1,29 @@
 import { kvGet, kvSet } from './_kv.js'
 import { getPlayerById, telGeverifieerdeSpelers } from './_players.js'
+import { verifieerSessie } from './_auth.js'
+import { zetCors } from './_cors.js'
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*')
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
+  zetCors(res)
   if (req.method === 'OPTIONS') return res.status(200).end()
 
   if (req.method === 'GET') {
-    const { matchId, playerId, datumISO } = req.query
+    const { matchId, datumISO } = req.query
+
+    // Identiteit komt UITSLUITEND uit de geverifieerde sessie, nooit uit een
+    // door de client meegestuurde playerId. Anders zou iemand met andermans
+    // playerId diens (nog geheime) voorspelling kunnen opvragen.
+    const check = await verifieerSessie(req.query.sessionToken)
+    if (check.fout) return res.status(401).json({ error: check.fout })
+    const playerId = check.speler.id
+
     if (!matchId) return res.status(400).json({ error: 'matchId verplicht' })
 
     const index = await kvGet(`predictionIndex:${matchId}`) || []
     const alle = await Promise.all(index.map(id => kvGet(`prediction:${matchId}:${id}`)))
     const geldig = alle.filter(Boolean)
 
-    const mijnPrediction = playerId ? geldig.find(p => p.playerId === playerId) || null : null
+    const mijnPrediction = geldig.find(p => p.playerId === playerId) || null
 
     const nu = Date.now()
     const kickoff = datumISO ? new Date(datumISO).getTime() : null
@@ -49,10 +57,17 @@ export default async function handler(req, res) {
   if (req.method === 'POST') {
     let body = req.body
     if (typeof body === 'string') { try { body = JSON.parse(body) } catch (_) {} }
-    const { matchId, playerId, home, away, datumISO, action } = body || {}
+    const { matchId, home, away, datumISO, action } = body || {}
+
+    // Ook hier: de speler wordt bepaald door zijn sessie, niet door een
+    // meegestuurde playerId. Zo kan niemand de voorspelling van een andere
+    // speler overschrijven of verwijderen.
+    const check = await verifieerSessie(body?.sessionToken)
+    if (check.fout) return res.status(401).json({ error: check.fout })
+    const playerId = check.speler.id
 
     if (action === 'verwijderen') {
-      if (!matchId || !playerId) return res.status(400).json({ error: 'matchId en playerId verplicht' })
+      if (!matchId) return res.status(400).json({ error: 'matchId verplicht' })
       await kvSet(`prediction:${matchId}:${playerId}`, null)
       const index = await kvGet(`predictionIndex:${matchId}`) || []
       const nieuweIndex = index.filter(id => id !== playerId)
@@ -60,7 +75,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true })
     }
 
-    if (!matchId || !playerId) return res.status(400).json({ error: 'matchId en playerId verplicht' })
+    if (!matchId) return res.status(400).json({ error: 'matchId verplicht' })
     if (home === undefined || away === undefined) return res.status(400).json({ error: 'home en away verplicht' })
 
     if (datumISO && new Date() > new Date(datumISO)) {

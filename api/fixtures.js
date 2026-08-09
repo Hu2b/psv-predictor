@@ -1,7 +1,9 @@
 import { haalAlleWedstrijden, checkEnSlaUitslagenOp, SEASON } from './_wedstrijden.js'
+import { zetCors } from './_cors.js'
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*')
+  zetCors(res, 'GET, OPTIONS')
+  if (req.method === 'OPTIONS') return res.status(200).end()
 
   try {
     const fixtures = await haalAlleWedstrijden()

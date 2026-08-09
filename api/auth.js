@@ -10,12 +10,17 @@ import {
   stuurVerificatieMail, stuurResetLinkMail, stuurPincodeGewijzigdMail,
   stuurEmailWijzigingVerificatieMail, stuurEmailGewijzigdMail,
 } from './_email.js'
+import { zetCors } from './_cors.js'
 
 const MAX_SPELERS = 10
 const VERIFY_TTL_MS = 24 * 60 * 60 * 1000
 const RESET_TTL_MS = 60 * 60 * 1000
 const MAX_LOGIN_POGINGEN = 5
 const LOCKOUT_MS = 15 * 60 * 1000
+// Sessies verlopen automatisch na 90 dagen. Voorheen hadden ze geen
+// vervaltijd: een sessietoken bleef dan voorgoed geldig (ook na verlies van
+// een apparaat), tenzij de speler expliciet uitlogde.
+const SESSION_TTL_SEC = 90 * 24 * 60 * 60
 
 async function haalSpelerViaSessie(sessionToken) {
   if (!sessionToken) return { fout: 'sessionToken verplicht' }
@@ -27,9 +32,7 @@ async function haalSpelerViaSessie(sessionToken) {
 }
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*')
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
+  zetCors(res)
   if (req.method === 'OPTIONS') return res.status(200).end()
 
   let body = req.body
@@ -120,7 +123,7 @@ export default async function handler(req, res) {
       }
 
       const sessionToken = genereerToken()
-      await kvSet(`session:${sessionToken}`, { playerId: speler.id, aangemaaktOp: Date.now() })
+      await kvSet(`session:${sessionToken}`, { playerId: speler.id, aangemaaktOp: Date.now() }, SESSION_TTL_SEC)
 
       return res.status(200).json({
         success: true,

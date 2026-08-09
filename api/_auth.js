@@ -31,6 +31,19 @@ export async function verifieerBeheerderSessie(sessionToken) {
   return { beheerder }
 }
 
+// Basiscontrole voor acties die alleen een INGELOGDE speler vereisen (geen
+// beheerrechten). Geeft de speler terug die bij de sessie hoort, zodat een
+// endpoint de identiteit uit de sessie kan halen in plaats van een door de
+// client meegestuurde — en dus vervalsbare — playerId te vertrouwen.
+export async function verifieerSessie(sessionToken) {
+  if (!sessionToken) return { fout: 'sessionToken verplicht' }
+  const sessie = await kvGet(`session:${sessionToken}`)
+  if (!sessie) return { fout: 'Sessie verlopen, log opnieuw in' }
+  const speler = await getPlayerById(sessie.playerId)
+  if (!speler) return { fout: 'Speler niet gevonden' }
+  return { speler }
+}
+
 export function getAdminEmails() {
   return (process.env.ADMIN_EMAILS || '')
     .split(',')
