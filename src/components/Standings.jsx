@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { zoekLogo } from '../../shared/teams.js'
 import { competitieNaam } from '../../shared/competities.js'
-import { cssVar, tekenAfgerondeRect, berekenAdaptieveDpr, VEILIGE_MAX_AFMETING, deelOfValTerug, fillTextRechtsUitgelijnd } from '../lib/deelHelpers.js'
+import { tekenAfgerondeRect, VEILIGE_MAX_AFMETING, deelOfValTerug, fillTextRechtsUitgelijnd, deelKleuren, FONT_DISPLAY, FONT_BODY, wachtOpFonts, maakDeelCanvas, canvasNaarBlob } from '../lib/deelHelpers.js'
 import styles from './Standings.module.css'
 
 // Vult een string met spaties tot vaste lengte (rechts uitlijnen tekst).
@@ -75,22 +75,11 @@ function bouwWhatsAppTekst(klassement, results, spelerNaamMap) {
 // "past niet op 1 regel"-probleem van platte tekst volledig, want een
 // afbeelding heeft geen regel-afbreekprobleem.
 async function bouwDeelAfbeelding(klassement, resultaten, spelerNaamMap) {
-  if (document.fonts && document.fonts.ready) {
-    try { await document.fonts.ready } catch (_) {}
-  }
+  await wachtOpFonts()
 
-  const kleur = {
-    bg: cssVar('--psv-bg', '#111111'),
-    surface: cssVar('--psv-surface', '#1E1E1E'),
-    border: cssVar('--psv-border', '#2E2E2E'),
-    wit: cssVar('--psv-white', '#FFFFFF'),
-    rood: cssVar('--psv-red', '#E1000E'),
-    grijsLicht: '#CBD1D9',
-    goud: cssVar('--gold', '#F5B800'),
-    groen: cssVar('--green', '#22C55E'),
-  }
-  const fontDisplay = "'Barlow Condensed', Arial, sans-serif"
-  const fontBody = "'Inter', -apple-system, sans-serif"
+  const kleur = deelKleuren()
+  const fontDisplay = FONT_DISPLAY
+  const fontBody = FONT_BODY
 
   const PAD = 28
   const W = 760
@@ -127,15 +116,7 @@ async function bouwDeelAfbeelding(klassement, resultaten, spelerNaamMap) {
   hoogte += PAD
   const H = Math.ceil(hoogte)
 
-  const dpr = berekenAdaptieveDpr(W, H, 5)
-  const canvas = document.createElement('canvas')
-  canvas.width = W * dpr
-  canvas.height = H * dpr
-  const ctx = canvas.getContext('2d')
-  ctx.scale(dpr, dpr)
-
-  ctx.fillStyle = kleur.bg
-  ctx.fillRect(0, 0, W, H)
+  const { canvas, ctx } = maakDeelCanvas(W, H, kleur.bg)
 
   let cy = PAD
 
@@ -266,9 +247,7 @@ async function bouwDeelAfbeelding(klassement, resultaten, spelerNaamMap) {
     }
   }
 
-  return new Promise(resolve => {
-    canvas.toBlob(blob => resolve(blob), 'image/png', 0.95)
-  })
+  return canvasNaarBlob(canvas)
 }
 
 export default function Standings({ fixtures, speler }) {

@@ -72,6 +72,57 @@ export function berekenAdaptieveDpr(breedte, hoogte, streefDpr = 5) {
   return dpr
 }
 
+// Het kleurenschema voor de gedeelde afbeeldingen, gelezen uit dezelfde CSS-
+// variabelen als de app zodra beschikbaar. Zowel het Wedstrijd- als het
+// Totaal-scherm bouwen hun afbeelding met exact deze kleuren.
+export function deelKleuren() {
+  return {
+    bg: cssVar('--psv-bg', '#111111'),
+    surface: cssVar('--psv-surface', '#1E1E1E'),
+    border: cssVar('--psv-border', '#2E2E2E'),
+    wit: cssVar('--psv-white', '#FFFFFF'),
+    rood: cssVar('--psv-red', '#E1000E'),
+    grijsLicht: '#CBD1D9',
+    goud: cssVar('--gold', '#F5B800'),
+    groen: cssVar('--green', '#22C55E'),
+  }
+}
+
+export const FONT_DISPLAY = "'Barlow Condensed', Arial, sans-serif"
+export const FONT_BODY = "'Inter', -apple-system, sans-serif"
+
+// Wacht (best effort) tot de webfonts geladen zijn, zodat tekst in de
+// afbeelding niet met een verkeerd (nog niet geladen) lettertype wordt
+// gerenderd.
+export async function wachtOpFonts() {
+  if (document.fonts && document.fonts.ready) {
+    try { await document.fonts.ready } catch (_) {}
+  }
+}
+
+// Maakt een canvas op de veilige (adaptieve) resolutie voor de gegeven
+// logische afmetingen, schaalt de context al mee en vult de achtergrond.
+// Geeft { canvas, ctx } terug. Bundelt de canvas-opzet die anders in elke
+// deel-functie letterlijk herhaald werd.
+export function maakDeelCanvas(breedte, hoogte, achtergrond) {
+  const dpr = berekenAdaptieveDpr(breedte, hoogte, 5)
+  const canvas = document.createElement('canvas')
+  canvas.width = breedte * dpr
+  canvas.height = hoogte * dpr
+  const ctx = canvas.getContext('2d')
+  ctx.scale(dpr, dpr)
+  ctx.fillStyle = achtergrond
+  ctx.fillRect(0, 0, breedte, hoogte)
+  return { canvas, ctx }
+}
+
+// Zet een canvas om naar een PNG-Blob (dezelfde kwaliteitsinstelling overal).
+export function canvasNaarBlob(canvas) {
+  return new Promise(resolve => {
+    canvas.toBlob(blob => resolve(blob), 'image/png', 0.95)
+  })
+}
+
 // Deelt een afbeelding (Blob) via de Web Share API, met een gelaagde
 // terugval als dat niet lukt:
 //   1. navigator.share() met het bestand (beste ervaring, opent het native

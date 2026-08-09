@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import styles from './AccountInstellingen.module.css'
-
-const SESSION_KEY = 'psv_session_token'
+import { getSessionToken } from '../lib/sessie.js'
 
 export default function AccountInstellingen({ speler, onSluiten }) {
   const [tab, setTab] = useState('pincode')
@@ -28,7 +27,7 @@ export default function AccountInstellingen({ speler, onSluiten }) {
     setLaden(true)
     setMelding(null)
     try {
-      const sessionToken = localStorage.getItem(SESSION_KEY)
+      const sessionToken = getSessionToken()
       const r = await fetch('/api/auth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -63,7 +62,7 @@ export default function AccountInstellingen({ speler, onSluiten }) {
     setLaden(true)
     setMelding(null)
     try {
-      const sessionToken = localStorage.getItem(SESSION_KEY)
+      const sessionToken = getSessionToken()
       const r = await fetch('/api/auth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

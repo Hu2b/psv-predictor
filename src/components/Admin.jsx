@@ -3,10 +3,10 @@ import styles from './Admin.module.css'
 import AdminBeheer from './AdminBeheer.jsx'
 import AdminSpelers from './AdminSpelers.jsx'
 import { teamNamenObject } from '../../shared/teams.js'
+import { getSessionToken } from '../lib/sessie.js'
 
 const COMPETITIES = ['JCS', 'ERE', 'KNVB', 'CL', 'UL', 'VRI', 'LICHT']
 const TEAM_NAMEN = teamNamenObject()
-const SESSION_KEY = 'psv_session_token'
 
 export default function Admin({ fixtures, onWedstrijdenGewijzigd }) {
   const [tab, setTab] = useState('uitslag')
@@ -43,7 +43,7 @@ export default function Admin({ fixtures, onWedstrijdenGewijzigd }) {
 
   useEffect(() => {
     async function laad() {
-      const sessionToken = localStorage.getItem(SESSION_KEY)
+      const sessionToken = getSessionToken()
       const r = await fetch(`/api/admin?action=wedstrijden&sessionToken=${encodeURIComponent(sessionToken)}`)
       const data = await r.json()
       setHandmatig(data.wedstrijden || [])
@@ -89,7 +89,7 @@ export default function Admin({ fixtures, onWedstrijdenGewijzigd }) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         action: 'uitslag',
-        sessionToken: localStorage.getItem(SESSION_KEY),
+        sessionToken: getSessionToken(),
         matchId: gekozen.matchId,
         homeScore: parseInt(homeScore),
         awayScore: parseInt(awayScore),
@@ -122,7 +122,7 @@ export default function Admin({ fixtures, onWedstrijdenGewijzigd }) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         action: 'herberekenen',
-        sessionToken: localStorage.getItem(SESSION_KEY),
+        sessionToken: getSessionToken(),
         matchId: gekozen.matchId,
       })
     })
@@ -153,7 +153,7 @@ export default function Admin({ fixtures, onWedstrijdenGewijzigd }) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         action: 'verwijderUitslag',
-        sessionToken: localStorage.getItem(SESSION_KEY),
+        sessionToken: getSessionToken(),
         matchId: gekozen.matchId,
       })
     })
@@ -181,7 +181,7 @@ export default function Admin({ fixtures, onWedstrijdenGewijzigd }) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        action: 'toevoegen', sessionToken: localStorage.getItem(SESSION_KEY), competitie: comp,
+        action: 'toevoegen', sessionToken: getSessionToken(), competitie: comp,
         thuis: thuis.substring(0,3), thuisNaam: thuisNaam || thuis,
         uit: uit.substring(0,3), uitNaam: uitNaam || uit,
         datum: datumLabel, datumISO
