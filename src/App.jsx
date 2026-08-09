@@ -4,6 +4,7 @@ import NextMatch from './components/NextMatch.jsx'
 import Header from './components/Header.jsx'
 import Admin from './components/Admin.jsx'
 import AccountInstellingen from './components/AccountInstellingen.jsx'
+import { getSessionToken, setSessionToken, clearSessionToken } from './lib/sessie.js'
 import styles from './App.module.css'
 
 const StandingsLazy = ({ fixtures, speler }) => {
@@ -14,8 +15,6 @@ const StandingsLazy = ({ fixtures, speler }) => {
   if (!Comp) return <div style={{padding:'40px',textAlign:'center',color:'#666'}}>Laden…</div>
   return <Comp fixtures={fixtures} speler={speler} />
 }
-
-const SESSION_KEY = 'psv_session_token'
 
 export default function App() {
   const [speler, setSpeler] = useState(null)
@@ -41,7 +40,7 @@ export default function App() {
       // en de link oppikt — ook als deze browser toevallig al een geldige
       // sessie had.
       if (resetToken) {
-        localStorage.removeItem(SESSION_KEY)
+        clearSessionToken()
         setResetTokenVanUrl(resetToken)
       }
 
@@ -79,7 +78,7 @@ export default function App() {
         }
       }
 
-      const token = localStorage.getItem(SESSION_KEY)
+      const token = getSessionToken()
       if (!token) {
         setSessieControleGedaan(true)
         return
@@ -90,10 +89,10 @@ export default function App() {
         if (data.success) {
           setSpeler(data.speler)
         } else {
-          localStorage.removeItem(SESSION_KEY)
+          clearSessionToken()
         }
       } catch (e) {
-        localStorage.removeItem(SESSION_KEY)
+        clearSessionToken()
       } finally {
         setSessieControleGedaan(true)
       }
@@ -120,12 +119,12 @@ export default function App() {
   }, [speler, laadWedstrijden])
 
   function handleIngelogd(nieuweSpeler, sessionToken) {
-    localStorage.setItem(SESSION_KEY, sessionToken)
+    setSessionToken(sessionToken)
     setSpeler(nieuweSpeler)
   }
 
   async function handleUitloggen() {
-    const token = localStorage.getItem(SESSION_KEY)
+    const token = getSessionToken()
     if (token) {
       try {
         await fetch('/api/auth', {
@@ -135,7 +134,7 @@ export default function App() {
         })
       } catch (e) {}
     }
-    localStorage.removeItem(SESSION_KEY)
+    clearSessionToken()
     setSpeler(null)
     setTab('wedstrijd')
   }

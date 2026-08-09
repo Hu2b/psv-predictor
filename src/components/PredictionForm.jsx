@@ -1,27 +1,15 @@
 import { useState, useEffect, useRef } from 'react'
-import { cssVar, tekenAfgerondeRect, berekenAdaptieveDpr, deelOfValTerug, fillTextRechtsUitgelijnd } from '../lib/deelHelpers.js'
+import { tekenAfgerondeRect, deelOfValTerug, fillTextRechtsUitgelijnd, deelKleuren, FONT_DISPLAY, FONT_BODY, wachtOpFonts, maakDeelCanvas, canvasNaarBlob } from '../lib/deelHelpers.js'
 import { competitieNaam } from '../../shared/competities.js'
+import { getSessionToken } from '../lib/sessie.js'
 import styles from './PredictionForm.module.css'
 
-const SESSION_KEY = 'psv_session_token'
-
 async function bouwWedstrijdAfbeelding(fixture, alleVoorspellingen, matchResultaat) {
-  if (document.fonts && document.fonts.ready) {
-    try { await document.fonts.ready } catch (_) {}
-  }
+  await wachtOpFonts()
 
-  const kleur = {
-    bg: cssVar('--psv-bg', '#111111'),
-    surface: cssVar('--psv-surface', '#1E1E1E'),
-    border: cssVar('--psv-border', '#2E2E2E'),
-    wit: cssVar('--psv-white', '#FFFFFF'),
-    rood: cssVar('--psv-red', '#E1000E'),
-    grijsLicht: '#CBD1D9',
-    goud: cssVar('--gold', '#F5B800'),
-    groen: cssVar('--green', '#22C55E'),
-  }
-  const fontDisplay = "'Barlow Condensed', Arial, sans-serif"
-  const fontBody = "'Inter', -apple-system, sans-serif"
+  const kleur = deelKleuren()
+  const fontDisplay = FONT_DISPLAY
+  const fontBody = FONT_BODY
 
   const PAD = 28
   const heeftPunten = !!matchResultaat
@@ -40,15 +28,7 @@ async function bouwWedstrijdAfbeelding(fixture, alleVoorspellingen, matchResulta
   hoogte += PAD
   const H = Math.ceil(hoogte)
 
-  const dpr = berekenAdaptieveDpr(W, H, 5)
-  const canvas = document.createElement('canvas')
-  canvas.width = W * dpr
-  canvas.height = H * dpr
-  const ctx = canvas.getContext('2d')
-  ctx.scale(dpr, dpr)
-
-  ctx.fillStyle = kleur.bg
-  ctx.fillRect(0, 0, W, H)
+  const { canvas, ctx } = maakDeelCanvas(W, H, kleur.bg)
 
   let cy = PAD
 
@@ -125,9 +105,7 @@ async function bouwWedstrijdAfbeelding(fixture, alleVoorspellingen, matchResulta
     cy += 26
   }
 
-  return new Promise(resolve => {
-    canvas.toBlob(blob => resolve(blob), 'image/png', 0.95)
-  })
+  return canvasNaarBlob(canvas)
 }
 
 export default function PredictionForm({ fixture, speler, onOnthuld }) {
@@ -153,7 +131,7 @@ export default function PredictionForm({ fixture, speler, onOnthuld }) {
 
   async function laad() {
     try {
-      const sessionToken = localStorage.getItem(SESSION_KEY)
+      const sessionToken = getSessionToken()
       const r = await fetch(`/api/prediction?matchId=${fixture.matchId}&sessionToken=${encodeURIComponent(sessionToken || '')}&datumISO=${encodeURIComponent(fixture.datumISO)}`)
       const data = await r.json()
 
@@ -228,7 +206,7 @@ export default function PredictionForm({ fixture, speler, onOnthuld }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           matchId: fixture.matchId,
-          sessionToken: localStorage.getItem(SESSION_KEY),
+          sessionToken: getSessionToken(),
           home: Number(homeScore), away: Number(awayScore),
           datumISO: fixture.datumISO,
         })

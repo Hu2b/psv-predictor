@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import styles from './Admin.module.css'
-
-const SESSION_KEY = 'psv_session_token'
+import { getSessionToken } from '../lib/sessie.js'
 
 export default function AdminVoorspellingen({ alleWedstrijden, setMelding }) {
   const [predMatch, setPredMatch] = useState('')
@@ -12,7 +11,7 @@ export default function AdminVoorspellingen({ alleWedstrijden, setMelding }) {
   async function laadVoorspellingen(matchId) {
     setPredLaden(true)
     try {
-      const sessionToken = localStorage.getItem(SESSION_KEY)
+      const sessionToken = getSessionToken()
       const r = await fetch(`/api/admin?action=voorspellingen&matchId=${matchId}&sessionToken=${encodeURIComponent(sessionToken)}`)
       const data = await r.json()
       setPredicties(data.predicties || [])
@@ -25,7 +24,7 @@ export default function AdminVoorspellingen({ alleWedstrijden, setMelding }) {
     const r = await fetch('/api/admin', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'verwijderVoorspelling', sessionToken: localStorage.getItem(SESSION_KEY), matchId, playerId })
+      body: JSON.stringify({ action: 'verwijderVoorspelling', sessionToken: getSessionToken(), matchId, playerId })
     })
     const data = await r.json()
     if (data.success) {

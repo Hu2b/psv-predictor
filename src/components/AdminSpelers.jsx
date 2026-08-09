@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react'
 import styles from './AdminSpelers.module.css'
 import PincodeBevestigModal from './PincodeBevestigModal.jsx'
-
-const SESSION_KEY = 'psv_session_token'
+import { getSessionToken } from '../lib/sessie.js'
 
 function isGeldigEmailClient(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((email || '').trim())
@@ -23,7 +22,7 @@ export default function AdminSpelers({ setMelding }) {
   async function laadSpelers() {
     setLaden(true)
     try {
-      const sessionToken = localStorage.getItem(SESSION_KEY)
+      const sessionToken = getSessionToken()
       const r = await fetch(`/api/admin-players?sessionToken=${encodeURIComponent(sessionToken)}`)
       const data = await r.json()
       if (data.spelers) setSpelers(data.spelers)
@@ -53,7 +52,7 @@ export default function AdminSpelers({ setMelding }) {
     if (!modalActie) return
     setActieBezig(true)
     const { actie, speler, nieuweEmail } = modalActie
-    const sessionToken = localStorage.getItem(SESSION_KEY)
+    const sessionToken = getSessionToken()
     try {
       const r = await fetch('/api/admin-players', {
         method: 'POST',

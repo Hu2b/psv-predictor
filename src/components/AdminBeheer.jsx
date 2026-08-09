@@ -2,10 +2,10 @@ import { useState } from 'react'
 import styles from './Admin.module.css'
 import AdminVoorspellingen from './AdminVoorspellingen.jsx'
 import { teamNamenObject } from '../../shared/teams.js'
+import { getSessionToken } from '../lib/sessie.js'
 
 const COMPETITIES = ['JCS', 'ERE', 'KNVB', 'CL', 'UL']
 const TEAM_NAMEN = teamNamenObject()
-const SESSION_KEY = 'psv_session_token'
 
 export default function AdminBeheer({ handmatig, setHandmatig, setMelding, alleWedstrijden, onWedstrijdenGewijzigd }) {
   const [wijzigenId, setWijzigenId] = useState(null)
@@ -38,7 +38,7 @@ export default function AdminBeheer({ handmatig, setHandmatig, setMelding, alleW
     const r = await fetch('/api/admin', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'wijzigen', sessionToken: localStorage.getItem(SESSION_KEY), matchId: wijzigenId, ...wijzigenData, datum: datumLabel, datumISO })
+      body: JSON.stringify({ action: 'wijzigen', sessionToken: getSessionToken(), matchId: wijzigenId, ...wijzigenData, datum: datumLabel, datumISO })
     })
     const data = await r.json()
     if (data.success) {
@@ -56,7 +56,7 @@ export default function AdminBeheer({ handmatig, setHandmatig, setMelding, alleW
     const r = await fetch('/api/admin', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'verwijderen', sessionToken: localStorage.getItem(SESSION_KEY), matchId })
+      body: JSON.stringify({ action: 'verwijderen', sessionToken: getSessionToken(), matchId })
     })
     const data = await r.json()
     if (data.success) {
