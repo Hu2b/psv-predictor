@@ -1,22 +1,22 @@
 import { useState, useEffect } from 'react'
 import styles from './H2H.module.css'
 
-export default function H2H({ thuisId, uitId }) {
+export default function H2H({ matchId }) {
   const [h2h, setH2h] = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (!thuisId || !uitId) { setLoading(false); return }
+    if (!matchId) { setLoading(false); return }
     async function laad() {
       try {
-        const r = await fetch(`/api/h2h?home=${thuisId}&away=${uitId}`)
+        const r = await fetch(`/api/h2h?matchId=${matchId}`)
         const data = await r.json()
         setH2h(data.h2h || [])
       } catch (_) { setH2h([]) }
       finally { setLoading(false) }
     }
     laad()
-  }, [thuisId, uitId])
+  }, [matchId])
 
   if (loading) return (
     <div className={styles.card}>

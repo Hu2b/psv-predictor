@@ -188,7 +188,7 @@ export default function NextMatch({ fixture, fixtures, speler }) {
       </div>
 
       {isLive && <LiveScore fixture={getoond} />}
-      <H2H thuisId={getoond.thuisId} uitId={getoond.uitId} />
+      <H2H matchId={getoond.matchId} />
       <PredictionForm fixture={getoond} speler={speler} />
     </div>
   )
