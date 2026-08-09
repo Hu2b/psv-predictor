@@ -3,6 +3,8 @@ import { cssVar, tekenAfgerondeRect, berekenAdaptieveDpr, deelOfValTerug, fillTe
 import { competitieNaam } from '../../shared/competities.js'
 import styles from './PredictionForm.module.css'
 
+const SESSION_KEY = 'psv_session_token'
+
 async function bouwWedstrijdAfbeelding(fixture, alleVoorspellingen, matchResultaat) {
   if (document.fonts && document.fonts.ready) {
     try { await document.fonts.ready } catch (_) {}
@@ -151,7 +153,8 @@ export default function PredictionForm({ fixture, speler, onOnthuld }) {
 
   async function laad() {
     try {
-      const r = await fetch(`/api/prediction?matchId=${fixture.matchId}&playerId=${speler.id}&datumISO=${encodeURIComponent(fixture.datumISO)}`)
+      const sessionToken = localStorage.getItem(SESSION_KEY)
+      const r = await fetch(`/api/prediction?matchId=${fixture.matchId}&sessionToken=${encodeURIComponent(sessionToken || '')}&datumISO=${encodeURIComponent(fixture.datumISO)}`)
       const data = await r.json()
 
       if (data.mijnPrediction?.confirmed) {
@@ -224,7 +227,8 @@ export default function PredictionForm({ fixture, speler, onOnthuld }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          matchId: fixture.matchId, playerId: speler.id,
+          matchId: fixture.matchId,
+          sessionToken: localStorage.getItem(SESSION_KEY),
           home: Number(homeScore), away: Number(awayScore),
           datumISO: fixture.datumISO,
         })

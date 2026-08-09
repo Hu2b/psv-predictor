@@ -1,4 +1,5 @@
 import { kvGet, kvSet } from './_kv.js'
+import { zetCors } from './_cors.js'
 
 // Let op: dit endpoint gebruikt football-data.org, NIET api-sports.io.
 // De matchId's in deze app komen uit de wedstrijdenlijst van
@@ -14,7 +15,8 @@ const AFGELOPEN_STATUS = ['FINISHED', 'AWARDED']
 const BEZIG_STATUS = ['IN_PLAY', 'PAUSED']
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*')
+  zetCors(res, 'GET, OPTIONS')
+  if (req.method === 'OPTIONS') return res.status(200).end()
   const { matchId } = req.query
   if (!matchId) return res.status(400).json({ error: 'matchId verplicht' })
 

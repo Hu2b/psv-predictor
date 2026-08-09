@@ -1,4 +1,5 @@
 import { kvGet, kvSet } from './_kv.js'
+import { zetCors } from './_cors.js'
 
 // Ook dit endpoint draait nu op football-data.org. De oude versie stuurde
 // team-id's van football-data.org naar api-sports.io, dat een eigen
@@ -26,7 +27,8 @@ function formatDatum(dateStr) {
 }
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*')
+  zetCors(res, 'GET, OPTIONS')
+  if (req.method === 'OPTIONS') return res.status(200).end()
   const { matchId } = req.query
   if (!matchId) return res.status(400).json({ error: 'matchId verplicht' })
 
