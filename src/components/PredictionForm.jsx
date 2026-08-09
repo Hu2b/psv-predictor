@@ -128,7 +128,7 @@ async function bouwWedstrijdAfbeelding(fixture, alleVoorspellingen, matchResulta
   })
 }
 
-export default function PredictionForm({ fixture, speler }) {
+export default function PredictionForm({ fixture, speler, onOnthuld }) {
   const [homeScore, setHomeScore] = useState('')
   const [awayScore, setAwayScore] = useState('')
   const [status, setStatus] = useState('idle')
@@ -177,10 +177,19 @@ export default function PredictionForm({ fixture, speler }) {
     setWijzigenModus(false)
     setErrorMsg('')
     setMatchResultaat(null)
+    setOnthuld(false)
     deelBlobRef.current = null
     laad()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fixture.matchId, speler.id])
+
+  // Meld de onthul-status omhoog, zodat NextMatch kan bepalen of de
+  // "Laatste ontmoetingen" nog getoond moeten worden (alleen bij een nog te
+  // spelen, nog niet onthulde wedstrijd).
+  useEffect(() => {
+    onOnthuld?.(onthuld)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onthuld])
 
   useEffect(() => {
     if (!onthuld) return
