@@ -22,6 +22,14 @@ const LOCKOUT_MS = 15 * 60 * 1000
 // een apparaat), tenzij de speler expliciet uitlogde.
 const SESSION_TTL_SEC = 90 * 24 * 60 * 60
 
+// Rate-limit voor acties die een e-mail versturen (registratie, pincode-reset,
+// e-mailwijziging). Zonder dit kon iemand dezelfde persoon bestoken met
+// verificatie-/resetmails of de e-maillimiet van de provider opmaken. Ruim
+// genoeg voor normaal gebruik (ook meerdere poulegenoten achter één IP),
+// maar streng genoeg om bombing te stoppen.
+const EMAIL_ACTIE_MAX = 10
+const EMAIL_ACTIE_VENSTER_SEC = 60 * 60
+
 async function haalSpelerViaSessie(sessionToken) {
   if (!sessionToken) return { fout: 'sessionToken verplicht' }
   const sessie = await kvGet(`session:${sessionToken}`)
@@ -29,6 +37,21 @@ async function haalSpelerViaSessie(sessionToken) {
   const speler = await getPlayerById(sessie.playerId)
   if (!speler) return { fout: 'Speler niet gevonden' }
   return { speler }
+}
+
+function haalIp(req) {
+  const fwd = req.headers['x-forwarded-for']
+  if (fwd) return String(fwd).split(',')[0].trim()
+  return req.socket?.remoteAddress || 'onbekend'
+}
+
+// Geeft true zolang de aanvrager onder de limiet zit (en telt de poging mee).
+async function binnenEmailLimiet(req) {
+  const key = `ratelimit:email:${haalIp(req)}`
+  const huidig = await kvGet(key) || 0
+  if (huidig >= EMAIL_ACTIE_MAX) return false
+  await kvSet(key, huidig + 1, EMAIL_ACTIE_VENSTER_SEC)
+  return true
 }
 
 export default async function handler(req, res) {
@@ -42,6 +65,10 @@ export default async function handler(req, res) {
   try {
     if (req.method === 'POST' && action === 'register') {
       const { email, emailHerhaal, naam, pincode, pincodeHerhaal } = body
+
+      if (!(await binnenEmailLimiet(req))) {
+        return res.status(429).json({ error: 'Te veel aanvragen. Probeer het later opnieuw.' })
+      }
 
       if (!isGeldigEmail(email)) return res.status(400).json({ error: 'Ongeldig e-mailadres' })
       if (email.toLowerCase().trim() !== (emailHerhaal || '').toLowerCase().trim()) {
@@ -161,6 +188,9 @@ export default async function handler(req, res) {
       if (!naam || !isGeldigEmail(email)) {
         return res.status(400).json({ error: 'Naam en e-mailadres zijn verplicht' })
       }
+      if (!(await binnenEmailLimiet(req))) {
+        return res.status(429).json({ error: 'Te veel aanvragen. Probeer het later opnieuw.' })
+      }
 
       const speler = await getPlayerByNaam(naam)
       // Altijd dezelfde melding, ook als de combinatie niet bestaat — zo lekt
@@ -232,6 +262,9 @@ export default async function handler(req, res) {
       if (!isGeldigEmail(nieuwEmail)) return res.status(400).json({ error: 'Ongeldig e-mailadres' })
       if (nieuwEmail.toLowerCase().trim() !== (nieuwEmailHerhaal || '').toLowerCase().trim()) {
         return res.status(400).json({ error: 'E-mailadressen komen niet overeen' })
+      }
+      if (!(await binnenEmailLimiet(req))) {
+        return res.status(429).json({ error: 'Te veel aanvragen. Probeer het later opnieuw.' })
       }
 
       const token = genereerToken()

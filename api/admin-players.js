@@ -1,3 +1,4 @@
+import crypto from 'crypto'
 import { kvGet, kvSet } from './_kv.js'
 import {
   alleSpelers, getPlayerById, isAdmin,
@@ -13,7 +14,10 @@ import { verifieerBeheerder, verifieerBeheerderSessie, getAdminEmails } from './
 import { zetCors } from './_cors.js'
 
 function genereerNieuwePincode() {
-  return String(Math.floor(1000 + Math.random() * 9000))
+  // crypto.randomInt i.p.v. Math.random: laatstgenoemde is niet
+  // cryptografisch en levert (deels) voorspelbare waarden op — ongewenst voor
+  // iets waarmee je op een account kunt inloggen.
+  return String(crypto.randomInt(1000, 10000))
 }
 
 // Verwijdert alle voorspellingen en punten van een speler, over alle
