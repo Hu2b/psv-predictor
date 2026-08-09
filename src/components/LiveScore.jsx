@@ -1,52 +1,36 @@
 import { useState, useEffect } from 'react'
 import styles from './LiveScore.module.css'
 
+// Puur een weergavecomponent. Het wegschrijven van de eindstand gebeurt
+// server-side (api/cron-uitslagen.js en api/fixtures.js). Dat zat hier
+// vroeger als POST naar /api/results, maar dat pad kon per definitie niet
+// werken: NextMatch rendert deze component alleen zolang de wedstrijd LIVE
+// is, dus zodra de status op FT sprong verdween de component juist voordat
+// hij de eindstand kon versturen. Bijkomend voordeel: de client hoeft geen
+// uitslagen meer te kunnen schrijven.
 export default function LiveScore({ fixture }) {
   const [liveData, setLiveData] = useState(null)
-  const [resultVerwerkt, setResultVerwerkt] = useState(false)
 
   const isLive = ['1H','HT','2H','ET','BT','LIVE'].includes(fixture.status)
   const isAfgelopen = ['FT','AET','PEN'].includes(fixture.status)
 
   useEffect(() => {
+    let gestopt = false
+
     async function haalScore() {
       try {
         const r = await fetch(`/api/livescore?matchId=${fixture.matchId}`)
         const data = await r.json()
-        setLiveData(data)
-        if (data.isAfgelopen && data.score && !resultVerwerkt) {
-          await verwerkResultaat(data.score)
-          setResultVerwerkt(true)
-        }
-      } catch (_) {}
-    }
-
-    async function verwerkResultaat(score) {
-      try {
-        await fetch('/api/results', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            matchId: fixture.matchId,
-            homeScore: score.home,
-            awayScore: score.away,
-            matchInfo: {
-              datumISO: fixture.datumISO,
-              datum: fixture.datum,
-              competitie: fixture.competitie,
-              thuis: fixture.thuis,
-              uit: fixture.uit,
-            }
-          })
-        })
+        if (!gestopt) setLiveData(data)
       } catch (_) {}
     }
 
     haalScore()
     if (isLive) {
       const interval = setInterval(haalScore, 120000)
-      return () => clearInterval(interval)
+      return () => { gestopt = true; clearInterval(interval) }
     }
+    return () => { gestopt = true }
   }, [fixture.matchId, isLive])
 
   if (!liveData?.score) return null

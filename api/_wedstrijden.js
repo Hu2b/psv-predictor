@@ -251,20 +251,40 @@ export async function berekenEnSlaResultaatOp(fixtureInfo, uitslag) {
   return await kvGet(`result:${matchId}`)
 }
 
+// Wachttijd gerekend vanaf AFTRAP (datumISO), niet vanaf het laatste
+// fluitsignaal: 135 minuten is ruwweg 90 minuten speeltijd + blessuretijd +
+// rust + een kleine marge, zodat de feed de eindstand zeker heeft
+// doorgegeven voordat we die als definitief vastleggen.
+const WACHT_NA_AFTRAP_MS = 135 * 60 * 1000
+
 export async function checkEnSlaUitslagenOp(fixtures) {
   const nu = Date.now()
-  const MIN_135 = 135 * 60 * 1000
 
-  for (const f of fixtures) {
-    if (f.status === 'NS') continue
-    if (!f.uitslag || f.uitslag.status !== 'FT') continue
+  const kandidaten = fixtures.filter(f => {
+    if (f.status === 'NS') return false
+    if (!f.uitslag || f.uitslag.status !== 'FT') return false
+    return nu - new Date(f.datumISO).getTime() >= WACHT_NA_AFTRAP_MS
+  })
+  if (kandidaten.length === 0) return []
 
-    const wedstrijdTijd = new Date(f.datumISO).getTime()
-    if (nu - wedstrijdTijd < MIN_135) continue
+  // Eén read op de index i.p.v. een kvGet per wedstrijd. Bij een volledig
+  // seizoen scheelde dat tientallen sequentiële KV-calls per aanroep van
+  // /api/fixtures — precies de traagheid die het wegschrijven op Vercel
+  // onbetrouwbaar maakte.
+  const index = await kvGet('results:index') || []
+  const alVerwerkt = new Set(index.map(String))
 
-    const bestaand = await kvGet(`result:${f.matchId}`)
-    if (bestaand) continue
+  const nieuw = kandidaten.filter(f => !alVerwerkt.has(String(f.matchId)))
+  if (nieuw.length === 0) return []
 
+  // Chronologisch verwerken, zodat de lopende totalen in de juiste volgorde
+  // worden opgebouwd als er meerdere wedstrijden tegelijk binnenkomen.
+  nieuw.sort((a, b) => new Date(a.datumISO) - new Date(b.datumISO))
+
+  const verwerkt = []
+  for (const f of nieuw) {
     await berekenEnSlaResultaatOp(f, f.uitslag)
+    verwerkt.push(String(f.matchId))
   }
+  return verwerkt
 }
