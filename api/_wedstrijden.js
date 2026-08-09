@@ -200,7 +200,6 @@ export async function herberekenAlleTotalen() {
     schrijfActies.push(kvSet(`result:${result.matchId}`, { ...result, totalen: nieuweTotalen }))
   }
 
-  schrijfActies.push(kvSet('totals', lopendTotaal))
   await Promise.all(schrijfActies)
 }
 
@@ -217,8 +216,12 @@ export async function berekenEnSlaResultaatOp(fixtureInfo, uitslag) {
   const toto = {}
   const punten = {}
 
-  for (const speler of spelers) {
-    const pred = await kvGet(`prediction:${matchId}:${speler.id}`)
+  // Voorspellingen parallel ophalen (onafhankelijke keys) i.p.v. één kvGet per
+  // speler na elkaar — scheelt bij een volledige poule een reeks sequentiële
+  // KV-round-trips.
+  const preds = await Promise.all(spelers.map(s => kvGet(`prediction:${matchId}:${s.id}`)))
+  spelers.forEach((speler, i) => {
+    const pred = preds[i]
     if (pred) {
       predicties[speler.id] = { home: pred.home, away: pred.away }
       toto[speler.id] = totoLabel(pred)
@@ -228,7 +231,7 @@ export async function berekenEnSlaResultaatOp(fixtureInfo, uitslag) {
       toto[speler.id] = null
       punten[speler.id] = 0
     }
-  }
+  })
 
   const result = {
     matchId, uitslag, volgnummer,
