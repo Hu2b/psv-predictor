@@ -62,6 +62,10 @@ const ARCHIEF = {
     { datum: '28 apr 1971', thuis: 'Real Madrid', uit: 'PSV', uitslag: '2-1', competitie: 'EC2' },
     { datum: '14 apr 1971', thuis: 'PSV', uit: 'Real Madrid', uitslag: '0-0', competitie: 'EC2' },
   ],
+  'PSV|VFB': [
+    { datum: '19 jul 2025', thuis: 'VfB Stuttgart', uit: 'PSV', uitslag: '2-3', competitie: 'OEF' },
+    { datum: '10 aug 1994', thuis: 'VfB Stuttgart', uit: 'PSV', uitslag: '2-0', competitie: 'OEF' },
+  ],
 }
 
 // Geeft de historische ontmoetingen voor twee teamcodes (volgorde maakt niet
