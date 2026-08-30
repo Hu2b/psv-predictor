@@ -14,6 +14,20 @@
 // - `competitie` is een vrij kort label: EC1 = Europacup I, EC2 = Europacup II,
 //   EC3 = UEFA Cup/Europacup III, CL = Champions League, OEF = oefenwedstrijd.
 const ARCHIEF = {
+  'ATM|PSV': [
+    { datum: '9 dec 2025', thuis: 'PSV', uit: 'Atlético Madrid', uitslag: '2-3', competitie: 'CL' },
+    { datum: '23 nov 2016', thuis: 'Atlético Madrid', uit: 'PSV', uitslag: '2-0', competitie: 'CL' },
+    { datum: '13 sep 2016', thuis: 'PSV', uit: 'Atlético Madrid', uitslag: '0-1', competitie: 'CL' },
+    { datum: '15 mrt 2016', thuis: 'Atlético Madrid', uit: 'PSV', uitslag: '0-0', competitie: 'CL' },
+    { datum: '24 feb 2016', thuis: 'PSV', uit: 'Atlético Madrid', uitslag: '0-0', competitie: 'CL' },
+    { datum: '26 nov 2008', thuis: 'Atlético Madrid', uit: 'PSV', uitslag: '2-1', competitie: 'CL' },
+    { datum: '16 sep 2008', thuis: 'PSV', uit: 'Atlético Madrid', uitslag: '0-3', competitie: 'CL' },
+    { datum: '13 aug 1997', thuis: 'PSV', uit: 'Atlético Madrid', uitslag: '2-2', competitie: 'OEF' },
+    { datum: '9 okt 1993', thuis: 'Atlético Madrid', uit: 'PSV', uitslag: '2-1', competitie: 'OEF' },
+    { datum: '14 aug 1988', thuis: 'Atlético Madrid', uit: 'PSV', uitslag: '1-3', competitie: 'OEF' },
+    { datum: '26 aug 1984', thuis: 'Atlético Madrid', uit: 'PSV', uitslag: '1-1', competitie: 'OEF' },
+    { datum: '19 aug 1984', thuis: 'PSV', uit: 'Atlético Madrid', uitslag: '2-0', competitie: 'OEF' },
+  ],
   'POR|PSV': [
     { datum: '21 jul 2016', thuis: 'PSV', uit: 'Porto', uitslag: '3-0', competitie: 'OEF' },
     { datum: '7 apr 1993', thuis: 'PSV', uit: 'Porto', uitslag: '0-1', competitie: 'CL' },
