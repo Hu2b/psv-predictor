@@ -1,22 +1,56 @@
 import { useState, useEffect } from 'react'
+import { zoekHistorischeOntmoetingen } from '../../shared/h2h-historisch.js'
 import styles from './H2H.module.css'
 
-export default function H2H({ matchId }) {
+export default function H2H({ matchId, thuis, uit }) {
   const [h2h, setH2h] = useState([])
+  const [uitArchief, setUitArchief] = useState(false)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (!matchId) { setLoading(false); return }
+    let gestopt = false
+
+    // Vangnet: als de API geen (recente) onderlinge ontmoetingen kent —
+    // bijv. duels uit de jaren 80 die niet in de database van
+    // football-data.org zitten — valt de app terug op het handmatig
+    // bijgehouden archief in shared/h2h-historisch.js.
+    function valTerugOpArchief() {
+      const archief = zoekHistorischeOntmoetingen(thuis, uit)
+      if (!gestopt) {
+        setH2h(archief.slice(0, 3))
+        setUitArchief(archief.length > 0)
+      }
+    }
+
+    setLoading(true)
+    setUitArchief(false)
+
+    if (!matchId) {
+      valTerugOpArchief()
+      setLoading(false)
+      return () => { gestopt = true }
+    }
+
     async function laad() {
       try {
         const r = await fetch(`/api/h2h?matchId=${matchId}`)
         const data = await r.json()
-        setH2h(data.h2h || [])
-      } catch (_) { setH2h([]) }
-      finally { setLoading(false) }
+        if (gestopt) return
+        if (data.h2h && data.h2h.length > 0) {
+          setH2h(data.h2h)
+          setUitArchief(false)
+        } else {
+          valTerugOpArchief()
+        }
+      } catch (_) {
+        if (!gestopt) valTerugOpArchief()
+      }
+      finally { if (!gestopt) setLoading(false) }
     }
     laad()
-  }, [matchId])
+
+    return () => { gestopt = true }
+  }, [matchId, thuis, uit])
 
   if (loading) return (
     <div className={styles.card}>
@@ -31,7 +65,7 @@ export default function H2H({ matchId }) {
 
   return (
     <div className={styles.card}>
-      <h3 className={styles.titel}>Laatste ontmoetingen</h3>
+      <h3 className={styles.titel}>{uitArchief ? 'Historische ontmoetingen' : 'Laatste ontmoetingen'}</h3>
       <div className={styles.lijst}>
         {h2h.map((m, i) => (
           <div key={i} className={styles.rij}>
