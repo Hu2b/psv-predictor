@@ -27,3 +27,13 @@ test('zoekAfkorting: herkent de handmatig toegevoegde CL-tegenstanders', () => {
   assert.equal(zoekAfkorting('VfB Stuttgart'), 'VFB')
   assert.equal(zoekAfkorting('Club Brugge'), 'CLU')
 })
+
+test('zoekAfkorting: football-data.org-namen met achtervoegsel mappen correct', () => {
+  // football-data.org gebruikt langere officiële namen; zonder deze aliassen
+  // viel de app terug op de eerste 3 letters (bijv. "Club Atlético de Madrid"
+  // -> "CLU" i.p.v. ATM).
+  assert.equal(zoekAfkorting('Club Atlético de Madrid'), 'ATM')
+  assert.equal(zoekAfkorting('Club Atletico de Madrid'), 'ATM')
+  assert.equal(zoekAfkorting('Real Madrid CF'), 'RMA')
+  assert.equal(zoekAfkorting('Club Brugge KV'), 'CLU')
+})
