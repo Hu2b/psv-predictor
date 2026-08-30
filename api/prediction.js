@@ -44,7 +44,7 @@ export default async function handler(req, res) {
       const andereRows = geldig.filter(p => p.playerId !== playerId)
       anderePredicties = await Promise.all(andereRows.map(async p => {
         const speler = await getPlayerById(p.playerId)
-        return { playerId: p.playerId, naam: speler?.naam || '???', home: p.home, away: p.away }
+        return { playerId: p.playerId, naam: speler?.naam || '???', home: p.home, away: p.away, doorBeheerder: !!p.doorBeheerder }
       }))
     }
 

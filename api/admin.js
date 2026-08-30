@@ -1,6 +1,6 @@
 import { kvGet, kvSet } from './_kv.js'
 import { zoekVolgnummer, berekenEnSlaResultaatOp, herberekenAlleTotalen, haalAlleWedstrijden } from './_wedstrijden.js'
-import { getPlayerById, telGeverifieerdeSpelers } from './_players.js'
+import { getPlayerById, alleGeverifieerdeSpelers } from './_players.js'
 import { verifieerBeheerderSessie } from './_auth.js'
 import { zetCors } from './_cors.js'
 
@@ -32,8 +32,12 @@ export default async function handler(req, res) {
     const { matchId } = req.query
     if (!matchId) return res.status(400).json({ error: 'matchId verplicht' })
 
+    // ALLE geverifieerde spelers teruggeven (niet alleen wie al voorspeld
+    // heeft), zodat de beheerder ook een voorspelling kan invoeren voor iemand
+    // die (nog) niets heeft ingevuld.
+    const spelers = await alleGeverifieerdeSpelers()
     const index = await kvGet(`predictionIndex:${matchId}`) || []
-    const totaalSpelers = await telGeverifieerdeSpelers()
+    const totaalSpelers = spelers.length
     const bestaandResultaat = await kvGet(`result:${matchId}`)
 
     // Zelfde onthul-regel als tussen spelers onderling (zie api/prediction.js):
@@ -49,25 +53,26 @@ export default async function handler(req, res) {
     const iedereenVoorspeld = totaalSpelers > 0 && index.length >= totaalSpelers
     const onthuld = kickoffVoorbij || iedereenVoorspeld || !!bestaandResultaat
 
-    const predicties = await Promise.all(index.map(async playerId => {
-      const pred = await kvGet(`prediction:${matchId}:${playerId}`)
-      if (!pred) return null
-      const speler = await getPlayerById(playerId)
+    const predicties = await Promise.all(spelers.map(async speler => {
+      const pred = await kvGet(`prediction:${matchId}:${speler.id}`)
       // De beheerder is zelf ook speler en mag zijn EIGEN voorspelling altijd
       // zien (die heeft hij immers zelf al ingevuld) — alleen de scores van
       // ándere spelers blijven verborgen tot het onthul-moment.
-      const isEigenVoorspelling = String(playerId) === String(check.beheerder.id)
+      const isEigenVoorspelling = String(speler.id) === String(check.beheerder.id)
       const tonen = onthuld || isEigenVoorspelling
       return {
-        playerId,
-        naam: speler?.naam || '???',
-        home: tonen ? pred.home : null,
-        away: tonen ? pred.away : null,
-        verborgen: !tonen,
-        confirmed: pred.confirmed,
+        playerId: speler.id,
+        naam: speler.naam,
+        heeftVoorspelling: !!pred,
+        home: pred && tonen ? pred.home : null,
+        away: pred && tonen ? pred.away : null,
+        verborgen: !!pred && !tonen,
+        doorBeheerder: !!pred?.doorBeheerder,
+        confirmed: pred?.confirmed ?? false,
       }
     }))
-    return res.status(200).json({ predicties: predicties.filter(Boolean), onthuld })
+    predicties.sort((a, b) => a.naam.localeCompare(b.naam))
+    return res.status(200).json({ predicties, onthuld })
   }
 
   if (req.method === 'POST' && action === 'toevoegen') {
@@ -140,6 +145,60 @@ export default async function handler(req, res) {
     await kvSet(`predictionIndex:${matchId}`, null)
 
     return res.status(200).json({ success: true })
+  }
+
+  // Beheerder voert handmatig een voorspelling in (of wijzigt er een), ook ná
+  // de aftrap. Er gelden bewust geen tijd-/onthul-restricties zoals bij een
+  // gewone speler: dit is juist bedoeld om een telefonisch doorgegeven of
+  // vergeten voorspelling alsnog vast te leggen. De voorspelling wordt
+  // gemarkeerd met doorBeheerder, zodat op het wedstrijdscherm zichtbaar is
+  // dat de beheerder 'm heeft ingevoerd of gewijzigd.
+  if (req.method === 'POST' && action === 'zetVoorspelling') {
+    const { matchId, playerId, home, away } = body
+    if (!matchId || !playerId) return res.status(400).json({ error: 'matchId en playerId verplicht' })
+    const h = parseInt(home, 10)
+    const a = parseInt(away, 10)
+    if (!Number.isInteger(h) || !Number.isInteger(a) || h < 0 || a < 0 || h > 99 || a > 99) {
+      return res.status(400).json({ error: 'Ongeldige score' })
+    }
+
+    const doelSpeler = await getPlayerById(playerId)
+    if (!doelSpeler) return res.status(404).json({ error: 'Speler niet gevonden' })
+
+    const prediction = {
+      matchId, playerId,
+      home: h, away: a,
+      confirmed: true,
+      timestamp: new Date().toISOString(),
+      doorBeheerder: true,
+      bewerktOp: new Date().toISOString(),
+      bewerktDoor: check.beheerder.naam,
+    }
+    await kvSet(`prediction:${matchId}:${playerId}`, prediction)
+
+    const index = await kvGet(`predictionIndex:${matchId}`) || []
+    if (!index.includes(playerId)) {
+      index.push(playerId)
+      await kvSet(`predictionIndex:${matchId}`, index)
+    }
+
+    // Was de uitslag al verwerkt? Dan de punten opnieuw berekenen met deze
+    // (nieuwe of gewijzigde) voorspelling, via dezelfde centrale functie als
+    // de automatische verwerking gebruikt.
+    const vorigeResult = await kvGet(`result:${matchId}`)
+    if (vorigeResult) {
+      await berekenEnSlaResultaatOp({
+        matchId: vorigeResult.matchId,
+        volgnummer: vorigeResult.volgnummer,
+        datumISO: vorigeResult.datumISO,
+        datum: vorigeResult.datum,
+        competitie: vorigeResult.competitie,
+        thuis: vorigeResult.thuis,
+        uit: vorigeResult.uit,
+      }, vorigeResult.uitslag)
+    }
+
+    return res.status(200).json({ success: true, prediction })
   }
 
   if (req.method === 'POST' && action === 'verwijderVoorspelling') {
