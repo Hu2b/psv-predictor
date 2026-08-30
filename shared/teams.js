@@ -89,6 +89,16 @@ export const TEAMS = {
   TOT: { naam: 'Tottenham Hotspur', aliases: ['Tottenham Hotspur','Tottenham'], logo: null },
   USG: { naam: 'Union Saint-Gilloise', aliases: ['Union Saint-Gilloise'], logo: 'https://en.wikipedia.org/wiki/Special:FilePath/Royale_Union_Saint-Gilloise_logo.svg' },
   VIL: { naam: 'Villarreal', aliases: ['Villarreal'], logo: '/logos/villarreal.png' },
+
+  // Overige tegenstanders (o.a. via handmatig toegevoegde wedstrijden). Logo's
+  // zijn Wikipedia-SVG's, net als hierboven; laadt er een niet, dan toont de
+  // app een transparant vlak (geen kapot plaatje) en kan de URL bijgesteld
+  // worden.
+  SHK: { naam: 'Sjachtar Donetsk', aliases: ['Sjachtar Donetsk','Shakhtar Donetsk','Shakhtar','FC Shakhtar Donetsk'], logo: 'https://en.wikipedia.org/wiki/Special:FilePath/FC_Shakhtar_Donetsk.svg' },
+  RBL: { naam: 'RB Leipzig', aliases: ['RB Leipzig','RasenBallsport Leipzig'], logo: 'https://en.wikipedia.org/wiki/Special:FilePath/RB_Leipzig_2014_logo.svg' },
+  POR: { naam: 'FC Porto', aliases: ['FC Porto','Porto'], logo: 'https://en.wikipedia.org/wiki/Special:FilePath/FC_Porto.svg' },
+  VIK: { naam: 'Viking FK', aliases: ['Viking FK','Viking'], logo: 'https://en.wikipedia.org/wiki/Special:FilePath/Viking_FK_logo.svg' },
+  STU: { naam: 'VfB Stuttgart', aliases: ['VfB Stuttgart','Stuttgart'], logo: 'https://en.wikipedia.org/wiki/Special:FilePath/VfB_Stuttgart_1893_Logo.svg' },
 }
 
 // Normaliseert een teamnaam voor vergelijking: hoofdletters weg, dubbele
