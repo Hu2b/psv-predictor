@@ -314,6 +314,9 @@ export default function PredictionForm({ fixture, speler, onOnthuld }) {
             <span className={styles.bevestigdGetal}>{mijnPred.away}</span>
           </div>
           <div className={styles.bevestigdCheck}>✓ Bevestigd</div>
+          {mijnPred.doorBeheerder && (
+            <p className={styles.beheerderNoot}>✎ Ingevoerd/gewijzigd door de beheerder</p>
+          )}
           {!onthuld && !isSluiting && (
             <>
               <p className={styles.wacht}>
@@ -337,6 +340,7 @@ export default function PredictionForm({ fixture, speler, onOnthuld }) {
               <div key={p.playerId} className={styles.andereRij}>
                 <span className={styles.andereNaam}>{p.naam}</span>
                 <span className={styles.andereScoreKlein}>{p.home} – {p.away}</span>
+                {p.doorBeheerder && <span className={styles.beheerderTag} title="Ingevoerd of gewijzigd door de beheerder">beheerder</span>}
               </div>
             ))}
           </div>
