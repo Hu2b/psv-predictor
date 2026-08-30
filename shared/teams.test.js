@@ -20,9 +20,10 @@ test('zoekNaam: geeft de volledige naam bij een code', () => {
 })
 
 test('zoekAfkorting: herkent de handmatig toegevoegde CL-tegenstanders', () => {
-  assert.equal(zoekAfkorting('Shakhtar Donetsk'), 'SHK')
+  assert.equal(zoekAfkorting('Shakhtar Donetsk'), 'SHA')
   assert.equal(zoekAfkorting('RB Leipzig'), 'RBL')
   assert.equal(zoekAfkorting('FC Porto'), 'POR')
   assert.equal(zoekAfkorting('Viking FK'), 'VIK')
-  assert.equal(zoekAfkorting('VfB Stuttgart'), 'STU')
+  assert.equal(zoekAfkorting('VfB Stuttgart'), 'VFB')
+  assert.equal(zoekAfkorting('Club Brugge'), 'CLU')
 })
