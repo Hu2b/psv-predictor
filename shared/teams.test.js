@@ -18,3 +18,11 @@ test('zoekAfkorting: valt terug op een 3-letterige code bij een onbekend team', 
 test('zoekNaam: geeft de volledige naam bij een code', () => {
   assert.equal(zoekNaam('PSV'), 'PSV Eindhoven')
 })
+
+test('zoekAfkorting: herkent de handmatig toegevoegde CL-tegenstanders', () => {
+  assert.equal(zoekAfkorting('Shakhtar Donetsk'), 'SHK')
+  assert.equal(zoekAfkorting('RB Leipzig'), 'RBL')
+  assert.equal(zoekAfkorting('FC Porto'), 'POR')
+  assert.equal(zoekAfkorting('Viking FK'), 'VIK')
+  assert.equal(zoekAfkorting('VfB Stuttgart'), 'STU')
+})
