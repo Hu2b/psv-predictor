@@ -7,11 +7,40 @@ import AccountInstellingen from './components/AccountInstellingen.jsx'
 import { getSessionToken, setSessionToken, clearSessionToken } from './lib/sessie.js'
 import styles from './App.module.css'
 
+// Het Totaal-scherm wordt apart nagestuurd (code-splitting) om de app snel te
+// laten starten. Die download kán mislukken of blijven hangen bij een slechte
+// verbinding; zonder afhandeling bleef dit scherm dan eindeloos op "Laden…"
+// staan, zonder uitweg. Daarom: een time-out plus een nette foutmelding met
+// een knop om het opnieuw te proberen (zonder de hele app te herladen).
+const CHUNK_TIMEOUT_MS = 15000
+
 const StandingsLazy = ({ fixtures, speler }) => {
   const [Comp, setComp] = useState(null)
+  const [laadFout, setLaadFout] = useState(false)
+  const [poging, setPoging] = useState(0)
+
   useEffect(() => {
-    import('./components/Standings.jsx').then(m => setComp(() => m.default))
-  }, [])
+    let geannuleerd = false
+    setLaadFout(false)
+    Promise.race([
+      import('./components/Standings.jsx'),
+      new Promise((_, afwijzen) =>
+        setTimeout(() => afwijzen(new Error('Laden duurde te lang')), CHUNK_TIMEOUT_MS)
+      ),
+    ])
+      .then(m => { if (!geannuleerd) setComp(() => m.default) })
+      .catch(() => { if (!geannuleerd) setLaadFout(true) })
+    return () => { geannuleerd = true }
+  }, [poging])
+
+  if (laadFout) return (
+    <div className={styles.errorState}>
+      <p>Kan het klassement niet laden.</p>
+      <button onClick={() => setPoging(p => p + 1)} className={styles.retryBtn}>
+        Opnieuw proberen
+      </button>
+    </div>
+  )
   if (!Comp) return <div style={{padding:'40px',textAlign:'center',color:'#666'}}>Laden…</div>
   return <Comp fixtures={fixtures} speler={speler} />
 }
