@@ -1,6 +1,6 @@
 import { kvGet, kvSet } from './_kv.js'
 import { berekenPunten, totoLabel } from './_scoring.js'
-import { zoekAfkorting } from '../shared/teams.js'
+import { zoekAfkorting, zoekVerzorgdeNaam } from '../shared/teams.js'
 import { bewaarLogoAlsNieuw, zoekLogo } from './_logo-lookup.js'
 import { alleGeverifieerdeSpelers } from './_players.js'
 import { fetchMetTimeout } from './_fetch.js'
@@ -64,9 +64,9 @@ function mapMatch(m, comp) {
   }
   return {
     matchId: m.id, competitie: comp,
-    thuis: zoekAfkorting(m.homeTeam.name), thuisNaam: m.homeTeam.name,
+    thuis: zoekAfkorting(m.homeTeam.name), thuisNaam: zoekVerzorgdeNaam(m.homeTeam.name),
     thuisLogo: m.homeTeam.crest, thuisId: m.homeTeam.id,
-    uit: zoekAfkorting(m.awayTeam.name), uitNaam: m.awayTeam.name,
+    uit: zoekAfkorting(m.awayTeam.name), uitNaam: zoekVerzorgdeNaam(m.awayTeam.name),
     uitLogo: m.awayTeam.crest, uitId: m.awayTeam.id,
     dag: dagAfkorting(m.utcDate), datum: formatDatum(m.utcDate),
     datumISO: m.utcDate, status, uitslag,

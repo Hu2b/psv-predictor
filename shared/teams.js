@@ -128,6 +128,25 @@ export function zoekAfkorting(naam) {
   return naam.replace(/[^a-zA-Z]/g, '').substring(0, 3).toUpperCase()
 }
 
+// Zet een teamnaam zoals de API die aanlevert om naar ONZE eigen, verzorgde
+// clubnaam. football-data.org is namelijk inconsistent: PSV heet daar kaal
+// "PSV", Atlético juist "Club Atlético de Madrid" en in head2head-resultaten
+// duikt de bijnaam "Atleti" op. Door hier één vaste naam per club terug te
+// geven, staat overal in de app dezelfde volledige naam.
+//
+// Bewust exact op alias vergelijken (en niet via zoekAfkorting): die valt bij
+// een onbekend team terug op de eerste 3 letters, waardoor bijv. "Portsmouth"
+// -> "POR" -> "FC Porto" zou worden. Kennen we het team niet, dan houden we
+// gewoon de naam van de API aan.
+export function zoekVerzorgdeNaam(apiNaam) {
+  if (!apiNaam) return ''
+  const genormaliseerd = normaliseer(apiNaam)
+  for (const t of Object.values(TEAMS)) {
+    if (t.aliases.some(alias => normaliseer(alias) === genormaliseerd)) return t.naam
+  }
+  return apiNaam
+}
+
 // code -> volledige naam, voor autocomplete bij handmatig toevoegen
 export function zoekNaam(code) {
   return TEAMS[code]?.naam || code

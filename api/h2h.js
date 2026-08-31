@@ -1,6 +1,7 @@
 import { kvGet, kvSet } from './_kv.js'
 import { zetCors } from './_cors.js'
 import { fetchMetTimeout } from './_fetch.js'
+import { zoekVerzorgdeNaam } from '../shared/teams.js'
 
 // Ook dit endpoint draait nu op football-data.org. De oude versie stuurde
 // team-id's van football-data.org naar api-sports.io, dat een eigen
@@ -33,7 +34,10 @@ export default async function handler(req, res) {
   const { matchId } = req.query
   if (!matchId) return res.status(400).json({ error: 'matchId verplicht' })
 
-  const CACHE_KEY = `h2h:v2:${matchId}`
+  // Versienummer opgehoogd naar v3 toen de teamnamen veranderden (volledige,
+  // verzorgde naam i.p.v. de bijnaam uit shortName). Zonder ophogen zouden de
+  // oude namen nog tot 24 uur uit de cache blijven komen.
+  const CACHE_KEY = `h2h:v3:${matchId}`
   const cached = await kvGet(CACHE_KEY)
   if (cached?.cached_at) {
     const ageH = (Date.now() - new Date(cached.cached_at).getTime()) / 3600000
@@ -59,8 +63,11 @@ export default async function handler(req, res) {
       .slice(0, 3)
       .map(m => ({
         datum: formatDatum(m.utcDate),
-        thuis: m.homeTeam?.shortName || m.homeTeam?.name || '?',
-        uit: m.awayTeam?.shortName || m.awayTeam?.name || '?',
+        // Bewust de volledige naam (name) i.p.v. shortName: die laatste levert
+        // bijnamen op als "Atleti". zoekVerzorgdeNaam maakt er vervolgens onze
+        // eigen, overal gelijke clubnaam van.
+        thuis: zoekVerzorgdeNaam(m.homeTeam?.name || m.homeTeam?.shortName) || '?',
+        uit: zoekVerzorgdeNaam(m.awayTeam?.name || m.awayTeam?.shortName) || '?',
         uitslag: `${m.score?.fullTime?.home ?? '-'}-${m.score?.fullTime?.away ?? '-'}`,
         competitie: competitieAfkorting(m.competition?.name),
       }))
