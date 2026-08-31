@@ -1,5 +1,6 @@
 import { kvGet, kvSet } from './_kv.js'
 import { zetCors } from './_cors.js'
+import { fetchMetTimeout } from './_fetch.js'
 
 // Let op: dit endpoint gebruikt football-data.org, NIET api-sports.io.
 // De matchId's in deze app komen uit de wedstrijdenlijst van
@@ -30,7 +31,7 @@ export default async function handler(req, res) {
   if (!API_KEY) return res.status(500).json({ error: 'FOOTBALL_DATA_KEY niet ingesteld' })
 
   try {
-    const r = await fetch(`${API_BASE}/matches/${matchId}`, {
+    const r = await fetchMetTimeout(`${API_BASE}/matches/${matchId}`, {
       headers: { 'X-Auth-Token': API_KEY },
     })
     const data = await r.json()

@@ -255,17 +255,24 @@ export default function Standings({ fixtures, speler }) {
   const [results, setResults] = useState([])
   const [spelerNaamMap, setSpelerNaamMap] = useState({})
   const [loading, setLoading] = useState(true)
+  const [laadFout, setLaadFout] = useState(false)
+  const [poging, setPoging] = useState(0)
   const deelBlobRef = useRef(null)
 
   useEffect(() => {
+    let geannuleerd = false
     async function laad() {
+      setLoading(true)
+      setLaadFout(false)
       try {
         const [rResults, rSpelers] = await Promise.all([
           fetch('/api/results?all=1'),
           fetch('/api/players'),
         ])
+        if (!rResults.ok) throw new Error('Klassement ophalen mislukt')
         const dataResults = await rResults.json()
         const dataSpelers = await rSpelers.json()
+        if (geannuleerd) return
 
         setTotals(dataResults.totals || {})
         setResults(dataResults.results || [])
@@ -273,11 +280,17 @@ export default function Standings({ fixtures, speler }) {
         const map = {}
         for (const s of dataSpelers.spelers || []) map[s.id] = s.naam
         setSpelerNaamMap(map)
-      } catch (_) {}
-      finally { setLoading(false) }
+      } catch (_) {
+        // Zonder deze foutmelding toonde het scherm bij een mislukte aanroep
+        // "Nog geen wedstrijdresultaten" — alsof er niets te zien wás, terwijl
+        // het ophalen simpelweg misging.
+        if (!geannuleerd) setLaadFout(true)
+      }
+      finally { if (!geannuleerd) setLoading(false) }
     }
     laad()
-  }, [])
+    return () => { geannuleerd = true }
+  }, [poging])
 
   useEffect(() => {
     if (Object.keys(totals).length === 0) return
@@ -332,6 +345,16 @@ export default function Standings({ fixtures, speler }) {
     <div className={styles.loadState}>
       <div className="spinner" />
       <p>Resultaten laden…</p>
+    </div>
+  )
+
+  if (laadFout) return (
+    <div className={styles.leeg}>
+      <p>Kan het klassement nu niet laden.</p>
+      <p className={styles.leegSub}>Controleer je verbinding en probeer het opnieuw.</p>
+      <button className={styles.deelBtn} style={{marginTop: 12}} onClick={() => setPoging(p => p + 1)}>
+        Opnieuw proberen
+      </button>
     </div>
   )
 

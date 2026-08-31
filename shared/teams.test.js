@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { zoekAfkorting, zoekNaam } from './teams.js'
+import { zoekAfkorting, zoekNaam, zoekVerzorgdeNaam } from './teams.js'
 
 test('zoekAfkorting: herkent de officiële naam en de code zelf', () => {
   assert.equal(zoekAfkorting('PSV Eindhoven'), 'PSV')
@@ -36,4 +36,19 @@ test('zoekAfkorting: football-data.org-namen met achtervoegsel mappen correct', 
   assert.equal(zoekAfkorting('Club Atletico de Madrid'), 'ATM')
   assert.equal(zoekAfkorting('Real Madrid CF'), 'RMA')
   assert.equal(zoekAfkorting('Club Brugge KV'), 'CLU')
+})
+
+test('zoekVerzorgdeNaam: maakt van API-namen en bijnamen één vaste clubnaam', () => {
+  assert.equal(zoekVerzorgdeNaam('PSV'), 'PSV Eindhoven')
+  assert.equal(zoekVerzorgdeNaam('Club Atlético de Madrid'), 'Atlético Madrid')
+  assert.equal(zoekVerzorgdeNaam('Atleti'), 'Atlético Madrid')
+  assert.equal(zoekVerzorgdeNaam('Real Madrid CF'), 'Real Madrid')
+  assert.equal(zoekVerzorgdeNaam('Club Brugge KV'), 'Club Brugge')
+})
+
+test('zoekVerzorgdeNaam: houdt de API-naam aan bij een onbekend team', () => {
+  // Mag NIET via de 3-letter-noodgreep bij een bestaande club uitkomen
+  // (Portsmouth -> POR -> FC Porto zou fout zijn).
+  assert.equal(zoekVerzorgdeNaam('Portsmouth FC'), 'Portsmouth FC')
+  assert.equal(zoekVerzorgdeNaam(''), '')
 })

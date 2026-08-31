@@ -1,8 +1,9 @@
 import { kvGet, kvSet } from './_kv.js'
 import { berekenPunten, totoLabel } from './_scoring.js'
-import { zoekAfkorting } from '../shared/teams.js'
+import { zoekAfkorting, zoekVerzorgdeNaam } from '../shared/teams.js'
 import { bewaarLogoAlsNieuw, zoekLogo } from './_logo-lookup.js'
 import { alleGeverifieerdeSpelers } from './_players.js'
+import { fetchMetTimeout } from './_fetch.js'
 
 const API_KEY = process.env.FOOTBALL_DATA_KEY
 const API_BASE = 'https://api.football-data.org/v4'
@@ -41,9 +42,13 @@ function mapStatus(s) {
   return 'NS'
 }
 
+// Let op: een time-out gooit hier bewust een fout omhoog i.p.v. een lege lijst
+// terug te geven. De aanroeper vangt dat af en houdt de VORIGE cache aan —
+// terwijl een lege lijst als "geldig" resultaat weggeschreven zou worden en
+// wedstrijden dus 5 minuten lang zou laten verdwijnen.
 async function fetchCompetitionMatches(code) {
   const url = `${API_BASE}/competitions/${code}/matches?season=${SEASON}`
-  const res = await fetch(url, { headers: { 'X-Auth-Token': API_KEY } })
+  const res = await fetchMetTimeout(url, { headers: { 'X-Auth-Token': API_KEY } })
   const data = await res.json()
   if (data.error || data.errorCode) return []
   return data.matches || []
@@ -59,9 +64,9 @@ function mapMatch(m, comp) {
   }
   return {
     matchId: m.id, competitie: comp,
-    thuis: zoekAfkorting(m.homeTeam.name), thuisNaam: m.homeTeam.name,
+    thuis: zoekAfkorting(m.homeTeam.name), thuisNaam: zoekVerzorgdeNaam(m.homeTeam.name),
     thuisLogo: m.homeTeam.crest, thuisId: m.homeTeam.id,
-    uit: zoekAfkorting(m.awayTeam.name), uitNaam: m.awayTeam.name,
+    uit: zoekAfkorting(m.awayTeam.name), uitNaam: zoekVerzorgdeNaam(m.awayTeam.name),
     uitLogo: m.awayTeam.crest, uitId: m.awayTeam.id,
     dag: dagAfkorting(m.utcDate), datum: formatDatum(m.utcDate),
     datumISO: m.utcDate, status, uitslag,
