@@ -162,3 +162,18 @@
   border: 1px solid rgba(225,0,14,0.3);
   color: #f87171;
 }
+
+.checkboxRij {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  color: var(--psv-white);
+  cursor: pointer;
+}
+
+.checkboxRij input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--psv-red);
+}

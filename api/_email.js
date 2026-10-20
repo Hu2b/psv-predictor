@@ -107,3 +107,22 @@ export async function stuurEmailGewijzigdMail(oudEmail, nieuwEmail, naam) {
     verstuurMail(nieuwEmail, 'Je e-mailadres is gewijzigd — PSV Poule', bericht),
   ])
 }
+
+// Persoonlijke uitslagmelding per speler: eindstand, eigen voorspelling,
+// behaalde punten en de nieuwe positie in het klassement. Wordt gebruikt als
+// terugval wanneer WhatsApp (nog) niet is ingesteld, of voor spelers zonder
+// telefoonnummer.
+export async function stuurUitslagMail(email, g) {
+  const onderwerp = g.isCorrectie
+    ? `Gecorrigeerde uitslag: ${g.wedstrijd} — PSV Poule`
+    : `Uitslag: ${g.wedstrijd} — PSV Poule`
+  await verstuurMail(email, onderwerp, `
+    <p>Hoi ${g.naam},</p>
+    ${g.isCorrectie ? '<p><strong>Let op: de uitslag van deze wedstrijd is gecorrigeerd. Dit zijn de bijgewerkte punten.</strong></p>' : ''}
+    <p>⚽ <strong>${g.wedstrijd}</strong></p>
+    <p>Eindstand: <strong>${g.eindstand}</strong></p>
+    <p>Jouw voorspelling: <strong>${g.voorspelling}</strong> → <strong>${g.punten} punten</strong></p>
+    <p>Je staat nu <strong>${g.positie}</strong> met <strong>${g.totaal} punten</strong>.</p>
+    <p>Bekijk het volledige klassement op <a href="${APP_URL}">${APP_URL}</a></p>
+  `)
+}

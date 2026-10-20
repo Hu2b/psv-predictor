@@ -15,6 +15,36 @@ export default function AccountInstellingen({ speler, onSluiten }) {
   const [nieuwEmail, setNieuwEmail] = useState('')
   const [nieuwEmailHerhaal, setNieuwEmailHerhaal] = useState('')
 
+  const [telefoon, setTelefoon] = useState(speler.telefoon ? `+${speler.telefoon}` : '')
+  const [meldingenAan, setMeldingenAan] = useState(speler.notificaties !== false)
+
+  async function handleWijzigMeldingen() {
+    setLaden(true)
+    setMelding(null)
+    try {
+      const sessionToken = getSessionToken()
+      const r = await fetch('/api/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'wijzig-meldingen', sessionToken,
+          telefoon, notificaties: meldingenAan,
+        })
+      })
+      const data = await r.json()
+      if (data.success) {
+        setMelding({ type: 'ok', tekst: data.message })
+        setTelefoon(data.telefoon ? `+${data.telefoon}` : '')
+      } else {
+        setMelding({ type: 'fout', tekst: data.error })
+      }
+    } catch (e) {
+      setMelding({ type: 'fout', tekst: 'Er ging iets mis. Probeer het opnieuw.' })
+    } finally {
+      setLaden(false)
+    }
+  }
+
   async function handleWijzigPincode() {
     if (huidigePincode.length !== 4 || nieuwePincode.length !== 4) {
       setMelding({ type: 'fout', tekst: 'Vul beide pincodes volledig in' })
@@ -106,6 +136,12 @@ export default function AccountInstellingen({ speler, onSluiten }) {
           >
             E-mail
           </button>
+          <button
+            className={`${styles.tabBtn} ${tab === 'meldingen' ? styles.tabActief : ''}`}
+            onClick={() => { setTab('meldingen'); setMelding(null) }}
+          >
+            Meldingen
+          </button>
         </div>
 
         {melding && (
@@ -184,6 +220,42 @@ export default function AccountInstellingen({ speler, onSluiten }) {
             />
             <button className={styles.btn} onClick={handleVraagEmailWijzigingAan} disabled={laden}>
               {laden ? 'Bezig…' : 'Verificatielink versturen'}
+            </button>
+          </div>
+        )}
+
+        {tab === 'meldingen' && (
+          <div className={styles.form}>
+            <p className={styles.uitleg}>
+              Zodra een uitslag verwerkt is, krijg je automatisch bericht met de eindstand,
+              jouw voorspelling, je punten en je nieuwe positie in het klassement.
+            </p>
+
+            <label className={styles.checkboxRij}>
+              <input
+                type="checkbox"
+                checked={meldingenAan}
+                onChange={e => setMeldingenAan(e.target.checked)}
+              />
+              <span>Stuur mij een melding na elke uitslag</span>
+            </label>
+
+            <label className={styles.label}>Telefoonnummer (voor WhatsApp)</label>
+            <input
+              className={styles.input}
+              type="tel"
+              inputMode="tel"
+              value={telefoon}
+              onChange={e => setTelefoon(e.target.value)}
+              placeholder="06 12345678"
+              autoCapitalize="none"
+            />
+            <p className={styles.uitleg}>
+              Laat je dit leeg, dan ontvang je de melding per e-mail op {speler.email}.
+            </p>
+
+            <button className={styles.btn} onClick={handleWijzigMeldingen} disabled={laden}>
+              {laden ? 'Bezig…' : 'Opslaan'}
             </button>
           </div>
         )}
