@@ -11,6 +11,7 @@ import {
   stuurEmailWijzigingVerificatieMail, stuurEmailGewijzigdMail,
 } from './_email.js'
 import { zetCors } from './_cors.js'
+import { normaliseerTelefoon } from '../shared/telefoon.js'
 
 const MAX_SPELERS = 10
 const VERIFY_TTL_MS = 24 * 60 * 60 * 1000
@@ -155,7 +156,7 @@ export default async function handler(req, res) {
       return res.status(200).json({
         success: true,
         sessionToken,
-        speler: { id: speler.id, naam: speler.naam, email: speler.email, isAdmin: isAdmin(speler.email) }
+        speler: { id: speler.id, naam: speler.naam, email: speler.email, isAdmin: isAdmin(speler.email), telefoon: speler.telefoon || null, notificaties: speler.notificaties !== false }
       })
     }
 
@@ -171,7 +172,7 @@ export default async function handler(req, res) {
 
       return res.status(200).json({
         success: true,
-        speler: { id: speler.id, naam: speler.naam, email: speler.email, isAdmin: isAdmin(speler.email) }
+        speler: { id: speler.id, naam: speler.naam, email: speler.email, isAdmin: isAdmin(speler.email), telefoon: speler.telefoon || null, notificaties: speler.notificaties !== false }
       })
     }
 
@@ -301,6 +302,35 @@ export default async function handler(req, res) {
       await stuurEmailGewijzigdMail(oudEmail, data.nieuwEmail, speler.naam)
 
       return res.status(200).json({ success: true, message: 'E-mailadres gewijzigd.' })
+    }
+
+    // Meldingen (uitslag + nieuwe stand) aan/uit zetten en het telefoonnummer
+    // voor WhatsApp opgeven. Het zelf invullen van het nummer én het aanzetten
+    // van meldingen geldt als de opt-in die WhatsApp vereist.
+    if (req.method === 'POST' && action === 'wijzig-meldingen') {
+      const { sessionToken, telefoon, notificaties } = body
+      const check = await haalSpelerViaSessie(sessionToken)
+      if (check.fout) return res.status(401).json({ error: check.fout })
+
+      let genormaliseerd = null
+      if (telefoon && String(telefoon).trim()) {
+        genormaliseerd = normaliseerTelefoon(telefoon)
+        if (!genormaliseerd) {
+          return res.status(400).json({ error: 'Ongeldig telefoonnummer. Gebruik bijv. 06 12345678 of +31612345678.' })
+        }
+      }
+
+      await updatePlayer(check.speler.id, {
+        telefoon: genormaliseerd,
+        notificaties: notificaties !== false,
+      })
+
+      return res.status(200).json({
+        success: true,
+        message: 'Meldingen bijgewerkt.',
+        telefoon: genormaliseerd,
+        notificaties: notificaties !== false,
+      })
     }
 
     return res.status(400).json({ error: 'Onbekende actie' })

@@ -3,6 +3,7 @@ import { berekenPunten, totoLabel } from './_scoring.js'
 import { zoekAfkorting, zoekVerzorgdeNaam } from '../shared/teams.js'
 import { bewaarLogoAlsNieuw, zoekLogo } from './_logo-lookup.js'
 import { alleGeverifieerdeSpelers } from './_players.js'
+import { stuurUitslagNotificaties } from './_notificaties.js'
 import { fetchMetTimeout } from './_fetch.js'
 
 const API_KEY = process.env.FOOTBALL_DATA_KEY
@@ -256,7 +257,21 @@ export async function berekenEnSlaResultaatOp(fixtureInfo, uitslag) {
 
   await herberekenAlleTotalen()
 
-  return await kvGet(`result:${matchId}`)
+  const definitief = await kvGet(`result:${matchId}`)
+
+  // Spelers op de hoogte brengen. Bewust AWAIT en in een try/catch: op Vercel
+  // mag de functie bevroren worden zodra het antwoord verstuurd is, dus
+  // fire-and-forget zou berichten kunnen laten verdampen. Een mislukte
+  // verzending mag het vastleggen van de uitslag echter nooit laten falen.
+  // stuurUitslagNotificaties() bewaakt zelf dat er bij een ongewijzigde
+  // herberekening niets opnieuw de deur uit gaat.
+  try {
+    await stuurUitslagNotificaties(definitief)
+  } catch (e) {
+    console.error('Uitslagmeldingen versturen mislukt:', e)
+  }
+
+  return definitief
 }
 
 // Wachttijd gerekend vanaf AFTRAP (datumISO), niet vanaf het laatste
