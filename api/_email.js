@@ -116,21 +116,29 @@ export async function stuurUitslagMail(email, g) {
   const onderwerp = g.isCorrectie
     ? `Gecorrigeerde uitslag: ${g.wedstrijd} — PSV Poule`
     : `Uitslag: ${g.wedstrijd} — PSV Poule`
+
+  const rij = (cellen, vet) =>
+    `<tr style="${vet ? 'font-weight: bold;' : ''}">${cellen.map(c =>
+      `<td style="padding: 3px 16px 3px 0;">${c}</td>`).join('')}</tr>`
+
   await verstuurMail(email, onderwerp, `
     <p>Hoi ${g.naam},</p>
     ${g.isCorrectie ? '<p><strong>Let op: de uitslag van deze wedstrijd is gecorrigeerd. Dit zijn de bijgewerkte punten.</strong></p>' : ''}
-    <p>⚽ <strong>${g.wedstrijd}</strong></p>
+    <p>⚽ <strong>${g.wedstrijd}</strong>${g.datum ? ` · ${g.datum}` : ''}</p>
     <p>Eindstand: <strong>${g.eindstand}</strong></p>
-    <p>Jouw voorspelling: <strong>${g.voorspelling}</strong> → <strong>${g.punten} punten</strong></p>
+
+    <p><strong>Voorspellingen</strong></p>
+    <table style="border-collapse: collapse;">
+      ${(g.voorspellingen || []).map(r =>
+        rij([r.naam, r.voorspelling, `${r.punten} pt`], r.playerId === g.playerId)).join('')}
+    </table>
+
     <p><strong>🏆 Nieuwe stand</strong></p>
     <table style="border-collapse: collapse;">
-      ${(g.klassement || []).map(r => `
-        <tr style="${r.playerId === g.playerId ? 'font-weight: bold;' : ''}">
-          <td style="padding: 2px 10px 2px 0;">${r.positie}.</td>
-          <td style="padding: 2px 16px 2px 0;">${r.naam}</td>
-          <td style="padding: 2px 0;">${r.punten}</td>
-        </tr>`).join('')}
+      ${(g.klassement || []).map(r =>
+        rij([`${r.positie}.`, r.naam, r.punten], r.playerId === g.playerId)).join('')}
     </table>
+
     <p>Bekijk het volledige overzicht op <a href="${APP_URL}">${APP_URL}</a></p>
   `)
 }

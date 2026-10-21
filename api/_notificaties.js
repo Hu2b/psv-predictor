@@ -4,9 +4,9 @@ import { whatsappIngesteld, stuurWhatsappSjabloon } from './_whatsapp.js'
 import { stuurUitslagMail } from './_email.js'
 import { zoekNaam } from '../shared/teams.js'
 
-// Verstuurt na het verwerken van een uitslag aan iedere speler een persoonlijk
-// bericht: de eindstand, zijn eigen voorspelling, de behaalde punten en zijn
-// nieuwe positie in het klassement.
+// Verstuurt na het verwerken van een uitslag aan iedere speler een bericht met
+// de eindstand, de voorspellingen en punten van ALLE deelnemers, en het nieuwe
+// klassement.
 //
 // Kanaal: WhatsApp als dat is ingesteld én de speler een nummer heeft
 // opgegeven; anders e-mail. Spelers die meldingen hebben uitgezet krijgen
@@ -76,14 +76,71 @@ export function maakKlassement(totalen, naamPerSpeler = {}) {
     }))
 }
 
-// Hetzelfde klassement op ÉÉN regel, voor in een WhatsApp-sjabloon.
+// Wat ALLE deelnemers bij deze wedstrijd voorspelden en opleverde, aflopend op
+// behaalde punten (de beste voorspelling bovenaan), bij gelijke punten op naam.
+export function maakVoorspellingen(result, naamPerSpeler = {}) {
+  return Object.keys(result?.punten || {})
+    .map(playerId => {
+      const pred = result.predicties?.[playerId]
+      return {
+        playerId,
+        naam: naamPerSpeler[playerId] || '???',
+        voorspelling: pred ? `${pred.home}-${pred.away}` : 'geen voorspelling',
+        punten: result.punten?.[playerId] ?? 0,
+      }
+    })
+    .sort((a, b) => b.punten - a.punten || a.naam.localeCompare(b.naam))
+}
+
+// Dezelfde lijsten op ÉÉN regel, voor in een WhatsApp-sjabloon.
 // Sjabloonvariabelen mogen namelijk geen regeleindes bevatten, dus scheiden we
-// de spelers met een punt in plaats van met een nieuwe regel:
-//   "1. Huub 48 · 2. Niek 45"
+// de spelers met een punt in plaats van met een nieuwe regel.
 export function maakKlassementRegel(totalen, naamPerSpeler = {}) {
   return maakKlassement(totalen, naamPerSpeler)
     .map(r => `${r.positie}. ${r.naam} ${r.punten}`)
     .join(' · ')
+}
+
+export function maakVoorspellingenRegel(result, naamPerSpeler = {}) {
+  return maakVoorspellingen(result, naamPerSpeler)
+    .map(r => `${r.naam} ${r.voorspelling} (${r.punten} pt)`)
+    .join(' · ')
+}
+
+// Eén plek die een resultaat omzet naar alles wat een bericht nodig heeft.
+// Zowel de echte melding als het proefbericht gebruiken dit, zodat de twee
+// nooit uit elkaar kunnen lopen.
+export function maakBerichtGegevens(result, speler, { naamPerSpeler = {}, isCorrectie = false } = {}) {
+  const wedstrijd = `${zoekNaam(result.thuis)} – ${zoekNaam(result.uit)}`
+  return {
+    naam: speler.naam,
+    playerId: speler.id,
+    wedstrijd: isCorrectie ? `${wedstrijd} (gecorrigeerd)` : wedstrijd,
+    datum: result.datum || '',
+    eindstand: `${result.uitslag.home}-${result.uitslag.away}`,
+    voorspellingen: maakVoorspellingen(result, naamPerSpeler),
+    klassement: maakKlassement(result.totalen, naamPerSpeler),
+    isCorrectie,
+  }
+}
+
+// De vier variabelen van het WhatsApp-sjabloon, in volgorde.
+function maakSjabloonVariabelen(gegevens, result, naamPerSpeler) {
+  return [
+    gegevens.wedstrijd,
+    gegevens.eindstand,
+    maakVoorspellingenRegel(result, naamPerSpeler),
+    maakKlassementRegel(result.totalen, naamPerSpeler),
+  ]
+}
+
+async function verstuurAan(speler, gegevens, result, naamPerSpeler) {
+  if (whatsappIngesteld() && speler.telefoon) {
+    await stuurWhatsappSjabloon(speler.telefoon, maakSjabloonVariabelen(gegevens, result, naamPerSpeler))
+    return { kanaal: 'whatsapp', naar: `+${speler.telefoon}` }
+  }
+  await stuurUitslagMail(speler.email, gegevens)
+  return { kanaal: 'email', naar: speler.email }
 }
 
 export async function stuurUitslagNotificaties(result) {
@@ -99,57 +156,25 @@ export async function stuurUitslagNotificaties(result) {
   const isCorrectie = Boolean(vorige)
 
   // Stille adoptie van een oude wedstrijd die nog geen vingerafdruk had.
-  if (!vorige) {
-    if (isTeOudVoorMelding(result.datumISO)) {
-      await kvSet(sleutel, {
-        handtekening,
-        verstuurdOp: null,
-        reden: 'te oud bij eerste registratie',
-        aantal: 0,
-      })
-      return { verstuurd: 0, reden: 'te oud' }
-    }
+  if (!vorige && isTeOudVoorMelding(result.datumISO)) {
+    await kvSet(sleutel, {
+      handtekening,
+      verstuurdOp: null,
+      reden: 'te oud bij eerste registratie',
+      aantal: 0,
+    })
+    return { verstuurd: 0, reden: 'te oud' }
   }
 
   const spelers = await alleGeverifieerdeSpelers()
-  const posities = bepaalPosities(result.totalen)
-  const wedstrijd = `${zoekNaam(result.thuis)} – ${zoekNaam(result.uit)}`
-  const eindstand = `${result.uitslag.home}-${result.uitslag.away}`
-
-  // Het nieuwe totaaloverzicht: één keer berekenen, iedereen krijgt hetzelfde
-  // klassement te zien (alleen het "jij"-accent in de e-mail verschilt).
   const naamPerSpeler = Object.fromEntries(spelers.map(s => [s.id, s.naam]))
-  const klassement = maakKlassement(result.totalen, naamPerSpeler)
-  const klassementRegel = maakKlassementRegel(result.totalen, naamPerSpeler)
 
   const ontvangers = spelers.filter(s => s.notificaties !== false)
   const viaWhatsapp = whatsappIngesteld()
 
-  const resultaten = await Promise.allSettled(ontvangers.map(async speler => {
-    const pred = result.predicties?.[speler.id]
-    const gegevens = {
-      naam: speler.naam,
-      wedstrijd: isCorrectie ? `${wedstrijd} (gecorrigeerd)` : wedstrijd,
-      eindstand,
-      voorspelling: pred ? `${pred.home}-${pred.away}` : 'geen voorspelling',
-      punten: String(result.punten?.[speler.id] ?? 0),
-      positie: `${posities[speler.id] ?? '-'}e`,
-      totaal: String(result.totalen?.[speler.id] ?? 0),
-      klassement,
-      playerId: speler.id,
-      isCorrectie,
-    }
-
-    if (viaWhatsapp && speler.telefoon) {
-      return await stuurWhatsappSjabloon(speler.telefoon, [
-        gegevens.wedstrijd,
-        gegevens.eindstand,
-        gegevens.voorspelling,
-        gegevens.punten,
-        klassementRegel,
-      ])
-    }
-    return await stuurUitslagMail(speler.email, gegevens)
+  const resultaten = await Promise.allSettled(ontvangers.map(speler => {
+    const gegevens = maakBerichtGegevens(result, speler, { naamPerSpeler, isCorrectie })
+    return verstuurAan(speler, gegevens, result, naamPerSpeler)
   }))
 
   const gelukt = resultaten.filter(r => r.status === 'fulfilled').length
@@ -169,39 +194,51 @@ export async function stuurUitslagNotificaties(result) {
   return { verstuurd: gelukt, van: ontvangers.length, correctie: isCorrectie }
 }
 
-// Stuurt één proefbericht naar de beheerder zelf, met voorbeeldgegevens.
-// Bewust los van stuurUitslagNotificaties(): geen vingerafdruk, geen andere
-// ontvangers, en fouten worden doorgegeven in plaats van alleen gelogd — zo
-// ziet de beheerder precies wat Meta terugmeldt bij een verkeerd token of een
-// sjabloonnaam die net anders is.
+// De laatst gespeelde wedstrijd waarvan de uitslag verwerkt is.
+async function haalLaatsteResultaat() {
+  const index = await kvGet('results:index') || []
+  if (index.length === 0) return null
+  const results = (await Promise.all(index.map(id => kvGet(`result:${id}`)))).filter(Boolean)
+  if (results.length === 0) return null
+  return results.sort((a, b) => new Date(b.datumISO) - new Date(a.datumISO))[0]
+}
+
+// Een verzonnen wedstrijd, alleen nodig zolang er nog geen enkele uitslag
+// verwerkt is. Zo levert de testknop ook in een lege poule een echt bericht op.
+function voorbeeldResultaat(speler) {
+  return {
+    matchId: 'voorbeeld',
+    thuis: 'PSV', uit: 'AJA',
+    datum: 'proefbericht',
+    uitslag: { home: 3, away: 1 },
+    predicties: { [speler.id]: { home: 2, away: 1 }, voorbeeld: { home: 1, away: 1 } },
+    punten: { [speler.id]: 7, voorbeeld: 0 },
+    totalen: { [speler.id]: 42, voorbeeld: 38 },
+  }
+}
+
+// Stuurt één proefbericht naar de beheerder zelf, gebaseerd op de LAATST
+// gespeelde wedstrijd en de echte stand — zo zie je precies wat de deelnemers
+// straks krijgen. Bewust los van stuurUitslagNotificaties(): geen
+// vingerafdruk, geen andere ontvangers, en fouten worden doorgegeven in plaats
+// van alleen gelogd, zodat de beheerder ziet wat Meta terugmeldt bij een
+// verkeerd token of een sjabloonnaam die net anders is.
 export async function stuurTestMelding(speler) {
-  const gegevens = {
-    naam: speler.naam,
-    wedstrijd: 'PSV Eindhoven – Testtegenstander (proefbericht)',
-    eindstand: '3-1',
-    voorspelling: '2-1',
-    punten: '7',
-    positie: '1e',
-    totaal: '42',
-    playerId: speler.id,
-    klassement: [
-      { playerId: speler.id, positie: 1, naam: speler.naam, punten: 42 },
-      { playerId: 'voorbeeld', positie: 2, naam: 'Voorbeeldspeler', punten: 38 },
-    ],
-    isCorrectie: false,
-  }
+  const spelers = await alleGeverifieerdeSpelers()
+  const naamPerSpeler = Object.fromEntries(spelers.map(s => [s.id, s.naam]))
 
-  if (whatsappIngesteld() && speler.telefoon) {
-    await stuurWhatsappSjabloon(speler.telefoon, [
-      gegevens.wedstrijd,
-      gegevens.eindstand,
-      gegevens.voorspelling,
-      gegevens.punten,
-      `1. ${speler.naam} 42 · 2. Voorbeeldspeler 38`,
-    ])
-    return { kanaal: 'whatsapp', naar: `+${speler.telefoon}` }
-  }
+  const echt = await haalLaatsteResultaat()
+  const result = echt || voorbeeldResultaat(speler)
+  if (!echt) naamPerSpeler.voorbeeld = 'Voorbeeldspeler'
 
-  await stuurUitslagMail(speler.email, gegevens)
-  return { kanaal: 'email', naar: speler.email }
+  const gegevens = maakBerichtGegevens(result, speler, { naamPerSpeler })
+  const info = await verstuurAan(speler, gegevens, result, naamPerSpeler)
+
+  return {
+    ...info,
+    gebaseerdOp: echt
+      ? `${gegevens.wedstrijd} (${result.datum || 'laatste wedstrijd'})`
+      : 'voorbeeldgegevens — er is nog geen uitslag verwerkt',
+    echteData: Boolean(echt),
+  }
 }
