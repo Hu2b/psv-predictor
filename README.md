@@ -71,10 +71,10 @@ Nodig in productie (Vercel → Project → Settings → Environment Variables):
 | `ADMIN_EMAILS`       | nee       | Kommagescheiden lijst van beheerders-e-mailadressen         |
 | `CRON_SECRET`        | aanbevolen| Beschermt `/api/cron-uitslagen` (Vercel stuurt 'm mee)      |
 | `PSV_SEASON`         | nee       | Forceert een seizoen i.p.v. automatisch bepalen             |
-| `WHATSAPP_TOKEN`     | nee       | Permanent access token van de Meta-app (zie hieronder)      |
-| `WHATSAPP_PHONE_NUMBER_ID` | nee | Id van het gekoppelde WhatsApp-nummer                       |
-| `WHATSAPP_TEMPLATE`  | nee       | Naam van het goedgekeurde sjabloon (standaard `psv_poule_uitslag`) |
-| `WHATSAPP_TEMPLATE_TAAL` | nee   | Taalcode van het sjabloon (standaard `nl`)                  |
+| `TWILIO_ACCOUNT_SID` | nee       | Account SID uit de Twilio Console (zie hieronder)           |
+| `TWILIO_AUTH_TOKEN`  | nee       | Auth Token uit de Twilio Console                            |
+| `TWILIO_WHATSAPP_FROM` | nee     | De WhatsApp-afzender, bijv. `+14155238886`                  |
+| `TWILIO_CONTENT_SID` | nee       | SID van het goedgekeurde sjabloon (begint met `HX`)         |
 
 ## Meldingen na een uitslag
 
@@ -84,21 +84,30 @@ de behaalde punten en het nieuwe klassement.
 
 Het kanaal volgt vanzelf uit de instellingen:
 
-- Zijn `WHATSAPP_TOKEN` én `WHATSAPP_PHONE_NUMBER_ID` gezet **en** heeft de
-  speler een telefoonnummer ingevuld → **WhatsApp**.
+- Zijn alle vier de `TWILIO_*`-variabelen gezet **en** heeft de speler een
+  telefoonnummer ingevuld → **WhatsApp**.
 - Anders → **e-mail** (via Resend).
 
-### WhatsApp instellen
+### WhatsApp instellen (via Twilio)
 
-1. Een **apart telefoonnummer** dat niet al voor gewone WhatsApp in gebruik is.
-2. Een **Meta Business-account** met een WhatsApp Business Account (WABA);
-   koppel daar het nummer aan en stel een two-step verification PIN in.
-3. Een **permanent access token** (via een System User in Meta Business
-   Settings) → `WHATSAPP_TOKEN`.
-4. Het **Phone Number ID** uit WhatsApp Manager → `WHATSAPP_PHONE_NUMBER_ID`.
-5. Een **goedgekeurd sjabloon**. Berichten die wij beginnen moeten een sjabloon
-   gebruiken; vrije tekst mag alleen binnen 24 uur nadat de ontvanger zelf iets
-   stuurde. Maak een sjabloon van categorie *Utility* met deze body:
+De berichten lopen via **Twilio**, niet rechtstreeks via Meta. Om zelf een
+WhatsApp Business Account aan te maken moet je bedrijfsportfolio door Meta's
+beleidscontrole komen; voor een particulier zonder ingeschreven bedrijf loopt
+dat vast op foutcode 2494070. Twilio is een door Meta erkende Business Solution
+Provider en regelt die kant.
+
+1. Een **Twilio-account** met saldo en een **WhatsApp-afzender**
+   (Messaging → Senders → WhatsApp senders). Dat kan het gratis sandbox-nummer
+   zijn om mee te testen, of een eigen nummer voor productie.
+2. **Account SID** en **Auth Token** uit de Twilio Console →
+   `TWILIO_ACCOUNT_SID` en `TWILIO_AUTH_TOKEN`.
+3. Het afzendernummer → `TWILIO_WHATSAPP_FROM` (bijv. `+14155238886`; de app
+   zet er zelf `whatsapp:` voor).
+4. Een **goedgekeurd sjabloon**, bij Twilio een *Content Template*. Berichten
+   die wij beginnen moeten een sjabloon gebruiken; vrije tekst mag alleen
+   binnen 24 uur nadat de ontvanger zelf iets stuurde. Maak in de Content
+   Template Builder een template van type *Text*, categorie *Utility*, met deze
+   body:
 
 ```
 ⚽ {{1}}
@@ -108,6 +117,9 @@ Voorspellingen: {{3}}
 
 🏆 Nieuwe stand: {{4}}
 ```
+
+   Dien hem in ter goedkeuring bij WhatsApp en zet de **ContentSid** (begint
+   met `HX`) in `TWILIO_CONTENT_SID`.
 
 De vier variabelen worden in deze volgorde gevuld:
 

@@ -67,23 +67,30 @@ export default function AdminMeldingen({ setMelding }) {
 
         <div className={styles.predRij}>
           <div className={styles.predInfo}>
-            <span className={styles.predNaam}>WhatsApp-token</span>
+            <span className={styles.predNaam}>Twilio Account SID</span>
+          </div>
+          <span className={styles.predScore}>{wa.accountAanwezig ? '✅' : '—'}</span>
+        </div>
+
+        <div className={styles.predRij}>
+          <div className={styles.predInfo}>
+            <span className={styles.predNaam}>Twilio Auth Token</span>
           </div>
           <span className={styles.predScore}>{wa.tokenAanwezig ? '✅' : '—'}</span>
         </div>
 
         <div className={styles.predRij}>
           <div className={styles.predInfo}>
-            <span className={styles.predNaam}>Phone Number ID</span>
+            <span className={styles.predNaam}>Afzender</span>
           </div>
-          <span className={styles.predScore}>{wa.phoneNumberIdAanwezig ? '✅' : '—'}</span>
+          <span className={styles.predLeeg}>{wa.afzender || '—'}</span>
         </div>
 
         <div className={styles.predRij}>
           <div className={styles.predInfo}>
             <span className={styles.predNaam}>Sjabloon</span>
           </div>
-          <span className={styles.predLeeg}>{wa.sjabloon} ({wa.taal})</span>
+          <span className={styles.predLeeg}>{wa.sjabloon || '—'}</span>
         </div>
 
         <div className={styles.predRij}>
@@ -98,9 +105,12 @@ export default function AdminMeldingen({ setMelding }) {
 
       {!wa.ingesteld && (
         <p className={styles.leegTekst}>
-          ℹ️ WhatsApp is nog niet ingesteld, dus meldingen gaan per e-mail. Zet
-          WHATSAPP_TOKEN en WHATSAPP_PHONE_NUMBER_ID in Vercel om over te
-          schakelen. De volledige instructie staat in de README.
+          ℹ️ WhatsApp is nog niet ingesteld, dus meldingen gaan per e-mail.
+          Hierboven zie je met een ✅ of — wat er nog ontbreekt. Zet in Vercel
+          (Settings → Environment Variables) de vier waarden TWILIO_ACCOUNT_SID,
+          TWILIO_AUTH_TOKEN, TWILIO_WHATSAPP_FROM en TWILIO_CONTENT_SID, en
+          deploy daarna opnieuw — omgevingsvariabelen worden alleen bij het
+          bouwen ingeladen.
         </p>
       )}
 

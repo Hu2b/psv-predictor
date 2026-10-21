@@ -90,8 +90,8 @@ export default async function handler(req, res) {
   }
 
   // Proefbericht naar de beheerder zelf. Geeft bij een fout de melding van
-  // Meta onverkort terug — dat is precies wat je nodig hebt om een verkeerd
-  // token, een onbekende sjabloonnaam of een niet-aangemeld nummer te vinden.
+  // Twilio onverkort terug — dat is precies wat je nodig hebt om een verkeerd
+  // token, een onbekende sjabloon-SID of een niet-aangemeld nummer te vinden.
   if (req.method === 'POST' && action === 'testMelding') {
     try {
       const info = await stuurTestMelding(check.beheerder)
