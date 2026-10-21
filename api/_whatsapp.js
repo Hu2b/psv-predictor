@@ -28,6 +28,19 @@ export function whatsappIngesteld() {
   return Boolean(TOKEN && PHONE_NUMBER_ID)
 }
 
+// Meta weigert een sjabloonvariabele die een regeleinde, een tab of vier of
+// meer spaties achter elkaar bevat — het bericht gaat dan niet weg en je ziet
+// alleen een foutcode terug. Alles wordt daarom platgeslagen tot één regel.
+// De lengtegrens per variabele is 1024 tekens; we kappen ruim daarvoor af.
+const MAX_VARIABELE_LENGTE = 900
+
+function maakVariabeleVeilig(waarde) {
+  const plat = String(waarde ?? '').replace(/\s+/g, ' ').trim()
+  return plat.length > MAX_VARIABELE_LENGTE
+    ? `${plat.slice(0, MAX_VARIABELE_LENGTE - 1)}…`
+    : plat
+}
+
 // Verstuurt het sjabloon naar één nummer. `variabelen` is een lijst strings
 // die in volgorde de {{1}}, {{2}}, … in het sjabloon invult.
 // Gooit een fout als het versturen mislukt, zodat de aanroeper per ontvanger
@@ -53,7 +66,7 @@ export async function stuurWhatsappSjabloon(naarNummer, variabelen) {
           language: { code: TEMPLATE_TAAL },
           components: [{
             type: 'body',
-            parameters: variabelen.map(v => ({ type: 'text', text: String(v) })),
+            parameters: variabelen.map(v => ({ type: 'text', text: maakVariabeleVeilig(v) })),
           }],
         },
       }),
