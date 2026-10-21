@@ -177,7 +177,11 @@ export async function haalAlleWedstrijden() {
         // kopie zou checkEnSlaUitslagenOp() nooit kunnen zien dat
         // football-data.org de eindstand achteraf heeft gecorrigeerd.
         feedUitslag: f.uitslag,
-        bron: eigen.bron || 'automatisch',
+        // Geen bron bekend = vastgelegd vóór deze markering bestond. Dat laten
+        // we bewust leeg i.p.v. 'automatisch' te gokken: we kunnen dan niet
+        // zien of de beheerder die uitslag destijds handmatig heeft gezet, en
+        // bij twijfel overschrijven we 'm liever niet.
+        bron: eigen.bron || null,
         uitslag: { home: eigen.uitslag.home, away: eigen.uitslag.away, status: 'FT' },
       }
     })
@@ -345,7 +349,11 @@ export async function checkEnSlaUitslagenOp(fixtures) {
   // woord, precies de ontsnappingsroute bij een storing in de feed.
   const gewijzigd = kandidaten.filter(f => {
     if (!alVerwerkt.has(String(f.matchId))) return false
-    if (f.bron === 'handmatig') return false
+    // Alleen uitslagen die aantoonbaar automatisch zijn vastgelegd komen in
+    // aanmerking. 'handmatig' is de beheerder en heeft het laatste woord;
+    // ontbreekt de bron (vastgelegd vóór deze markering bestond), dan weten we
+    // het niet en laten we 'm met rust.
+    if (f.bron !== 'automatisch') return false
     if (nu - new Date(f.datumISO).getTime() > HERCONTROLE_VENSTER_MS) return false
     const feed = f.feedUitslag
     if (!feed) return false
