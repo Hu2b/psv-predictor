@@ -28,6 +28,19 @@ export function whatsappIngesteld() {
   return Boolean(TOKEN && PHONE_NUMBER_ID)
 }
 
+// Toont de instellingen zonder geheimen prijs te geven: alleen of iets gezet
+// is, plus de (niet-geheime) sjabloonnaam en taal. Zo kan de beheerder in de
+// app zien wat er nog ontbreekt zonder het token te tonen.
+export function whatsappInstellingen() {
+  return {
+    ingesteld: whatsappIngesteld(),
+    tokenAanwezig: Boolean(TOKEN),
+    phoneNumberIdAanwezig: Boolean(PHONE_NUMBER_ID),
+    sjabloon: TEMPLATE,
+    taal: TEMPLATE_TAAL,
+  }
+}
+
 // Meta weigert een sjabloonvariabele die een regeleinde, een tab of vier of
 // meer spaties achter elkaar bevat — het bericht gaat dan niet weg en je ziet
 // alleen een foutcode terug. Alles wordt daarom platgeslagen tot één regel.
