@@ -90,7 +90,7 @@ export default function AdminMeldingen({ setMelding }) {
           <div className={styles.predInfo}>
             <span className={styles.predNaam}>Sjabloon</span>
           </div>
-          <span className={styles.predLeeg}>{wa.sjabloon || '—'}</span>
+          <span className={styles.predLeeg}>{wa.sjabloon || '— vrije tekst'}</span>
         </div>
 
         <div className={styles.predRij}>
@@ -102,6 +102,15 @@ export default function AdminMeldingen({ setMelding }) {
           </span>
         </div>
       </div>
+
+      {wa.ingesteld && wa.modus === 'vrije tekst' && (
+        <p className={styles.leegTekst}>
+          ⚠️ Er is geen goedgekeurd sjabloon ingesteld, dus berichten gaan als
+          vrije tekst. WhatsApp levert die alleen af binnen 24 uur nadat de
+          ontvanger zelf iets stuurde — genoeg om te testen, niet genoeg voor
+          het seizoen. Zet TWILIO_CONTENT_SID zodra je sjabloon goedgekeurd is.
+        </p>
+      )}
 
       {!wa.ingesteld && (
         <p className={styles.leegTekst}>

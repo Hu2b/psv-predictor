@@ -4,6 +4,7 @@ import {
   naarWhatsappAdres,
   maakVariabeleVeilig,
   maakContentVariables,
+  maakVrijeTekst,
   whatsappIngesteld,
   whatsappInstellingen,
 } from './_whatsapp.js'
@@ -75,13 +76,34 @@ test('maakContentVariables: lege lijst levert een leeg object', () => {
   assert.equal(maakContentVariables(undefined), '{}')
 })
 
-test('whatsappIngesteld: pas waar als alle vier de variabelen gezet zijn', () => {
+test('whatsappIngesteld: account, token en afzender zijn alle drie nodig', () => {
   metOmgeving(VOLLEDIG, () => assert.equal(whatsappIngesteld(), true))
-  for (const ontbrekend of SLEUTELS) {
+  for (const ontbrekend of ['TWILIO_ACCOUNT_SID', 'TWILIO_AUTH_TOKEN', 'TWILIO_WHATSAPP_FROM']) {
     metOmgeving({ ...VOLLEDIG, [ontbrekend]: undefined }, () => {
       assert.equal(whatsappIngesteld(), false, `zonder ${ontbrekend} mag het niet ingesteld heten`)
     })
   }
+})
+
+test('whatsappIngesteld: zonder sjabloon blijft het ingesteld, maar in vrije-tekstmodus', () => {
+  metOmgeving({ ...VOLLEDIG, TWILIO_CONTENT_SID: undefined }, () => {
+    assert.equal(whatsappIngesteld(), true)
+    assert.equal(whatsappInstellingen().modus, 'vrije tekst')
+  })
+  metOmgeving(VOLLEDIG, () => assert.equal(whatsappInstellingen().modus, 'sjabloon'))
+})
+
+test('maakVrijeTekst: dezelfde opmaak als het sjabloon', () => {
+  const tekst = maakVrijeTekst(['PSV – Ajax', '2-1', 'Huub 2-1 (10 pt)', '1. Huub 48'])
+  assert.equal(
+    tekst,
+    '⚽ PSV – Ajax\nEindstand: 2-1\n\nVoorspellingen: Huub 2-1 (10 pt)\n\n🏆 Nieuwe stand: 1. Huub 48'
+  )
+})
+
+test('maakVrijeTekst: een afwijkend aantal variabelen gaat op losse regels', () => {
+  assert.equal(maakVrijeTekst(['een', 'twee']), 'een\ntwee')
+  assert.equal(maakVrijeTekst([]), '')
 })
 
 test('whatsappInstellingen: toont wat ontbreekt maar lekt het Auth Token niet', () => {
@@ -96,11 +118,11 @@ test('whatsappInstellingen: toont wat ontbreekt maar lekt het Auth Token niet', 
   })
 })
 
-test('whatsappInstellingen: zonder sjabloon niet ingesteld, rest blijft zichtbaar', () => {
+test('whatsappInstellingen: een ontbrekend sjabloon is zichtbaar als —', () => {
   metOmgeving({ ...VOLLEDIG, TWILIO_CONTENT_SID: undefined }, () => {
     const i = whatsappInstellingen()
-    assert.equal(i.ingesteld, false)
     assert.equal(i.sjabloonAanwezig, false)
+    assert.equal(i.sjabloon, '')
     assert.equal(i.accountAanwezig, true)
     assert.equal(i.afzenderAanwezig, true)
   })

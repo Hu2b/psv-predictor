@@ -37,11 +37,19 @@ function instellingen() {
   }
 }
 
-// Alleen als alle vier gezet zijn kan er daadwerkelijk via WhatsApp verstuurd
-// worden; anders valt het notificatiesysteem terug op e-mail.
+// Zonder account, token én afzender kan er niets verstuurd worden; dan valt
+// het notificatiesysteem terug op e-mail.
+//
+// TWILIO_CONTENT_SID is bewust NIET verplicht. Met sjabloon verstuurt de app
+// op elk moment; zonder sjabloon stuurt hij vrije tekst, en die mag WhatsApp
+// alleen afleveren binnen 24 uur nadat de ontvanger zelf iets stuurde. Dat is
+// precies wat de Twilio-sandbox toestaat, en daarmee kun je de hele keten
+// testen voordat er een goedgekeurd sjabloon is. Welke van de twee actief is,
+// staat in whatsappInstellingen().modus — zodat niemand per ongeluk denkt dat
+// er sjablonen gaan en zich verbaast over berichten die niet aankomen.
 export function whatsappIngesteld() {
   const i = instellingen()
-  return Boolean(i.accountSid && i.authToken && i.afzender && i.sjabloon)
+  return Boolean(i.accountSid && i.authToken && i.afzender)
 }
 
 // Twilio verwacht adressen in de vorm 'whatsapp:+31612345678'. Onze eigen
@@ -61,6 +69,7 @@ export function whatsappInstellingen() {
   return {
     ingesteld: whatsappIngesteld(),
     aanbieder: 'twilio',
+    modus: i.sjabloon ? 'sjabloon' : 'vrije tekst',
     accountAanwezig: Boolean(i.accountSid),
     tokenAanwezig: Boolean(i.authToken),
     afzenderAanwezig: Boolean(i.afzender),
@@ -91,6 +100,17 @@ export function maakContentVariables(variabelen) {
   return JSON.stringify(Object.fromEntries(paren))
 }
 
+// Zonder goedgekeurd sjabloon versturen we de inhoud als vrije tekst. De
+// opmaak is gelijk aan die van het sjabloon, zodat een proefbericht uit de
+// sandbox er hetzelfde uitziet als wat de deelnemers straks echt krijgen.
+// Vrije tekst mag wél regeleindes bevatten — die beperking geldt alleen voor
+// sjabloonvariabelen.
+export function maakVrijeTekst(variabelen) {
+  const v = (variabelen || []).map(x => String(x ?? '').trim())
+  if (v.length !== 4) return v.filter(Boolean).join('\n')
+  return `⚽ ${v[0]}\nEindstand: ${v[1]}\n\nVoorspellingen: ${v[2]}\n\n🏆 Nieuwe stand: ${v[3]}`
+}
+
 // Twilio antwoordt bij een fout met JSON waarin 'message' en 'code' staan.
 // Die willen we onverkort doorgeven aan de beheerder, want daar staat precies
 // in wat er mis is — een niet-goedgekeurd sjabloon, een ontvanger die zich
@@ -117,8 +137,9 @@ export async function stuurWhatsappSjabloon(naarNummer, variabelen) {
   const body = new URLSearchParams({
     From: naarWhatsappAdres(i.afzender),
     To: naar,
-    ContentSid: i.sjabloon,
-    ContentVariables: maakContentVariables(variabelen),
+    ...(i.sjabloon
+      ? { ContentSid: i.sjabloon, ContentVariables: maakContentVariables(variabelen) }
+      : { Body: maakVrijeTekst(variabelen) }),
   })
 
   const res = await fetchMetTimeout(
