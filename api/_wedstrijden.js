@@ -37,9 +37,14 @@ function formatDatum(dateStr) {
   return `${dagAfkorting(dateStr)} ${d.getDate()} ${maanden[d.getMonth()]} ${d.getFullYear()}`
 }
 
-function mapStatus(s) {
-  if (s === 'FINISHED') return 'FT'
-  if (s === 'IN_PLAY' || s === 'PAUSED') return 'LIVE'
+export function mapStatus(s) {
+  // AWARDED = een door de bond toegekende uitslag (bijv. na een gestaakte
+  // wedstrijd). Die telt net zo goed als afgelopen; livescore.js hanteerde
+  // die lijst al, de wedstrijdenlijst liet 'm voorheen als 'NS' vallen
+  // waardoor zo'n wedstrijd nooit punten opleverde.
+  if (s === 'FINISHED' || s === 'AWARDED') return 'FT'
+  // Verlenging en strafschoppen zijn ook gewoon 'bezig'.
+  if (s === 'IN_PLAY' || s === 'PAUSED' || s === 'EXTRA_TIME' || s === 'PENALTY_SHOOTOUT') return 'LIVE'
   return 'NS'
 }
 
@@ -55,13 +60,23 @@ async function fetchCompetitionMatches(code) {
   return data.matches || []
 }
 
-function mapMatch(m, comp) {
+export function mapMatch(m, comp) {
   const status = mapStatus(m.status)
+  const home = m.score?.fullTime?.home
+  const away = m.score?.fullTime?.away
+  const heeftEindstand = Number.isInteger(home) && Number.isInteger(away)
+
   let uitslag = null
   if (status === 'FT') {
-    uitslag = { home: m.score.fullTime.home, away: m.score.fullTime.away, status: 'FT' }
+    // Alleen een uitslag vastleggen als de feed de eindstand ECHT heeft
+    // ingevuld. Meldt football-data.org wel afgelopen maar staat de score nog
+    // op null, dan blijft uitslag leeg en wacht de verwerking tot de cijfers
+    // er zijn. Zonder deze controle zou er een null-null uitslag worden
+    // vastgelegd: iedereen 0 punten, wedstrijd als verwerkt geregistreerd, en
+    // dat herstelt zichzelf nooit meer.
+    if (heeftEindstand) uitslag = { home, away, status: 'FT' }
   } else if (status === 'LIVE') {
-    uitslag = { home: m.score.fullTime.home ?? 0, away: m.score.fullTime.away ?? 0, status: 'LIVE' }
+    uitslag = { home: home ?? 0, away: away ?? 0, status: 'LIVE' }
   }
   return {
     matchId: m.id, competitie: comp,
@@ -157,6 +172,16 @@ export async function haalAlleWedstrijden() {
       return {
         ...f,
         status: 'FT',
+        // De rauwe eindstand uit de feed apart bewaren. Hieronder overschrijven
+        // we `uitslag` met het intern vastgelegde resultaat, en zonder deze
+        // kopie zou checkEnSlaUitslagenOp() nooit kunnen zien dat
+        // football-data.org de eindstand achteraf heeft gecorrigeerd.
+        feedUitslag: f.uitslag,
+        // Geen bron bekend = vastgelegd vóór deze markering bestond. Dat laten
+        // we bewust leeg i.p.v. 'automatisch' te gokken: we kunnen dan niet
+        // zien of de beheerder die uitslag destijds handmatig heeft gezet, en
+        // bij twijfel overschrijven we 'm liever niet.
+        bron: eigen.bron || null,
         uitslag: { home: eigen.uitslag.home, away: eigen.uitslag.away, status: 'FT' },
       }
     })
@@ -214,8 +239,15 @@ export async function herberekenAlleTotalen() {
 // voorspeld (of helemaal niet), krijgt hier expliciet 0 punten.
 // Wordt herbruikt door zowel de automatische verwerking als Admin (handmatige
 // invoer), zodat de puntenlogica nooit op twee plekken kan gaan afwijken.
-export async function berekenEnSlaResultaatOp(fixtureInfo, uitslag) {
+export async function berekenEnSlaResultaatOp(fixtureInfo, uitslag, opties = {}) {
   const { matchId, volgnummer, datumISO, datum, competitie, thuis, uit } = fixtureInfo
+
+  // Waar komt deze uitslag vandaan? Een door de beheerder ingevoerde uitslag
+  // ('handmatig') heeft altijd het laatste woord: de automatische synchronisatie
+  // met football-data.org laat die met rust. Wordt er geen bron meegegeven
+  // (bijv. bij Herbereken), dan behouden we de bestaande markering.
+  const bestaandResultaat = await kvGet(`result:${matchId}`)
+  const bron = opties.bron || bestaandResultaat?.bron || 'automatisch'
 
   const spelers = await alleGeverifieerdeSpelers()
   const predicties = {}
@@ -244,6 +276,7 @@ export async function berekenEnSlaResultaatOp(fixtureInfo, uitslag) {
     predicties, toto, punten,
     totalen: {}, // wordt hieronder door herberekenAlleTotalen() gevuld
     datumISO, datum, competitie, thuis, uit,
+    bron,
     verwerktOp: new Date().toISOString(),
   }
 
@@ -274,24 +307,29 @@ export async function berekenEnSlaResultaatOp(fixtureInfo, uitslag) {
   return definitief
 }
 
-// Wachttijd gerekend vanaf AFTRAP (datumISO), niet vanaf het laatste
-// fluitsignaal. 110 minuten ligt net na een normale wedstrijd (90 minuten
-// speeltijd + rust + blessuretijd).
-//
-// Deze marge is bewust niet ruimer: de filter hieronder eist sowieso al dat
-// football-data.org de wedstrijd op FINISHED heeft gezet, en dat signaal is
-// op zichzelf al definitief. Een langere wachttijd bovenop die check levert
-// geen extra zekerheid op, maar stelt de punten en de meldingen alleen maar
-// onnodig uit.
-const WACHT_NA_AFTRAP_MS = 110 * 60 * 1000
+// Hoe ver terug we een AL verwerkte uitslag nog naast de feed leggen.
+// football-data.org corrigeert een eindstand zelden, en als het gebeurt dan
+// binnen enkele dagen. Door alleen recente wedstrijden te hercontroleren blijft
+// /api/fixtures snel: we hoeven niet elke speelronde van het seizoen opnieuw
+// uit de database te lezen.
+const HERCONTROLE_VENSTER_MS = 7 * 24 * 60 * 60 * 1000
 
 export async function checkEnSlaUitslagenOp(fixtures) {
   const nu = Date.now()
 
+  // Een wedstrijd komt in aanmerking zodra de feed hem als afgelopen meldt
+  // (FINISHED of AWARDED) én er een echte eindstand bij zit. Er is bewust GEEN
+  // wachttijd na de aftrap meer: die status is op zichzelf het definitieve
+  // signaal, en mapMatch() laat de uitslag leeg zolang de score nog niet
+  // ingevuld is. Een extra tijdslot zou de punten en meldingen alleen
+  // vertragen zonder iets toe te voegen.
+  //
+  // Let op: voor een al verwerkte wedstrijd heeft haalAlleWedstrijden() het
+  // veld `uitslag` vervangen door het intern vastgelegde resultaat; de rauwe
+  // feedwaarde staat dan in `feedUitslag`.
   const kandidaten = fixtures.filter(f => {
-    if (f.status === 'NS') return false
-    if (!f.uitslag || f.uitslag.status !== 'FT') return false
-    return nu - new Date(f.datumISO).getTime() >= WACHT_NA_AFTRAP_MS
+    const feed = f.feedUitslag || f.uitslag
+    return feed && feed.status === 'FT'
   })
   if (kandidaten.length === 0) return []
 
@@ -303,15 +341,38 @@ export async function checkEnSlaUitslagenOp(fixtures) {
   const alVerwerkt = new Set(index.map(String))
 
   const nieuw = kandidaten.filter(f => !alVerwerkt.has(String(f.matchId)))
-  if (nieuw.length === 0) return []
+
+  // Recent al verwerkte wedstrijden naast de feed leggen: corrigeert
+  // football-data.org de eindstand achteraf, dan trekken we punten en
+  // klassement vanzelf recht. Een door de beheerder ingevoerde uitslag
+  // (bron 'handmatig') blijft daarbij altijd staan — die heeft het laatste
+  // woord, precies de ontsnappingsroute bij een storing in de feed.
+  const gewijzigd = kandidaten.filter(f => {
+    if (!alVerwerkt.has(String(f.matchId))) return false
+    // Alleen uitslagen die aantoonbaar automatisch zijn vastgelegd komen in
+    // aanmerking. 'handmatig' is de beheerder en heeft het laatste woord;
+    // ontbreekt de bron (vastgelegd vóór deze markering bestond), dan weten we
+    // het niet en laten we 'm met rust.
+    if (f.bron !== 'automatisch') return false
+    if (nu - new Date(f.datumISO).getTime() > HERCONTROLE_VENSTER_MS) return false
+    const feed = f.feedUitslag
+    if (!feed) return false
+    return feed.home !== f.uitslag?.home || feed.away !== f.uitslag?.away
+  })
+
+  const teVerwerken = [...nieuw, ...gewijzigd]
+  if (teVerwerken.length === 0) return []
 
   // Chronologisch verwerken, zodat de lopende totalen in de juiste volgorde
   // worden opgebouwd als er meerdere wedstrijden tegelijk binnenkomen.
-  nieuw.sort((a, b) => new Date(a.datumISO) - new Date(b.datumISO))
+  teVerwerken.sort((a, b) => new Date(a.datumISO) - new Date(b.datumISO))
 
   const verwerkt = []
-  for (const f of nieuw) {
-    await berekenEnSlaResultaatOp(f, f.uitslag)
+  for (const f of teVerwerken) {
+    // Altijd de rauwe feedwaarde gebruiken: bij een correctie staat in
+    // f.uitslag nog de oude, intern opgeslagen stand.
+    const uitslag = f.feedUitslag || f.uitslag
+    await berekenEnSlaResultaatOp(f, uitslag, { bron: 'automatisch' })
     verwerkt.push(String(f.matchId))
   }
   return verwerkt
