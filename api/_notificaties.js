@@ -63,6 +63,29 @@ export function bepaalPosities(totalen) {
   return posities
 }
 
+// Het klassement als lijst, aflopend op punten en met gedeelde plaatsen.
+export function maakKlassement(totalen, naamPerSpeler = {}) {
+  const posities = bepaalPosities(totalen)
+  return Object.entries(totalen || {})
+    .sort((a, b) => b[1] - a[1])
+    .map(([playerId, punten]) => ({
+      playerId,
+      positie: posities[playerId],
+      naam: naamPerSpeler[playerId] || '???',
+      punten,
+    }))
+}
+
+// Hetzelfde klassement op ÉÉN regel, voor in een WhatsApp-sjabloon.
+// Sjabloonvariabelen mogen namelijk geen regeleindes bevatten, dus scheiden we
+// de spelers met een punt in plaats van met een nieuwe regel:
+//   "1. Huub 48 · 2. Niek 45"
+export function maakKlassementRegel(totalen, naamPerSpeler = {}) {
+  return maakKlassement(totalen, naamPerSpeler)
+    .map(r => `${r.positie}. ${r.naam} ${r.punten}`)
+    .join(' · ')
+}
+
 export async function stuurUitslagNotificaties(result) {
   if (!result?.matchId || !result.uitslag) return { verstuurd: 0, reden: 'geen resultaat' }
 
@@ -93,6 +116,12 @@ export async function stuurUitslagNotificaties(result) {
   const wedstrijd = `${zoekNaam(result.thuis)} – ${zoekNaam(result.uit)}`
   const eindstand = `${result.uitslag.home}-${result.uitslag.away}`
 
+  // Het nieuwe totaaloverzicht: één keer berekenen, iedereen krijgt hetzelfde
+  // klassement te zien (alleen het "jij"-accent in de e-mail verschilt).
+  const naamPerSpeler = Object.fromEntries(spelers.map(s => [s.id, s.naam]))
+  const klassement = maakKlassement(result.totalen, naamPerSpeler)
+  const klassementRegel = maakKlassementRegel(result.totalen, naamPerSpeler)
+
   const ontvangers = spelers.filter(s => s.notificaties !== false)
   const viaWhatsapp = whatsappIngesteld()
 
@@ -106,6 +135,8 @@ export async function stuurUitslagNotificaties(result) {
       punten: String(result.punten?.[speler.id] ?? 0),
       positie: `${posities[speler.id] ?? '-'}e`,
       totaal: String(result.totalen?.[speler.id] ?? 0),
+      klassement,
+      playerId: speler.id,
       isCorrectie,
     }
 
@@ -115,8 +146,7 @@ export async function stuurUitslagNotificaties(result) {
         gegevens.eindstand,
         gegevens.voorspelling,
         gegevens.punten,
-        gegevens.positie,
-        gegevens.totaal,
+        klassementRegel,
       ])
     }
     return await stuurUitslagMail(speler.email, gegevens)

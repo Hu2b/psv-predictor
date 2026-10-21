@@ -71,6 +71,50 @@ Nodig in productie (Vercel → Project → Settings → Environment Variables):
 | `ADMIN_EMAILS`       | nee       | Kommagescheiden lijst van beheerders-e-mailadressen         |
 | `CRON_SECRET`        | aanbevolen| Beschermt `/api/cron-uitslagen` (Vercel stuurt 'm mee)      |
 | `PSV_SEASON`         | nee       | Forceert een seizoen i.p.v. automatisch bepalen             |
+| `WHATSAPP_TOKEN`     | nee       | Permanent access token van de Meta-app (zie hieronder)      |
+| `WHATSAPP_PHONE_NUMBER_ID` | nee | Id van het gekoppelde WhatsApp-nummer                       |
+| `WHATSAPP_TEMPLATE`  | nee       | Naam van het goedgekeurde sjabloon (standaard `psv_poule_uitslag`) |
+| `WHATSAPP_TEMPLATE_TAAL` | nee   | Taalcode van het sjabloon (standaard `nl`)                  |
+
+## Meldingen na een uitslag
+
+Zodra een uitslag verwerkt is, krijgt elke speler die meldingen aan heeft staan
+(Account → Meldingen) een bericht met de eindstand, zijn eigen voorspelling,
+de behaalde punten en het nieuwe klassement.
+
+Het kanaal volgt vanzelf uit de instellingen:
+
+- Zijn `WHATSAPP_TOKEN` én `WHATSAPP_PHONE_NUMBER_ID` gezet **en** heeft de
+  speler een telefoonnummer ingevuld → **WhatsApp**.
+- Anders → **e-mail** (via Resend).
+
+### WhatsApp instellen
+
+1. Een **apart telefoonnummer** dat niet al voor gewone WhatsApp in gebruik is.
+2. Een **Meta Business-account** met een WhatsApp Business Account (WABA);
+   koppel daar het nummer aan en stel een two-step verification PIN in.
+3. Een **permanent access token** (via een System User in Meta Business
+   Settings) → `WHATSAPP_TOKEN`.
+4. Het **Phone Number ID** uit WhatsApp Manager → `WHATSAPP_PHONE_NUMBER_ID`.
+5. Een **goedgekeurd sjabloon**. Berichten die wij beginnen moeten een sjabloon
+   gebruiken; vrije tekst mag alleen binnen 24 uur nadat de ontvanger zelf iets
+   stuurde. Maak een sjabloon van categorie *Utility* met deze body:
+
+```
+⚽ {{1}}
+Eindstand: {{2}}
+Jouw voorspelling: {{3}} → {{4}} punten
+
+🏆 Nieuwe stand: {{5}}
+```
+
+De vijf variabelen worden in deze volgorde gevuld: wedstrijd, eindstand, eigen
+voorspelling, behaalde punten, en het klassement op één regel
+(`1. Huub 48 · 2. Niek 45`).
+
+> Let op: een sjabloonvariabele mag géén regeleinde, tab of vier of meer spaties
+> achter elkaar bevatten — vandaar dat het klassement op één regel staat. De app
+> maakt elke variabele daar automatisch geschikt voor.
 
 ## Lokaal ontwikkelen
 

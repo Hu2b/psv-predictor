@@ -122,7 +122,15 @@ export async function stuurUitslagMail(email, g) {
     <p>⚽ <strong>${g.wedstrijd}</strong></p>
     <p>Eindstand: <strong>${g.eindstand}</strong></p>
     <p>Jouw voorspelling: <strong>${g.voorspelling}</strong> → <strong>${g.punten} punten</strong></p>
-    <p>Je staat nu <strong>${g.positie}</strong> met <strong>${g.totaal} punten</strong>.</p>
-    <p>Bekijk het volledige klassement op <a href="${APP_URL}">${APP_URL}</a></p>
+    <p><strong>🏆 Nieuwe stand</strong></p>
+    <table style="border-collapse: collapse;">
+      ${(g.klassement || []).map(r => `
+        <tr style="${r.playerId === g.playerId ? 'font-weight: bold;' : ''}">
+          <td style="padding: 2px 10px 2px 0;">${r.positie}.</td>
+          <td style="padding: 2px 16px 2px 0;">${r.naam}</td>
+          <td style="padding: 2px 0;">${r.punten}</td>
+        </tr>`).join('')}
+    </table>
+    <p>Bekijk het volledige overzicht op <a href="${APP_URL}">${APP_URL}</a></p>
   `)
 }

@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { maakHandtekening, bepaalPosities, isTeOudVoorMelding } from './_notificaties.js'
+import { maakHandtekening, bepaalPosities, isTeOudVoorMelding, maakKlassement, maakKlassementRegel } from './_notificaties.js'
 
 test('maakHandtekening: zelfde uitslag en punten geeft dezelfde vingerafdruk, ongeacht sleutelvolgorde', () => {
   const a = maakHandtekening({ uitslag: { home: 2, away: 1 }, punten: { p1: 10, p2: 0 } })
@@ -41,4 +41,31 @@ test('isTeOudVoorMelding: verse uitslag mag melden, oude niet', () => {
 test('isTeOudVoorMelding: zonder datum nooit als te oud bestempelen', () => {
   assert.equal(isTeOudVoorMelding(null), false)
   assert.equal(isTeOudVoorMelding(undefined), false)
+})
+
+test('maakKlassement: aflopend op punten, met naam en gedeelde plaatsen', () => {
+  const namen = { a: 'Huub', b: 'Niek', c: 'Sam' }
+  const lijst = maakKlassement({ a: 42, b: 48, c: 42 }, namen)
+  assert.deepEqual(lijst.map(r => [r.positie, r.naam, r.punten]), [
+    [1, 'Niek', 48],
+    [2, 'Huub', 42],
+    [2, 'Sam', 42],
+  ])
+})
+
+test('maakKlassement: onbekende speler valt terug op ???', () => {
+  const lijst = maakKlassement({ x: 5 }, {})
+  assert.equal(lijst[0].naam, '???')
+})
+
+test('maakKlassementRegel: één regel zonder regeleindes, spelers gescheiden door een punt', () => {
+  const regel = maakKlassementRegel({ a: 42, b: 48 }, { a: 'Huub', b: 'Niek' })
+  assert.equal(regel, '1. Niek 48 · 2. Huub 42')
+  // WhatsApp weigert sjabloonvariabelen met een regeleinde of tab.
+  assert.ok(!/[\n\r\t]/.test(regel))
+})
+
+test('maakKlassementRegel: leeg klassement levert een lege regel', () => {
+  assert.equal(maakKlassementRegel({}, {}), '')
+  assert.equal(maakKlassementRegel(null, {}), '')
 })
