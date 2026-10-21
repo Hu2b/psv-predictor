@@ -13,7 +13,7 @@ const API_KEY = process.env.FOOTBALL_DATA_KEY
 const API_BASE = 'https://api.football-data.org/v4'
 
 const AFGELOPEN_STATUS = ['FINISHED', 'AWARDED']
-const BEZIG_STATUS = ['IN_PLAY', 'PAUSED']
+const BEZIG_STATUS = ['IN_PLAY', 'PAUSED', 'EXTRA_TIME', 'PENALTY_SHOOTOUT']
 
 export default async function handler(req, res) {
   zetCors(res, 'GET, OPTIONS')

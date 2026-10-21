@@ -248,7 +248,7 @@ export default async function handler(req, res) {
       competitie: matchInfo?.competitie || '',
       thuis: matchInfo?.thuis || '',
       uit: matchInfo?.uit || '',
-    }, uitslag)
+    }, uitslag, { bron: 'handmatig' })
 
     const wedstrijden = await kvGet('admin:wedstrijden') || []
     const idx = wedstrijden.findIndex(w => String(w.matchId) === String(matchId))
