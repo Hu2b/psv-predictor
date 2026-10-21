@@ -134,10 +134,25 @@ function maakSjabloonVariabelen(gegevens, result, naamPerSpeler) {
   ]
 }
 
-async function verstuurAan(speler, gegevens, result, naamPerSpeler) {
+// `terugvalOpEmail` bepaalt wat er gebeurt als WhatsApp weigert. Bij de echte
+// uitslagmelding willen we dat niemand z'n bericht misloopt: faalt WhatsApp,
+// dan gaat het alsnog per mail. Bij het proefbericht juist niet — daar moet de
+// beheerder de foutmelding van Twilio onverkort zien, anders ziet hij een
+// geslaagde mail en denkt hij dat WhatsApp werkt.
+//
+// Dit is geen theoretisch geval. Zolang er nog geen goedgekeurd sjabloon is
+// stuurt de app vrije tekst, en die weigert WhatsApp buiten het venster van 24
+// uur. Zonder deze terugval zou iedereen met een telefoonnummer dan stilletjes
+// niets krijgen — slechter af dan voorheen, toen het gewoon e-mail was.
+async function verstuurAan(speler, gegevens, result, naamPerSpeler, { terugvalOpEmail = false } = {}) {
   if (whatsappIngesteld() && speler.telefoon) {
-    await stuurWhatsappSjabloon(speler.telefoon, maakSjabloonVariabelen(gegevens, result, naamPerSpeler))
-    return { kanaal: 'whatsapp', naar: `+${speler.telefoon}` }
+    try {
+      await stuurWhatsappSjabloon(speler.telefoon, maakSjabloonVariabelen(gegevens, result, naamPerSpeler))
+      return { kanaal: 'whatsapp', naar: `+${speler.telefoon}` }
+    } catch (e) {
+      if (!terugvalOpEmail) throw e
+      console.error(`WhatsApp mislukt voor ${speler.id}, valt terug op e-mail:`, e?.message || e)
+    }
   }
   await stuurUitslagMail(speler.email, gegevens)
   return { kanaal: 'email', naar: speler.email }
@@ -174,7 +189,7 @@ export async function stuurUitslagNotificaties(result) {
 
   const resultaten = await Promise.allSettled(ontvangers.map(speler => {
     const gegevens = maakBerichtGegevens(result, speler, { naamPerSpeler, isCorrectie })
-    return verstuurAan(speler, gegevens, result, naamPerSpeler)
+    return verstuurAan(speler, gegevens, result, naamPerSpeler, { terugvalOpEmail: true })
   }))
 
   const gelukt = resultaten.filter(r => r.status === 'fulfilled').length
