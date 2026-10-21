@@ -113,7 +113,9 @@ export default function AdminMeldingen({ setMelding }) {
           {uitslag.success ? (
             <p className={styles.leegTekst}>
               ✅ Verstuurd via <strong>{uitslag.kanaal}</strong> naar {uitslag.naar}.
-              Niets ontvangen? Controleer bij WhatsApp of je nummer is aangemeld
+              <br />Gebaseerd op: {uitslag.gebaseerdOp}
+              {!uitslag.echteData && ' (zodra er een uitslag verwerkt is, gebruikt de test die echte wedstrijd)'}
+              <br />Niets ontvangen? Controleer bij WhatsApp of je nummer is aangemeld
               en of het sjabloon is goedgekeurd.
             </p>
           ) : (

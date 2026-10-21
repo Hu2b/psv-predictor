@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { maakHandtekening, bepaalPosities, isTeOudVoorMelding, maakKlassement, maakKlassementRegel } from './_notificaties.js'
+import { maakHandtekening, bepaalPosities, isTeOudVoorMelding, maakKlassement, maakKlassementRegel, maakVoorspellingen, maakVoorspellingenRegel, maakBerichtGegevens } from './_notificaties.js'
 
 test('maakHandtekening: zelfde uitslag en punten geeft dezelfde vingerafdruk, ongeacht sleutelvolgorde', () => {
   const a = maakHandtekening({ uitslag: { home: 2, away: 1 }, punten: { p1: 10, p2: 0 } })
@@ -68,4 +68,46 @@ test('maakKlassementRegel: één regel zonder regeleindes, spelers gescheiden do
 test('maakKlassementRegel: leeg klassement levert een lege regel', () => {
   assert.equal(maakKlassementRegel({}, {}), '')
   assert.equal(maakKlassementRegel(null, {}), '')
+})
+
+const RESULT = {
+  thuis: 'PSV', uit: 'AJA',
+  datum: 'za 1 nov 2026',
+  uitslag: { home: 2, away: 1 },
+  predicties: { a: { home: 2, away: 1 }, b: { home: 1, away: 1 }, c: null },
+  punten: { a: 10, b: 0, c: 0 },
+  totalen: { a: 48, b: 38, c: 12 },
+}
+const NAMEN = { a: 'Huub', b: 'Niek', c: 'Sam' }
+
+test('maakVoorspellingen: alle deelnemers, beste voorspelling bovenaan', () => {
+  const lijst = maakVoorspellingen(RESULT, NAMEN)
+  assert.equal(lijst.length, 3)
+  assert.deepEqual(lijst.map(r => [r.naam, r.voorspelling, r.punten]), [
+    ['Huub', '2-1', 10],
+    ['Niek', '1-1', 0],
+    ['Sam', 'geen voorspelling', 0],
+  ])
+})
+
+test('maakVoorspellingenRegel: één regel zonder regeleindes', () => {
+  const regel = maakVoorspellingenRegel(RESULT, NAMEN)
+  assert.equal(regel, 'Huub 2-1 (10 pt) · Niek 1-1 (0 pt) · Sam geen voorspelling (0 pt)')
+  assert.ok(!/[\n\r\t]/.test(regel))
+})
+
+test('maakBerichtGegevens: bevat alle deelnemers en het hele klassement', () => {
+  const g = maakBerichtGegevens(RESULT, { id: 'a', naam: 'Huub' }, { naamPerSpeler: NAMEN })
+  assert.equal(g.eindstand, '2-1')
+  assert.equal(g.wedstrijd, 'PSV Eindhoven – Ajax')
+  assert.equal(g.voorspellingen.length, 3)
+  assert.equal(g.klassement.length, 3)
+  assert.equal(g.playerId, 'a')
+  assert.equal(g.isCorrectie, false)
+})
+
+test('maakBerichtGegevens: markeert een gecorrigeerde uitslag in de titel', () => {
+  const g = maakBerichtGegevens(RESULT, { id: 'a', naam: 'Huub' }, { naamPerSpeler: NAMEN, isCorrectie: true })
+  assert.ok(g.wedstrijd.includes('(gecorrigeerd)'))
+  assert.equal(g.isCorrectie, true)
 })

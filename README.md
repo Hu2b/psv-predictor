@@ -103,14 +103,19 @@ Het kanaal volgt vanzelf uit de instellingen:
 ```
 ⚽ {{1}}
 Eindstand: {{2}}
-Jouw voorspelling: {{3}} → {{4}} punten
 
-🏆 Nieuwe stand: {{5}}
+Voorspellingen: {{3}}
+
+🏆 Nieuwe stand: {{4}}
 ```
 
-De vijf variabelen worden in deze volgorde gevuld: wedstrijd, eindstand, eigen
-voorspelling, behaalde punten, en het klassement op één regel
-(`1. Huub 48 · 2. Niek 45`).
+De vier variabelen worden in deze volgorde gevuld:
+
+1. de wedstrijd (`PSV Eindhoven – Ajax`)
+2. de eindstand (`2-1`)
+3. de voorspellingen en punten van alle deelnemers, op één regel
+   (`Huub 2-1 (10 pt) · Niek 1-1 (0 pt)`)
+4. het klassement, op één regel (`1. Huub 48 · 2. Niek 45`)
 
 > Let op: een sjabloonvariabele mag géén regeleinde, tab of vier of meer spaties
 > achter elkaar bevatten — vandaar dat het klassement op één regel staat. De app
