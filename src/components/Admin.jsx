@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import styles from './Admin.module.css'
 import AdminBeheer from './AdminBeheer.jsx'
 import AdminSpelers from './AdminSpelers.jsx'
+import AdminMeldingen from './AdminMeldingen.jsx'
 import { teamNamenObject } from '../../shared/teams.js'
 import { getSessionToken } from '../lib/sessie.js'
 
@@ -208,6 +209,7 @@ export default function Admin({ fixtures, onWedstrijdenGewijzigd }) {
         <button className={`${styles.tabBtn} ${tab === 'toevoegen' ? styles.tabActief : ''}`} onClick={() => { setTab('toevoegen'); setMelding(null) }}>Toevoegen</button>
         <button className={`${styles.tabBtn} ${tab === 'beheer' ? styles.tabActief : ''}`} onClick={() => { setTab('beheer'); setMelding(null) }}>Beheer</button>
         <button className={`${styles.tabBtn} ${tab === 'spelers' ? styles.tabActief : ''}`} onClick={() => { setTab('spelers'); setMelding(null) }}>Spelers</button>
+        <button className={`${styles.tabBtn} ${tab === 'meldingen' ? styles.tabActief : ''}`} onClick={() => { setTab('meldingen'); setMelding(null) }}>Meldingen</button>
       </div>
 
       {melding && (
@@ -343,6 +345,10 @@ export default function Admin({ fixtures, onWedstrijdenGewijzigd }) {
 
       {tab === 'spelers' && (
         <AdminSpelers setMelding={setMelding} />
+      )}
+
+      {tab === 'meldingen' && (
+        <AdminMeldingen setMelding={setMelding} />
       )}
     </div>
   )

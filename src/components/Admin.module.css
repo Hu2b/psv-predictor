@@ -357,3 +357,16 @@
   border-radius: 4px;
   padding: 1px 5px;
 }
+
+.foutDetail {
+  margin: 0;
+  padding: 10px;
+  background: var(--psv-bg);
+  border: 1px solid rgba(225,0,14,0.3);
+  border-radius: var(--radius-sm);
+  color: #f87171;
+  font-size: 12px;
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  white-space: pre-wrap;
+  word-break: break-word;
+}

@@ -3,6 +3,8 @@ import { zoekVolgnummer, berekenEnSlaResultaatOp, herberekenAlleTotalen, haalAll
 import { getPlayerById, alleGeverifieerdeSpelers } from './_players.js'
 import { verifieerBeheerderSessie } from './_auth.js'
 import { zetCors } from './_cors.js'
+import { stuurTestMelding } from './_notificaties.js'
+import { whatsappInstellingen } from './_whatsapp.js'
 
 async function slaHandmatigOp(wedstrijden) {
   await kvSet('admin:wedstrijden', wedstrijden)
@@ -73,6 +75,34 @@ export default async function handler(req, res) {
     }))
     predicties.sort((a, b) => a.naam.localeCompare(b.naam))
     return res.status(200).json({ predicties, onthuld })
+  }
+
+  if (req.method === 'GET' && req.query.action === 'meldinginstellingen') {
+    const wa = whatsappInstellingen()
+    return res.status(200).json({
+      whatsapp: wa,
+      // Het kanaal dat een melding NU zou gebruiken voor de beheerder zelf.
+      kanaalVoorJou: wa.ingesteld && check.beheerder.telefoon ? 'whatsapp' : 'email',
+      jouwTelefoon: check.beheerder.telefoon ? `+${check.beheerder.telefoon}` : null,
+      jouwEmail: check.beheerder.email,
+      meldingenAan: check.beheerder.notificaties !== false,
+    })
+  }
+
+  // Proefbericht naar de beheerder zelf. Geeft bij een fout de melding van
+  // Meta onverkort terug — dat is precies wat je nodig hebt om een verkeerd
+  // token, een onbekende sjabloonnaam of een niet-aangemeld nummer te vinden.
+  if (req.method === 'POST' && action === 'testMelding') {
+    try {
+      const info = await stuurTestMelding(check.beheerder)
+      return res.status(200).json({ success: true, ...info })
+    } catch (e) {
+      return res.status(200).json({
+        success: false,
+        kanaal: whatsappInstellingen().ingesteld && check.beheerder.telefoon ? 'whatsapp' : 'email',
+        error: e?.message || 'Onbekende fout',
+      })
+    }
   }
 
   if (req.method === 'POST' && action === 'toevoegen') {

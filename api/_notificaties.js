@@ -168,3 +168,40 @@ export async function stuurUitslagNotificaties(result) {
 
   return { verstuurd: gelukt, van: ontvangers.length, correctie: isCorrectie }
 }
+
+// Stuurt één proefbericht naar de beheerder zelf, met voorbeeldgegevens.
+// Bewust los van stuurUitslagNotificaties(): geen vingerafdruk, geen andere
+// ontvangers, en fouten worden doorgegeven in plaats van alleen gelogd — zo
+// ziet de beheerder precies wat Meta terugmeldt bij een verkeerd token of een
+// sjabloonnaam die net anders is.
+export async function stuurTestMelding(speler) {
+  const gegevens = {
+    naam: speler.naam,
+    wedstrijd: 'PSV Eindhoven – Testtegenstander (proefbericht)',
+    eindstand: '3-1',
+    voorspelling: '2-1',
+    punten: '7',
+    positie: '1e',
+    totaal: '42',
+    playerId: speler.id,
+    klassement: [
+      { playerId: speler.id, positie: 1, naam: speler.naam, punten: 42 },
+      { playerId: 'voorbeeld', positie: 2, naam: 'Voorbeeldspeler', punten: 38 },
+    ],
+    isCorrectie: false,
+  }
+
+  if (whatsappIngesteld() && speler.telefoon) {
+    await stuurWhatsappSjabloon(speler.telefoon, [
+      gegevens.wedstrijd,
+      gegevens.eindstand,
+      gegevens.voorspelling,
+      gegevens.punten,
+      `1. ${speler.naam} 42 · 2. Voorbeeldspeler 38`,
+    ])
+    return { kanaal: 'whatsapp', naar: `+${speler.telefoon}` }
+  }
+
+  await stuurUitslagMail(speler.email, gegevens)
+  return { kanaal: 'email', naar: speler.email }
+}
