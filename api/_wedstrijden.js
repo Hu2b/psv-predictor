@@ -275,10 +275,15 @@ export async function berekenEnSlaResultaatOp(fixtureInfo, uitslag) {
 }
 
 // Wachttijd gerekend vanaf AFTRAP (datumISO), niet vanaf het laatste
-// fluitsignaal: 135 minuten is ruwweg 90 minuten speeltijd + blessuretijd +
-// rust + een kleine marge, zodat de feed de eindstand zeker heeft
-// doorgegeven voordat we die als definitief vastleggen.
-const WACHT_NA_AFTRAP_MS = 135 * 60 * 1000
+// fluitsignaal. 110 minuten ligt net na een normale wedstrijd (90 minuten
+// speeltijd + rust + blessuretijd).
+//
+// Deze marge is bewust niet ruimer: de filter hieronder eist sowieso al dat
+// football-data.org de wedstrijd op FINISHED heeft gezet, en dat signaal is
+// op zichzelf al definitief. Een langere wachttijd bovenop die check levert
+// geen extra zekerheid op, maar stelt de punten en de meldingen alleen maar
+// onnodig uit.
+const WACHT_NA_AFTRAP_MS = 110 * 60 * 1000
 
 export async function checkEnSlaUitslagenOp(fixtures) {
   const nu = Date.now()
