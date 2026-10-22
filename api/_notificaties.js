@@ -4,8 +4,6 @@ import { whatsappIngesteld, stuurWhatsappSjabloon, SJABLOON_UITSLAG, SJABLOON_VO
 import { stuurUitslagMail, stuurVoorspellingenMail } from './_email.js'
 import { zoekNaam } from '../shared/teams.js'
 
-const APP_URL = process.env.APP_BASE_URL || 'https://psv-predictor.vercel.app'
-
 // Verstuurt na het verwerken van een uitslag aan iedere speler een bericht met
 // de eindstand, de voorspellingen en punten van ALLE deelnemers, en het nieuwe
 // klassement.
@@ -158,16 +156,21 @@ export function maakUitslagTekst(v) {
   ].join('\n')
 }
 
+// Bewust ZONDER link naar de app. Meta herclassificeerde een eerdere versie
+// mét URL van Utility naar Marketing — een sjabloon dat mensen wegstuurt uit
+// het gesprek leest voor hen als promotie, en marketingberichten zijn duurder
+// en vallen onder aparte limieten. Het uitslagsjabloon verwijst daarom ook
+// alleen naar "de app" zonder adres. De e-mailversie linkt wél gewoon door.
 export function maakVoorspellingenTekst(v) {
   const w = (v || []).map(x => String(x ?? '').trim())
   if (w.length !== 2) return w.filter(Boolean).join('\n')
   return [
-    `⚽ Iedereen heeft voorspeld voor ${w[0]}, dus de voorspellingen zijn nu voor alle deelnemers zichtbaar.`,
+    `⚽ Iedereen heeft voorspeld voor ${w[0]}, dus de voorspellingen zijn nu zichtbaar voor alle deelnemers.`,
     '',
     'Dit is er voorspeld:',
     w[1],
     '',
-    `Bekijk het volledige overzicht en de stand in de app: ${APP_URL}`,
+    'Je kunt je eigen voorspelling voor deze wedstrijd niet meer wijzigen.',
   ].join('\n')
 }
 

@@ -124,11 +124,16 @@ test('maakUitslagTekst: een afwijkend aantal variabelen gaat op losse regels', (
   assert.equal(maakUitslagTekst([]), '')
 })
 
-test('maakVoorspellingenTekst: noemt de wedstrijd, de voorspellingen en de app-link', () => {
+test('maakVoorspellingenTekst: noemt de wedstrijd en de voorspellingen', () => {
   const tekst = maakVoorspellingenTekst(['PSV – Ajax', 'Huub 2-1 · Niek 1-1'])
   assert.ok(tekst.includes('Iedereen heeft voorspeld voor PSV – Ajax'))
   assert.ok(tekst.includes('Huub 2-1 · Niek 1-1'))
-  assert.ok(/https?:\/\//.test(tekst))
+})
+
+test('maakVoorspellingenTekst: bevat geen URL, anders wordt het sjabloon marketing', () => {
+  const tekst = maakVoorspellingenTekst(['PSV – Ajax', 'Huub 2-1'])
+  assert.ok(!/https?:\/\//.test(tekst))
+  assert.ok(!tekst.includes('.app'))
 })
 
 test('maakAlleVoorspellingenRegel: op naam gesorteerd, één regel, geen regeleindes', () => {

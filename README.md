@@ -111,6 +111,12 @@ momenten bericht:
 2. **Na elke verwerkte uitslag** — met de eindstand, de voorspellingen en
    punten van alle deelnemers, en het nieuwe klassement.
 
+> **Geen URL's in de sjablonen.** Meta herclassificeerde een eerdere versie van
+> het voorspellingensjabloon van *Utility* naar *Marketing* omdat er een link
+> naar de app in stond. Marketingberichten zijn per stuk duurder en vallen
+> onder aparte limieten per ontvanger. Beide sjablonen verwijzen daarom hooguit
+> naar "de app", zonder adres. De e-mailversies linken wél gewoon door.
+
 Beide hebben hun eigen sjabloon en hun eigen vingerafdruk in KV
 (`notificatie:{matchId}` en `notificatie:voorspellingen:{matchId}`), zodat een
 herberekening of een tweede aanroep geen dubbel bericht oplevert.
