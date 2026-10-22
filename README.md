@@ -48,6 +48,7 @@ zijn interne helpers, geen HTTP-endpoints.
 | `GET  /api/fixtures`    | Alle PSV-wedstrijden (verwerkt en passant nieuwe uitslagen) |
 | `GET  /api/livescore`   | Live-/eindstand van één wedstrijd                           |
 | `GET  /api/h2h`         | Laatste onderlinge ontmoetingen                             |
+| `GET  /api/opstelling`  | Opstellingen van beide ploegen (via ESPN, zie hieronder)    |
 | `GET/POST /api/prediction` | Eigen voorspelling ophalen/opslaan (sessie vereist)      |
 | `GET  /api/results`     | Klassement en verwerkte resultaten                          |
 | `GET  /api/players`     | Publieke spelerslijst (id + naam)                           |
@@ -76,6 +77,27 @@ Nodig in productie (Vercel → Project → Settings → Environment Variables):
 | `TWILIO_WHATSAPP_FROM` | nee     | De WhatsApp-afzender, bijv. `+14155238886`                  |
 | `TWILIO_CONTENT_SID` | nee       | SID van het uitslagsjabloon (begint met `HX`)               |
 | `TWILIO_CONTENT_SID_VOORSPELLINGEN` | nee | SID van het voorspellingensjabloon            |
+
+## Opstellingen
+
+Opstellingen komen **niet** van football-data.org: die levert ze op ons
+abonnement niet. Ze komen van de publieke JSON-endpoints van ESPN
+(`site.api.espn.com`), die geen sleutel vragen.
+
+Twee dingen om te weten:
+
+- **De bronnen delen geen wedstrijd-id's.** De koppeling gebeurt op datum plus
+  de twee teamnamen (`shared/espn.js`). Beide teams moeten kloppen, anders
+  wordt er niets teruggegeven — liever geen opstelling dan die van de verkeerde
+  wedstrijd. Het gevonden ESPN-id wordt bewaard, zodat die zoekslag maar één
+  keer per wedstrijd nodig is.
+- **ESPN is ongedocumenteerd en niet officieel voor hergebruik bedoeld.** Het
+  kan zonder aankondiging veranderen. De app is daarop gebouwd: een mislukte
+  aanroep geeft een lege opstelling terug, nooit een foutstatus, en het
+  wedstrijdscherm blijft gewoon werken.
+
+De link verschijnt in de app pas als de wedstrijd binnen drie uur begint, omdat
+clubs hun opstelling doorgaans ongeveer een uur voor de aftrap vrijgeven.
 
 ## Meldingen
 
