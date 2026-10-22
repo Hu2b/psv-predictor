@@ -48,6 +48,7 @@ zijn interne helpers, geen HTTP-endpoints.
 | `GET  /api/fixtures`    | Alle PSV-wedstrijden (verwerkt en passant nieuwe uitslagen) |
 | `GET  /api/livescore`   | Live-/eindstand van één wedstrijd                           |
 | `GET  /api/h2h`         | Laatste onderlinge ontmoetingen                             |
+| `GET  /api/opstelling`  | Opstellingen van beide ploegen (via ESPN, zie hieronder)    |
 | `GET/POST /api/prediction` | Eigen voorspelling ophalen/opslaan (sessie vereist)      |
 | `GET  /api/results`     | Klassement en verwerkte resultaten                          |
 | `GET  /api/players`     | Publieke spelerslijst (id + naam)                           |
@@ -74,13 +75,45 @@ Nodig in productie (Vercel → Project → Settings → Environment Variables):
 | `TWILIO_ACCOUNT_SID` | nee       | Account SID uit de Twilio Console (zie hieronder)           |
 | `TWILIO_AUTH_TOKEN`  | nee       | Auth Token uit de Twilio Console                            |
 | `TWILIO_WHATSAPP_FROM` | nee     | De WhatsApp-afzender, bijv. `+14155238886`                  |
-| `TWILIO_CONTENT_SID` | nee       | SID van het goedgekeurde sjabloon (begint met `HX`)         |
+| `TWILIO_CONTENT_SID` | nee       | SID van het uitslagsjabloon (begint met `HX`)               |
+| `TWILIO_CONTENT_SID_VOORSPELLINGEN` | nee | SID van het voorspellingensjabloon            |
 
-## Meldingen na een uitslag
+## Opstellingen
 
-Zodra een uitslag verwerkt is, krijgt elke speler die meldingen aan heeft staan
-(Account → Meldingen) een bericht met de eindstand, zijn eigen voorspelling,
-de behaalde punten en het nieuwe klassement.
+Opstellingen komen **niet** van football-data.org: die levert ze op ons
+abonnement niet. Ze komen van de publieke JSON-endpoints van ESPN
+(`site.api.espn.com`), die geen sleutel vragen.
+
+Twee dingen om te weten:
+
+- **De bronnen delen geen wedstrijd-id's.** De koppeling gebeurt op datum plus
+  de twee teamnamen (`shared/espn.js`). Beide teams moeten kloppen, anders
+  wordt er niets teruggegeven — liever geen opstelling dan die van de verkeerde
+  wedstrijd. Het gevonden ESPN-id wordt bewaard, zodat die zoekslag maar één
+  keer per wedstrijd nodig is.
+- **ESPN is ongedocumenteerd en niet officieel voor hergebruik bedoeld.** Het
+  kan zonder aankondiging veranderen. De app is daarop gebouwd: een mislukte
+  aanroep geeft een lege opstelling terug, nooit een foutstatus, en het
+  wedstrijdscherm blijft gewoon werken.
+
+De link verschijnt in de app pas als de wedstrijd binnen drie uur begint, omdat
+clubs hun opstelling doorgaans ongeveer een uur voor de aftrap vrijgeven.
+
+## Meldingen
+
+Elke speler die meldingen aan heeft staan (Account → Meldingen) krijgt op twee
+momenten bericht:
+
+1. **Zodra iedereen heeft voorspeld** — op dat moment worden de voorspellingen
+   in de app onthuld. Het bericht toont ieders voorspelling en linkt naar de
+   app. Afgevuurd vanuit `api/prediction.js`, nadat de laatste voorspelling is
+   opgeslagen.
+2. **Na elke verwerkte uitslag** — met de eindstand, de voorspellingen en
+   punten van alle deelnemers, en het nieuwe klassement.
+
+Beide hebben hun eigen sjabloon en hun eigen vingerafdruk in KV
+(`notificatie:{matchId}` en `notificatie:voorspellingen:{matchId}`), zodat een
+herberekening of een tweede aanroep geen dubbel bericht oplevert.
 
 Het kanaal volgt vanzelf uit de instellingen:
 

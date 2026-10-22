@@ -50,9 +50,11 @@ export default function AdminMeldingen({ setMelding }) {
     <div className={styles.sectie}>
       <label className={styles.label}>Meldingen</label>
       <p className={styles.leegTekst}>
-        Na elke verwerkte uitslag krijgen spelers automatisch de eindstand, hun
-        eigen voorspelling en het nieuwe klassement. Hieronder zie je welk
-        kanaal daarvoor gebruikt wordt, en kun je het testen.
+        Spelers krijgen automatisch bericht op twee momenten: zodra iedereen
+        heeft voorspeld (met alle voorspellingen en een link naar de app), en
+        na elke verwerkte uitslag (met de eindstand, ieders punten en het nieuwe
+        klassement). Hieronder zie je welk kanaal daarvoor gebruikt wordt, en
+        kun je het testen.
       </p>
 
       <div className={styles.predBlok}>
@@ -88,9 +90,16 @@ export default function AdminMeldingen({ setMelding }) {
 
         <div className={styles.predRij}>
           <div className={styles.predInfo}>
-            <span className={styles.predNaam}>Sjabloon</span>
+            <span className={styles.predNaam}>Sjabloon uitslag</span>
           </div>
           <span className={styles.predLeeg}>{wa.sjabloon || '— vrije tekst'}</span>
+        </div>
+
+        <div className={styles.predRij}>
+          <div className={styles.predInfo}>
+            <span className={styles.predNaam}>Sjabloon voorspellingen</span>
+          </div>
+          <span className={styles.predLeeg}>{wa.sjabloonVoorspellingen || '— vrije tekst'}</span>
         </div>
 
         <div className={styles.predRij}>

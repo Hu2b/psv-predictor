@@ -33,8 +33,20 @@ function instellingen() {
     accountSid: process.env.TWILIO_ACCOUNT_SID || '',
     authToken: process.env.TWILIO_AUTH_TOKEN || '',
     afzender: process.env.TWILIO_WHATSAPP_FROM || '',
-    sjabloon: process.env.TWILIO_CONTENT_SID || '',
+    sjabloonUitslag: process.env.TWILIO_CONTENT_SID || '',
+    sjabloonVoorspellingen: process.env.TWILIO_CONTENT_SID_VOORSPELLINGEN || '',
   }
+}
+
+// De app kent twee soorten berichten, elk met een eigen goedgekeurd sjabloon.
+// Ze staan los van elkaar: je kunt het ene al in gebruik hebben terwijl het
+// andere nog in beoordeling is.
+export const SJABLOON_UITSLAG = 'uitslag'
+export const SJABLOON_VOORSPELLINGEN = 'voorspellingen'
+
+export function sjabloonSid(soort) {
+  const i = instellingen()
+  return soort === SJABLOON_VOORSPELLINGEN ? i.sjabloonVoorspellingen : i.sjabloonUitslag
 }
 
 // Zonder account, token én afzender kan er niets verstuurd worden; dan valt
@@ -69,13 +81,15 @@ export function whatsappInstellingen() {
   return {
     ingesteld: whatsappIngesteld(),
     aanbieder: 'twilio',
-    modus: i.sjabloon ? 'sjabloon' : 'vrije tekst',
+    modus: i.sjabloonUitslag ? 'sjabloon' : 'vrije tekst',
     accountAanwezig: Boolean(i.accountSid),
     tokenAanwezig: Boolean(i.authToken),
     afzenderAanwezig: Boolean(i.afzender),
-    sjabloonAanwezig: Boolean(i.sjabloon),
+    sjabloonAanwezig: Boolean(i.sjabloonUitslag),
     afzender: i.afzender ? naarWhatsappAdres(i.afzender).replace('whatsapp:', '') : '',
-    sjabloon: i.sjabloon,
+    sjabloon: i.sjabloonUitslag,
+    sjabloonVoorspellingenAanwezig: Boolean(i.sjabloonVoorspellingen),
+    sjabloonVoorspellingen: i.sjabloonVoorspellingen,
   }
 }
 
@@ -100,29 +114,6 @@ export function maakContentVariables(variabelen) {
   return JSON.stringify(Object.fromEntries(paren))
 }
 
-// Zonder goedgekeurd sjabloon versturen we de inhoud als vrije tekst. De
-// opmaak is gelijk aan die van het sjabloon, zodat een proefbericht uit de
-// sandbox er hetzelfde uitziet als wat de deelnemers straks echt krijgen.
-// Vrije tekst mag wél regeleindes bevatten — die beperking geldt alleen voor
-// sjabloonvariabelen.
-export function maakVrijeTekst(variabelen) {
-  const v = (variabelen || []).map(x => String(x ?? '').trim())
-  if (v.length !== 4) return v.filter(Boolean).join('\n')
-  return [
-    `⚽ De uitslag van ${v[0]} is verwerkt en de punten zijn bijgewerkt.`,
-    '',
-    `Eindstand: ${v[1]}`,
-    '',
-    'Dit had iedereen voorspeld, met de punten die dat opleverde:',
-    v[2],
-    '',
-    '🏆 Zo staat de poule er nu voor:',
-    v[3],
-    '',
-    'Bekijk het volledige overzicht in de app. Succes bij de volgende wedstrijd!',
-  ].join('\n')
-}
-
 // Twilio antwoordt bij een fout met JSON waarin 'message' en 'code' staan.
 // Die willen we onverkort doorgeven aan de beheerder, want daar staat precies
 // in wat er mis is — een niet-goedgekeurd sjabloon, een ontvanger die zich
@@ -135,25 +126,33 @@ function beknopteFout(tekst) {
   return tekst.slice(0, 300)
 }
 
-// Verstuurt het sjabloon naar één nummer. `variabelen` is een lijst strings
-// die in volgorde de {{1}}, {{2}}, … in het sjabloon invult.
+// Verstuurt één bericht naar één nummer.
+//
+// `variabelen` is een lijst strings die in volgorde de {{1}}, {{2}}, … in het
+// sjabloon invult. `soort` kiest wélk sjabloon: de uitslagmelding of de
+// voorspellingenmelding. `vrijeTekst` is de tekst die gebruikt wordt zolang
+// dat sjabloon nog geen goedgekeurde SID heeft — WhatsApp levert die alleen af
+// binnen 24 uur nadat de ontvanger zelf iets stuurde, maar het maakt de keten
+// testbaar voordat de goedkeuring rond is.
+//
 // Gooit een fout als het versturen mislukt, zodat de aanroeper per ontvanger
 // kan loggen zonder dat de rest van de verzending stukloopt.
-export async function stuurWhatsappSjabloon(naarNummer, variabelen) {
+export async function stuurWhatsappSjabloon(naarNummer, variabelen, { soort = SJABLOON_UITSLAG, vrijeTekst = '' } = {}) {
   if (!whatsappIngesteld()) throw new Error('WhatsApp is niet ingesteld')
 
   const naar = naarWhatsappAdres(naarNummer)
   if (!naar) throw new Error('Geen telefoonnummer')
 
-  const i = instellingen()
+  const sjabloon = sjabloonSid(soort)
   const body = new URLSearchParams({
-    From: naarWhatsappAdres(i.afzender),
+    From: naarWhatsappAdres(instellingen().afzender),
     To: naar,
-    ...(i.sjabloon
-      ? { ContentSid: i.sjabloon, ContentVariables: maakContentVariables(variabelen) }
-      : { Body: maakVrijeTekst(variabelen) }),
+    ...(sjabloon
+      ? { ContentSid: sjabloon, ContentVariables: maakContentVariables(variabelen) }
+      : { Body: vrijeTekst || variabelen.filter(Boolean).join('\n') }),
   })
 
+  const i = instellingen()
   const res = await fetchMetTimeout(
     `${TWILIO_API}/Accounts/${encodeURIComponent(i.accountSid)}/Messages.json`,
     {

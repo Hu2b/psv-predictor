@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { maakHandtekening, bepaalPosities, isTeOudVoorMelding, maakKlassement, maakKlassementRegel, maakVoorspellingen, maakVoorspellingenRegel, maakBerichtGegevens } from './_notificaties.js'
+import { maakUitslagTekst, maakVoorspellingenTekst, maakAlleVoorspellingenRegel, maakVoorspellingenHandtekening, maakHandtekening, bepaalPosities, isTeOudVoorMelding, maakKlassement, maakKlassementRegel, maakVoorspellingen, maakVoorspellingenRegel, maakBerichtGegevens } from './_notificaties.js'
 
 test('maakHandtekening: zelfde uitslag en punten geeft dezelfde vingerafdruk, ongeacht sleutelvolgorde', () => {
   const a = maakHandtekening({ uitslag: { home: 2, away: 1 }, punten: { p1: 10, p2: 0 } })
@@ -110,4 +110,46 @@ test('maakBerichtGegevens: markeert een gecorrigeerde uitslag in de titel', () =
   const g = maakBerichtGegevens(RESULT, { id: 'a', naam: 'Huub' }, { naamPerSpeler: NAMEN, isCorrectie: true })
   assert.ok(g.wedstrijd.includes('(gecorrigeerd)'))
   assert.equal(g.isCorrectie, true)
+})
+
+test('maakUitslagTekst: dezelfde opmaak en volgorde als het sjabloon', () => {
+  const tekst = maakUitslagTekst(['PSV – Ajax', '2-1', 'Huub 2-1 (10 pt)', '1. Huub 48'])
+  assert.ok(tekst.startsWith('⚽ De uitslag van PSV – Ajax is verwerkt'))
+  const posities = ['PSV – Ajax', '2-1', 'Huub 2-1 (10 pt)', '1. Huub 48'].map(s => tekst.indexOf(s))
+  assert.deepEqual(posities, [...posities].sort((a, b) => a - b))
+})
+
+test('maakUitslagTekst: een afwijkend aantal variabelen gaat op losse regels', () => {
+  assert.equal(maakUitslagTekst(['een', 'twee']), 'een\ntwee')
+  assert.equal(maakUitslagTekst([]), '')
+})
+
+test('maakVoorspellingenTekst: noemt de wedstrijd, de voorspellingen en de app-link', () => {
+  const tekst = maakVoorspellingenTekst(['PSV – Ajax', 'Huub 2-1 · Niek 1-1'])
+  assert.ok(tekst.includes('Iedereen heeft voorspeld voor PSV – Ajax'))
+  assert.ok(tekst.includes('Huub 2-1 · Niek 1-1'))
+  assert.ok(/https?:\/\//.test(tekst))
+})
+
+test('maakAlleVoorspellingenRegel: op naam gesorteerd, één regel, geen regeleindes', () => {
+  const regel = maakAlleVoorspellingenRegel(
+    { b: { home: 1, away: 1 }, a: { home: 2, away: 1 } },
+    { a: 'Huub', b: 'Niek' }
+  )
+  assert.equal(regel, 'Huub 2-1 · Niek 1-1')
+  // WhatsApp weigert sjabloonvariabelen met een regeleinde of tab.
+  assert.ok(!/[\n\r\t]/.test(regel))
+})
+
+test('maakAlleVoorspellingenRegel: een onvolledige voorspelling wordt een streepje', () => {
+  const regel = maakAlleVoorspellingenRegel({ a: null, b: { home: 0, away: 0 } }, { a: 'Huub', b: 'Niek' })
+  assert.equal(regel, 'Huub — · Niek 0-0')
+})
+
+test('maakVoorspellingenHandtekening: ongevoelig voor sleutelvolgorde, gevoelig voor wijziging', () => {
+  const a = maakVoorspellingenHandtekening({ x: { home: 2, away: 1 }, y: { home: 1, away: 1 } })
+  const b = maakVoorspellingenHandtekening({ y: { home: 1, away: 1 }, x: { home: 2, away: 1 } })
+  const c = maakVoorspellingenHandtekening({ x: { home: 3, away: 1 }, y: { home: 1, away: 1 } })
+  assert.equal(a, b)
+  assert.notEqual(a, c)
 })

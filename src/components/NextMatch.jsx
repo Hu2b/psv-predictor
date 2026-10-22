@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react'
 import H2H from './H2H.jsx'
+import Opstelling from './Opstelling.jsx'
 import PredictionForm from './PredictionForm.jsx'
 import LiveScore from './LiveScore.jsx'
 import { zoekLogo } from '../../shared/teams.js'
@@ -96,6 +97,15 @@ export default function NextMatch({ fixture, fixtures, speler }) {
   // geheel anders niet meer op één iPhone-scherm passen.
   const kickoffVoorbij = getoond.datumISO ? new Date(getoond.datumISO) <= nu : false
   const toonH2H = !kickoffVoorbij && !onthuld
+
+  // De opstelling bestaat pas ongeveer een uur voor de aftrap. Dagen van
+  // tevoren het linkje al tonen levert alleen maar "nog niet bekend" op, dus
+  // verschijnt het pas als de wedstrijd binnen drie uur begint — en daarna
+  // blijft het staan, ook tijdens en na de wedstrijd.
+  const urenTotAftrap = getoond.datumISO
+    ? (new Date(getoond.datumISO) - nu) / (60 * 60 * 1000)
+    : null
+  const toonOpstelling = urenTotAftrap !== null && urenTotAftrap < 3
 
   return (
     <div className={styles.wrapper}>
@@ -197,6 +207,7 @@ export default function NextMatch({ fixture, fixtures, speler }) {
       </div>
 
       {isLive && <LiveScore fixture={getoond} />}
+      {toonOpstelling && <Opstelling matchId={getoond.matchId} />}
       {toonH2H && <H2H matchId={getoond.matchId} thuis={getoond.thuis} uit={getoond.uit} />}
       <PredictionForm fixture={getoond} speler={speler} onOnthuld={setOnthuld} />
     </div>
