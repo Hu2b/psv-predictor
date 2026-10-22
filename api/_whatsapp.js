@@ -108,7 +108,19 @@ export function maakContentVariables(variabelen) {
 export function maakVrijeTekst(variabelen) {
   const v = (variabelen || []).map(x => String(x ?? '').trim())
   if (v.length !== 4) return v.filter(Boolean).join('\n')
-  return `⚽ ${v[0]}\nEindstand: ${v[1]}\n\nVoorspellingen: ${v[2]}\n\n🏆 Nieuwe stand: ${v[3]}`
+  return [
+    `⚽ De uitslag van ${v[0]} is verwerkt en de punten zijn bijgewerkt.`,
+    '',
+    `Eindstand: ${v[1]}`,
+    '',
+    'Dit had iedereen voorspeld, met de punten die dat opleverde:',
+    v[2],
+    '',
+    '🏆 Zo staat de poule er nu voor:',
+    v[3],
+    '',
+    'Bekijk het volledige overzicht in de app. Succes bij de volgende wedstrijd!',
+  ].join('\n')
 }
 
 // Twilio antwoordt bij een fout met JSON waarin 'message' en 'code' staan.
