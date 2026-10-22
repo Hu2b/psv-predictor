@@ -2,6 +2,25 @@ import { kvGet, kvSet } from './_kv.js'
 import { getPlayerById, telGeverifieerdeSpelers } from './_players.js'
 import { verifieerSessie } from './_auth.js'
 import { zetCors } from './_cors.js'
+import { haalAlleWedstrijden } from './_wedstrijden.js'
+import { stuurVoorspellingenNotificaties } from './_notificaties.js'
+
+// Haalt de voorspellingen van alle spelers op en meldt ze, zodra iedereen
+// heeft voorspeld. De wedstrijdgegevens (teams, datum) komen uit de gecachete
+// wedstrijdenlijst, zodat hier geen extra aanroep naar football-data.org nodig
+// is voor iets wat de app toch al had opgehaald.
+async function meldAlleVoorspellingen(matchId, index) {
+  const rijen = await Promise.all(index.map(id => kvGet(`prediction:${matchId}:${id}`)))
+  const predicties = Object.fromEntries(
+    rijen.filter(Boolean).map(p => [p.playerId, { home: p.home, away: p.away }])
+  )
+
+  const wedstrijden = await haalAlleWedstrijden()
+  const fixture = wedstrijden.find(w => String(w.matchId) === String(matchId))
+  if (!fixture) return
+
+  await stuurVoorspellingenNotificaties(fixture, predicties)
+}
 
 export default async function handler(req, res) {
   zetCors(res)
@@ -106,6 +125,23 @@ export default async function handler(req, res) {
     if (!index.includes(playerId)) {
       index.push(playerId)
       await kvSet(`predictionIndex:${matchId}`, index)
+    }
+
+    // Was dit de laatste die nog moest? Dan zijn de voorspellingen vanaf nu
+    // onthuld en krijgt iedereen daar bericht van. Deze controle staat NA het
+    // opslaan en draait hooguit één keer per wedstrijd; de vingerafdruk in
+    // stuurVoorspellingenNotificaties() voorkomt dubbele berichten als er toch
+    // een tweede keer langs wordt gekomen.
+    //
+    // Een fout hierin mag het opslaan nooit laten mislukken: de voorspelling
+    // staat al vast, en een misgelopen melding is geen reden om de speler een
+    // foutmelding te tonen.
+    if (totaalSpelers > 0 && index.length >= totaalSpelers) {
+      try {
+        await meldAlleVoorspellingen(matchId, index)
+      } catch (e) {
+        console.error('Voorspellingenmelding mislukt:', e)
+      }
     }
 
     return res.status(200).json({ success: true, prediction })

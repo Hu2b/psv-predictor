@@ -4,12 +4,20 @@ import {
   naarWhatsappAdres,
   maakVariabeleVeilig,
   maakContentVariables,
-  maakVrijeTekst,
+  sjabloonSid,
+  SJABLOON_UITSLAG,
+  SJABLOON_VOORSPELLINGEN,
   whatsappIngesteld,
   whatsappInstellingen,
 } from './_whatsapp.js'
 
-const SLEUTELS = ['TWILIO_ACCOUNT_SID', 'TWILIO_AUTH_TOKEN', 'TWILIO_WHATSAPP_FROM', 'TWILIO_CONTENT_SID']
+const SLEUTELS = [
+  'TWILIO_ACCOUNT_SID',
+  'TWILIO_AUTH_TOKEN',
+  'TWILIO_WHATSAPP_FROM',
+  'TWILIO_CONTENT_SID',
+  'TWILIO_CONTENT_SID_VOORSPELLINGEN',
+]
 
 // Zet de vier omgevingsvariabelen voor de duur van één test en herstelt ze
 // daarna, zodat de tests elkaar niet beïnvloeden.
@@ -93,20 +101,17 @@ test('whatsappIngesteld: zonder sjabloon blijft het ingesteld, maar in vrije-tek
   metOmgeving(VOLLEDIG, () => assert.equal(whatsappInstellingen().modus, 'sjabloon'))
 })
 
-test('maakVrijeTekst: dezelfde opmaak als het sjabloon', () => {
-  const tekst = maakVrijeTekst(['PSV – Ajax', '2-1', 'Huub 2-1 (10 pt)', '1. Huub 48'])
-  assert.ok(tekst.startsWith('⚽ De uitslag van PSV – Ajax is verwerkt'))
-  assert.ok(tekst.includes('Eindstand: 2-1'))
-  assert.ok(tekst.includes('Huub 2-1 (10 pt)'))
-  assert.ok(tekst.includes('1. Huub 48'))
-  // De variabelen staan in dezelfde volgorde als in het sjabloon.
-  const posities = ['PSV – Ajax', '2-1', 'Huub 2-1 (10 pt)', '1. Huub 48'].map(s => tekst.indexOf(s))
-  assert.deepEqual(posities, [...posities].sort((a, b) => a - b))
+test('sjabloonSid: elke soort melding heeft zijn eigen sjabloon', () => {
+  metOmgeving({ ...VOLLEDIG, TWILIO_CONTENT_SID_VOORSPELLINGEN: 'HXvoorspel' }, () => {
+    assert.equal(sjabloonSid(SJABLOON_UITSLAG), 'HXtest')
+    assert.equal(sjabloonSid(SJABLOON_VOORSPELLINGEN), 'HXvoorspel')
+  })
 })
 
-test('maakVrijeTekst: een afwijkend aantal variabelen gaat op losse regels', () => {
-  assert.equal(maakVrijeTekst(['een', 'twee']), 'een\ntwee')
-  assert.equal(maakVrijeTekst([]), '')
+test('sjabloonSid: een ontbrekend sjabloon geeft een lege string, geen undefined', () => {
+  metOmgeving({ ...VOLLEDIG, TWILIO_CONTENT_SID_VOORSPELLINGEN: undefined }, () => {
+    assert.equal(sjabloonSid(SJABLOON_VOORSPELLINGEN), '')
+  })
 })
 
 test('whatsappInstellingen: toont wat ontbreekt maar lekt het Auth Token niet', () => {

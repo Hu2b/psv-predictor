@@ -1,8 +1,10 @@
 import { kvGet, kvSet } from './_kv.js'
 import { alleGeverifieerdeSpelers } from './_players.js'
-import { whatsappIngesteld, stuurWhatsappSjabloon } from './_whatsapp.js'
-import { stuurUitslagMail } from './_email.js'
+import { whatsappIngesteld, stuurWhatsappSjabloon, SJABLOON_UITSLAG, SJABLOON_VOORSPELLINGEN } from './_whatsapp.js'
+import { stuurUitslagMail, stuurVoorspellingenMail } from './_email.js'
 import { zoekNaam } from '../shared/teams.js'
+
+const APP_URL = process.env.APP_BASE_URL || 'https://psv-predictor.vercel.app'
 
 // Verstuurt na het verwerken van een uitslag aan iedere speler een bericht met
 // de eindstand, de voorspellingen en punten van ALLE deelnemers, en het nieuwe
@@ -134,6 +136,41 @@ function maakSjabloonVariabelen(gegevens, result, naamPerSpeler) {
   ]
 }
 
+// Zolang een sjabloon nog niet is goedgekeurd stuurt de app vrije tekst. De
+// opmaak is gelijk aan die van het sjabloon, zodat een testbericht er hetzelfde
+// uitziet als wat de deelnemers straks echt krijgen. Vrije tekst mag wél
+// regeleindes bevatten — die beperking geldt alleen voor sjabloonvariabelen.
+export function maakUitslagTekst(v) {
+  const w = (v || []).map(x => String(x ?? '').trim())
+  if (w.length !== 4) return w.filter(Boolean).join('\n')
+  return [
+    `⚽ De uitslag van ${w[0]} is verwerkt en de punten zijn bijgewerkt.`,
+    '',
+    `Eindstand: ${w[1]}`,
+    '',
+    'Dit had iedereen voorspeld, met de punten die dat opleverde:',
+    w[2],
+    '',
+    '🏆 Zo staat de poule er nu voor:',
+    w[3],
+    '',
+    'Bekijk het volledige overzicht in de app. Succes bij de volgende wedstrijd!',
+  ].join('\n')
+}
+
+export function maakVoorspellingenTekst(v) {
+  const w = (v || []).map(x => String(x ?? '').trim())
+  if (w.length !== 2) return w.filter(Boolean).join('\n')
+  return [
+    `⚽ Iedereen heeft voorspeld voor ${w[0]}, dus de voorspellingen zijn nu voor alle deelnemers zichtbaar.`,
+    '',
+    'Dit is er voorspeld:',
+    w[1],
+    '',
+    `Bekijk het volledige overzicht en de stand in de app: ${APP_URL}`,
+  ].join('\n')
+}
+
 // `terugvalOpEmail` bepaalt wat er gebeurt als WhatsApp weigert. Bij de echte
 // uitslagmelding willen we dat niemand z'n bericht misloopt: faalt WhatsApp,
 // dan gaat het alsnog per mail. Bij het proefbericht juist niet — daar moet de
@@ -147,7 +184,11 @@ function maakSjabloonVariabelen(gegevens, result, naamPerSpeler) {
 async function verstuurAan(speler, gegevens, result, naamPerSpeler, { terugvalOpEmail = false } = {}) {
   if (whatsappIngesteld() && speler.telefoon) {
     try {
-      await stuurWhatsappSjabloon(speler.telefoon, maakSjabloonVariabelen(gegevens, result, naamPerSpeler))
+      const variabelen = maakSjabloonVariabelen(gegevens, result, naamPerSpeler)
+      await stuurWhatsappSjabloon(speler.telefoon, variabelen, {
+        soort: SJABLOON_UITSLAG,
+        vrijeTekst: maakUitslagTekst(variabelen),
+      })
       return { kanaal: 'whatsapp', naar: `+${speler.telefoon}` }
     } catch (e) {
       if (!terugvalOpEmail) throw e
@@ -207,6 +248,96 @@ export async function stuurUitslagNotificaties(result) {
   })
 
   return { verstuurd: gelukt, van: ontvangers.length, correctie: isCorrectie }
+}
+
+// ---------------------------------------------------------------------------
+// Melding zodra IEDEREEN heeft voorspeld
+// ---------------------------------------------------------------------------
+//
+// Op dat moment worden de voorspellingen in de app onthuld (zie prediction.js:
+// `onthuld` is waar zodra de aftrap voorbij is, iedereen heeft voorspeld, óf
+// er een uitslag ligt). Dit bericht vertelt dat ze zichtbaar zijn en toont ze
+// meteen, met een link naar de app.
+
+// Iedereens voorspelling op één regel, op naam gesorteerd. Eén regel, want een
+// sjabloonvariabele mag geen regeleindes bevatten.
+export function maakAlleVoorspellingenRegel(predicties, naamPerSpeler = {}) {
+  return Object.entries(predicties || {})
+    .map(([playerId, p]) => ({
+      naam: naamPerSpeler[playerId] || '???',
+      score: p && Number.isInteger(p.home) && Number.isInteger(p.away) ? `${p.home}-${p.away}` : '—',
+    }))
+    .sort((a, b) => a.naam.localeCompare(b.naam))
+    .map(r => `${r.naam} ${r.score}`)
+    .join(' · ')
+}
+
+// Dezelfde vingerafdrukgedachte als bij de uitslagmelding: verandert er niets,
+// dan gaat er niets uit. Zo levert een herberekening of een tweede aanroep
+// geen dubbel bericht op.
+export function maakVoorspellingenHandtekening(predicties) {
+  return Object.keys(predicties || {})
+    .sort()
+    .map(id => `${id}:${predicties[id]?.home}-${predicties[id]?.away}`)
+    .join(',')
+}
+
+export async function stuurVoorspellingenNotificaties(fixture, predicties) {
+  if (!fixture?.matchId) return { verstuurd: 0, reden: 'geen wedstrijd' }
+
+  const sleutel = `notificatie:voorspellingen:${fixture.matchId}`
+  const vorige = await kvGet(sleutel)
+  const handtekening = maakVoorspellingenHandtekening(predicties)
+  if (vorige?.handtekening === handtekening) return { verstuurd: 0, reden: 'ongewijzigd' }
+
+  const spelers = await alleGeverifieerdeSpelers()
+  const naamPerSpeler = Object.fromEntries(spelers.map(s => [s.id, s.naam]))
+
+  const wedstrijd = `${zoekNaam(fixture.thuis)} – ${zoekNaam(fixture.uit)}`
+  const regel = maakAlleVoorspellingenRegel(predicties, naamPerSpeler)
+  const variabelen = [wedstrijd, regel]
+  const vrijeTekst = maakVoorspellingenTekst(variabelen)
+
+  const ontvangers = spelers.filter(s => s.notificaties !== false)
+  const resultaten = await Promise.allSettled(ontvangers.map(async speler => {
+    if (whatsappIngesteld() && speler.telefoon) {
+      try {
+        await stuurWhatsappSjabloon(speler.telefoon, variabelen, {
+          soort: SJABLOON_VOORSPELLINGEN,
+          vrijeTekst,
+        })
+        return
+      } catch (e) {
+        console.error(`Voorspellingenmelding via WhatsApp mislukt voor ${speler.id}:`, e?.message || e)
+      }
+    }
+    await stuurVoorspellingenMail(speler.email, {
+      naam: speler.naam,
+      wedstrijd,
+      datum: fixture.datum || '',
+      voorspellingen: Object.entries(predicties || {})
+        .map(([playerId, p]) => ({
+          playerId,
+          naam: naamPerSpeler[playerId] || '???',
+          score: p && Number.isInteger(p.home) && Number.isInteger(p.away) ? `${p.home}-${p.away}` : '—',
+        }))
+        .sort((a, b) => a.naam.localeCompare(b.naam)),
+      playerId: speler.id,
+    })
+  }))
+
+  const gelukt = resultaten.filter(r => r.status === 'fulfilled').length
+  for (const r of resultaten) {
+    if (r.status === 'rejected') console.error('Voorspellingenmelding mislukt:', r.reason)
+  }
+
+  await kvSet(sleutel, {
+    handtekening,
+    verstuurdOp: new Date().toISOString(),
+    aantal: gelukt,
+  })
+
+  return { verstuurd: gelukt, van: ontvangers.length }
 }
 
 // De laatst gespeelde wedstrijd waarvan de uitslag verwerkt is.

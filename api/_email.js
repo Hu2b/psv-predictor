@@ -108,6 +108,28 @@ export async function stuurEmailGewijzigdMail(oudEmail, nieuwEmail, naam) {
   ])
 }
 
+// Melding zodra iedereen heeft voorspeld: de voorspellingen zijn vanaf dat
+// moment zichtbaar in de app, dus mogen ze ook in de mail. Terugval voor
+// spelers zonder telefoonnummer, of wanneer WhatsApp (nog) niet werkt.
+export async function stuurVoorspellingenMail(email, g) {
+  await verstuurMail(email, `Iedereen heeft voorspeld: ${g.wedstrijd} — PSV Poule`, `
+    <p>Hoi ${g.naam},</p>
+    <p>Iedereen heeft voorspeld voor <strong>${g.wedstrijd}</strong>${g.datum ? ` · ${g.datum}` : ''},
+    dus de voorspellingen zijn nu voor alle deelnemers zichtbaar.</p>
+
+    <p><strong>Dit is er voorspeld</strong></p>
+    <table style="border-collapse: collapse;">
+      ${(g.voorspellingen || []).map(r =>
+        `<tr style="${r.playerId === g.playerId ? 'font-weight: bold;' : ''}">
+          <td style="padding: 3px 16px 3px 0;">${r.naam}</td>
+          <td style="padding: 3px 16px 3px 0;">${r.score}</td>
+        </tr>`).join('')}
+    </table>
+
+    <p>Bekijk het volledige overzicht en de stand op <a href="${APP_URL}">${APP_URL}</a></p>
+  `)
+}
+
 // Persoonlijke uitslagmelding per speler: eindstand, eigen voorspelling,
 // behaalde punten en de nieuwe positie in het klassement. Wordt gebruikt als
 // terugval wanneer WhatsApp (nog) niet is ingesteld, of voor spelers zonder
