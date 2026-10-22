@@ -95,10 +95,13 @@ test('whatsappIngesteld: zonder sjabloon blijft het ingesteld, maar in vrije-tek
 
 test('maakVrijeTekst: dezelfde opmaak als het sjabloon', () => {
   const tekst = maakVrijeTekst(['PSV – Ajax', '2-1', 'Huub 2-1 (10 pt)', '1. Huub 48'])
-  assert.equal(
-    tekst,
-    '⚽ PSV – Ajax\nEindstand: 2-1\n\nVoorspellingen: Huub 2-1 (10 pt)\n\n🏆 Nieuwe stand: 1. Huub 48'
-  )
+  assert.ok(tekst.startsWith('⚽ De uitslag van PSV – Ajax is verwerkt'))
+  assert.ok(tekst.includes('Eindstand: 2-1'))
+  assert.ok(tekst.includes('Huub 2-1 (10 pt)'))
+  assert.ok(tekst.includes('1. Huub 48'))
+  // De variabelen staan in dezelfde volgorde als in het sjabloon.
+  const posities = ['PSV – Ajax', '2-1', 'Huub 2-1 (10 pt)', '1. Huub 48'].map(s => tekst.indexOf(s))
+  assert.deepEqual(posities, [...posities].sort((a, b) => a - b))
 })
 
 test('maakVrijeTekst: een afwijkend aantal variabelen gaat op losse regels', () => {

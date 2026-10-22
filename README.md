@@ -110,13 +110,23 @@ Provider en regelt die kant.
    body:
 
 ```
-⚽ {{1}}
+⚽ De uitslag van {{1}} is verwerkt en de punten zijn bijgewerkt.
+
 Eindstand: {{2}}
 
-Voorspellingen: {{3}}
+Dit had iedereen voorspeld, met de punten die dat opleverde:
+{{3}}
 
-🏆 Nieuwe stand: {{4}}
+🏆 Zo staat de poule er nu voor:
+{{4}}
+
+Bekijk het volledige overzicht in de app. Succes bij de volgende wedstrijd!
 ```
+
+   De vaste tekst eromheen is er niet alleen voor de leesbaarheid: WhatsApp
+   weigert een sjabloon met te veel variabelen voor zijn lengte ("too many
+   variables for its length"). Een kalere versie met dezelfde vier variabelen
+   werd daarop afgewezen.
 
    Dien hem in ter goedkeuring bij WhatsApp en zet de **ContentSid** (begint
    met `HX`) in `TWILIO_CONTENT_SID`.
