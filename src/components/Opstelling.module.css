@@ -70,6 +70,11 @@
   background: rgba(255,255,255,0.05);
 }
 
+.bijgewerkt {
+  font-weight: 400;
+  color: var(--psv-gray-lt);
+}
+
 .ploegen {
   display: flex;
   flex-direction: column;

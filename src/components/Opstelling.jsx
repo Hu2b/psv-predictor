@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import styles from './Opstelling.module.css'
 
 // Toont de opstellingen van beide ploegen. Standaard ingeklapt tot één regel,
@@ -8,26 +8,53 @@ import styles from './Opstelling.module.css'
 // Clubs maken hun opstelling doorgaans ongeveer een uur voor de aftrap bekend.
 // Daarvóór levert de bron niets, en dan zegt dit blok dat ook gewoon in plaats
 // van leeg te blijven — anders lijkt het alsof er iets stuk is.
-export default function Opstelling({ matchId }) {
+export default function Opstelling({ matchId, datumISO }) {
   const [open, setOpen] = useState(false)
   const [laden, setLaden] = useState(false)
   const [opstellingen, setOpstellingen] = useState(null)
   const [definitief, setDefinitief] = useState(false)
+  const [bijgewerkt, setBijgewerkt] = useState(null)
 
-  async function openen() {
-    setOpen(true)
-    if (opstellingen !== null) return
-
-    setLaden(true)
+  // `stil` onderdrukt de laadmelding. Bij het automatisch bijwerken wil je
+  // niet elke minuut "Laden…" over je scherm zien flitsen; het blok hoort dan
+  // gewoon stil te blijven staan tot er echt iets verandert.
+  async function laad({ stil = false } = {}) {
+    if (!stil) setLaden(true)
     try {
       const r = await fetch(`/api/opstelling?matchId=${matchId}`)
       const data = await r.json()
       setOpstellingen(data.opstellingen || [])
       setDefinitief(Boolean(data.definitief))
+      setBijgewerkt(new Date())
     } catch (_) {
-      setOpstellingen([])
+      if (!stil) setOpstellingen([])
     }
-    setLaden(false)
+    if (!stil) setLaden(false)
+  }
+
+  // Zolang de opstelling voorlopig is en dit blok openstaat, wordt hij elke
+  // minuut opnieuw opgehaald — maar pas vanaf een half uur voor de aftrap, want
+  // daarvóór verandert er toch niets. Zodra hij definitief is stopt het
+  // vanzelf, en drie uur na de aftrap ook: een vergeten tabblad moet niet tot
+  // in de eeuwigheid blijven pollen.
+  //
+  // Deze hook staat bewust vóór de `if (!open)` hieronder. React eist dat
+  // hooks bij elke render in dezelfde volgorde worden aangeroepen, en een
+  // vroege return ertussen breekt dat.
+  useEffect(() => {
+    if (!open || definitief || !datumISO) return undefined
+
+    const timer = setInterval(() => {
+      const minutenTotAftrap = (new Date(datumISO) - new Date()) / 60000
+      if (minutenTotAftrap <= 30 && minutenTotAftrap > -180) laad({ stil: true })
+    }, 60 * 1000)
+
+    return () => clearInterval(timer)
+  }, [open, definitief, matchId, datumISO])
+
+  function openen() {
+    setOpen(true)
+    laad()
   }
 
   if (!open) {
@@ -59,6 +86,11 @@ export default function Opstelling({ matchId }) {
           {definitief
             ? '✅ Definitieve opstelling'
             : '⏳ Opgegeven opstelling — kan tot de aftrap nog wijzigen'}
+          {!definitief && bijgewerkt && (
+            <span className={styles.bijgewerkt}>
+              {' '}· bijgewerkt {bijgewerkt.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })}
+            </span>
+          )}
         </p>
       )}
 
