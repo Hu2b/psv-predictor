@@ -421,7 +421,9 @@ export async function stuurHerinneringen(fixture) {
   const tijd = aftrapTijd(fixture.datumISO)
   const link = wedstrijdLink(fixture.matchId)
   // Twee variabelen voor de tekst, de derde vult het achterstuk van de knop.
-  const variabelen = [wedstrijd, tijd, wedstrijdPad(fixture.matchId)]
+  // Dat is kaal het wedstrijdnummer: in het sjabloon staat het hele adres tot
+  // en met /w/ vast, zodat er geen schuine streep in het variabele deel zit.
+  const variabelen = [wedstrijd, tijd, String(fixture.matchId)]
   const vrijeTekst = maakHerinneringTekst([wedstrijd, tijd], link)
 
   const resultaten = await Promise.allSettled(ontvangers.map(async speler => {
