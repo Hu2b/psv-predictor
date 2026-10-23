@@ -12,6 +12,7 @@ export default function Opstelling({ matchId }) {
   const [open, setOpen] = useState(false)
   const [laden, setLaden] = useState(false)
   const [opstellingen, setOpstellingen] = useState(null)
+  const [definitief, setDefinitief] = useState(false)
 
   async function openen() {
     setOpen(true)
@@ -22,6 +23,7 @@ export default function Opstelling({ matchId }) {
       const r = await fetch(`/api/opstelling?matchId=${matchId}`)
       const data = await r.json()
       setOpstellingen(data.opstellingen || [])
+      setDefinitief(Boolean(data.definitief))
     } catch (_) {
       setOpstellingen([])
     }
@@ -49,6 +51,14 @@ export default function Opstelling({ matchId }) {
         <p className={styles.leeg}>
           Nog niet bekend. Clubs geven hun opstelling meestal ongeveer een uur
           voor de aftrap vrij — probeer het dan opnieuw.
+        </p>
+      )}
+
+      {!laden && opstellingen?.length > 0 && (
+        <p className={definitief ? styles.definitief : styles.voorlopig}>
+          {definitief
+            ? '✅ Definitieve opstelling'
+            : '⏳ Opgegeven opstelling — kan tot de aftrap nog wijzigen'}
         </p>
       )}
 

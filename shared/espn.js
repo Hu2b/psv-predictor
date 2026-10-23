@@ -86,6 +86,19 @@ export function zoekEspnWedstrijd(events, thuisCode, uitCode) {
   return null
 }
 
+// Is deze opstelling definitief? ESPN heeft daar geen apart veld voor, maar de
+// wedstrijdstatus zegt genoeg: zolang de wedstrijd nog niet begonnen is ('pre')
+// gaat het om de opgegeven elf, en die kan tot de aftrap nog veranderen —
+// blessure bij de warming-up, een late wissel in de basis. Vanaf de aftrap
+// ('in') en daarna ('post') ligt hij vast.
+//
+// Bij twijfel geven we 'voorlopig' terug. Ten onrechte "definitief" melden is
+// erger dan andersom: dan vertrouwt iemand op een elftal dat nog wijzigt.
+export function opstellingIsDefinitief(samenvatting) {
+  const status = samenvatting?.header?.competitions?.[0]?.status?.type?.state
+  return status === 'in' || status === 'post'
+}
+
 // Zet het rosters-blok van ESPN om naar wat de app toont: per ploeg de
 // formatie, de basisopstelling op rugnummer-volgorde van het veld, en de bank.
 export function maakOpstelling(rosters) {

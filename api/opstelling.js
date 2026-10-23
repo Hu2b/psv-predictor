@@ -2,7 +2,7 @@ import { kvGet, kvSet } from './_kv.js'
 import { zetCors } from './_cors.js'
 import { fetchMetTimeout } from './_fetch.js'
 import { haalAlleWedstrijden } from './_wedstrijden.js'
-import { espnCompetitie, espnDatum, zoekEspnWedstrijd, maakOpstelling } from '../shared/espn.js'
+import { espnCompetitie, espnDatum, zoekEspnWedstrijd, maakOpstelling, opstellingIsDefinitief } from '../shared/espn.js'
 
 // Opstellingen komen van ESPN, niet van football-data.org — dat levert ze op
 // ons abonnement niet. ESPN publiceert ze ongeveer een uur voor de aftrap.
@@ -55,7 +55,11 @@ export default async function handler(req, res) {
   try {
     const cached = await kvGet(cacheSleutel)
     if (cached && Date.now() - new Date(cached.op).getTime() < OPSTELLING_TTL_MS) {
-      return res.status(200).json({ opstellingen: cached.opstellingen, bron: 'espn' })
+      return res.status(200).json({
+        opstellingen: cached.opstellingen,
+        definitief: Boolean(cached.definitief),
+        bron: 'espn',
+      })
     }
 
     const wedstrijden = await haalAlleWedstrijden()
@@ -68,16 +72,17 @@ export default async function handler(req, res) {
     const competitie = espnCompetitie(fixture.competitie)
     const samenvatting = await haalJson(`${ESPN}/${competitie}/summary?event=${espnId}`)
     const opstellingen = maakOpstelling(samenvatting.rosters)
+    const definitief = opstellingIsDefinitief(samenvatting)
 
     // Een lege opstelling is geen fout: tot ongeveer een uur voor de aftrap
     // bestaat hij simpelweg nog niet. We bewaren hem dan ook niet, zodat de
     // volgende aanroep opnieuw kijkt.
     const bruikbaar = opstellingen.filter(o => o.basis.length > 0)
     if (bruikbaar.length > 0) {
-      await kvSet(cacheSleutel, { opstellingen: bruikbaar, op: new Date().toISOString() })
+      await kvSet(cacheSleutel, { opstellingen: bruikbaar, definitief, op: new Date().toISOString() })
     }
 
-    return res.status(200).json({ opstellingen: bruikbaar, bron: 'espn' })
+    return res.status(200).json({ opstellingen: bruikbaar, definitief, bron: 'espn' })
   } catch (e) {
     console.error('Opstelling ophalen mislukt:', e)
     // Geen 500: een ontbrekende opstelling mag het wedstrijdscherm nooit

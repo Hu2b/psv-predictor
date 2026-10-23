@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { espnCompetitie, espnDatum, teamKomtOvereen, zoekEspnWedstrijd, maakOpstelling } from './espn.js'
+import { espnCompetitie, espnDatum, teamKomtOvereen, zoekEspnWedstrijd, maakOpstelling, opstellingIsDefinitief } from './espn.js'
 
 test('espnCompetitie: bekende competities krijgen een pad, onbekende niets', () => {
   assert.equal(espnCompetitie('ERE'), 'ned.1')
@@ -93,4 +93,17 @@ test('maakOpstelling: basis op veldvolgorde, bank apart', () => {
 test('maakOpstelling: zonder gegevens een lege lijst, geen fout', () => {
   assert.deepEqual(maakOpstelling(undefined), [])
   assert.deepEqual(maakOpstelling([]), [])
+})
+
+test('opstellingIsDefinitief: pas vanaf de aftrap definitief', () => {
+  const met = staat => ({ header: { competitions: [{ status: { type: { state: staat } } }] } })
+  assert.equal(opstellingIsDefinitief(met('pre')), false)
+  assert.equal(opstellingIsDefinitief(met('in')), true)
+  assert.equal(opstellingIsDefinitief(met('post')), true)
+})
+
+test('opstellingIsDefinitief: bij ontbrekende status liever voorlopig dan definitief', () => {
+  assert.equal(opstellingIsDefinitief(undefined), false)
+  assert.equal(opstellingIsDefinitief({}), false)
+  assert.equal(opstellingIsDefinitief({ header: {} }), false)
 })
