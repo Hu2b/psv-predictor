@@ -78,11 +78,18 @@ export default function Opstelling({ matchId, datumISO }) {
 
       {laden && <p className={styles.leeg}>Laden…</p>}
 
-      {!laden && opstellingen?.length === 0 && (
+      {!laden && opstellingen?.length === 0 && status === 'voor' && (
         <p className={styles.leeg}>
           Nog niet bekend. Clubs geven hun opstelling meestal ongeveer een uur
           voor de aftrap vrij. Laat dit blok openstaan, dan verschijnt hij
           vanzelf zodra hij er is.
+        </p>
+      )}
+
+      {!laden && opstellingen?.length === 0 && status !== 'voor' && (
+        <p className={styles.leeg}>
+          Van deze wedstrijd heeft de bron geen opstelling. Dat komt bij oudere
+          wedstrijden en bij bekerduels wel eens voor.
         </p>
       )}
 

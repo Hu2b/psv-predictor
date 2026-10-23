@@ -2,7 +2,7 @@ import { kvGet, kvSet } from './_kv.js'
 import { zetCors } from './_cors.js'
 import { fetchMetTimeout } from './_fetch.js'
 import { haalAlleWedstrijden } from './_wedstrijden.js'
-import { espnCompetitie, espnDatum, zoekEspnWedstrijd, maakOpstelling, opstellingIsDefinitief, espnStatus } from '../shared/espn.js'
+import { espnCompetitie, espnDatumVarianten, zoekEspnWedstrijd, maakOpstelling, opstellingIsDefinitief, espnStatus, wedstrijdStatus } from '../shared/espn.js'
 
 // Opstellingen komen van ESPN, niet van football-data.org — dat levert ze op
 // ons abonnement niet. ESPN publiceert ze ongeveer een uur voor de aftrap.
@@ -18,13 +18,22 @@ const ESPN = 'https://site.api.espn.com/apis/site/v2/sports/soccer'
 // aftrap en tijdens de wedstrijd (wissels), dus die verloopt snel.
 const ID_TTL_MS = 30 * 24 * 60 * 60 * 1000
 
+// Niets gevonden onthouden we ook, maar korter: bij een gespeelde wedstrijd die
+// ESPN niet heeft, scheelt dat een zoekslag per keer dat iemand hem openklapt.
+const ID_MISLUKT_TTL_MS = 6 * 60 * 60 * 1000
+
 // Tijdens de wedstrijd vallen er wissels, dus dan moet de cache kort zijn —
-// anders zie je een wissel pas minuten later. Daarbuiten verandert er weinig.
+// anders zie je een wissel pas minuten later. Na het eindsignaal verandert er
+// niets meer: dan houden we hem lang vast, zodat terugkijken naar een oude
+// wedstrijd geen enkele aanroep meer kost.
 const TTL_BEZIG_MS = 45 * 1000
 const TTL_RUST_MS = 5 * 60 * 1000
+const TTL_KLAAR_MS = 30 * 24 * 60 * 60 * 1000
 
 function cacheTtl(status) {
-  return status === 'bezig' ? TTL_BEZIG_MS : TTL_RUST_MS
+  if (status === 'bezig') return TTL_BEZIG_MS
+  if (status === 'afgelopen') return TTL_KLAAR_MS
+  return TTL_RUST_MS
 }
 
 async function haalJson(url) {
@@ -37,17 +46,25 @@ async function haalJson(url) {
 async function zoekEspnId(fixture) {
   const sleutel = `espn:id:${fixture.matchId}`
   const bewaard = await kvGet(sleutel)
-  if (bewaard?.espnId && Date.now() - new Date(bewaard.op).getTime() < ID_TTL_MS) {
-    return bewaard.espnId
+  if (bewaard?.op) {
+    const ouderdom = Date.now() - new Date(bewaard.op).getTime()
+    if (ouderdom < (bewaard.espnId ? ID_TTL_MS : ID_MISLUKT_TTL_MS)) return bewaard.espnId || null
   }
 
   const competitie = espnCompetitie(fixture.competitie)
-  const datum = espnDatum(fixture.datumISO)
-  if (!competitie || !datum) return null
+  const datums = espnDatumVarianten(fixture.datumISO)
+  if (!competitie || datums.length === 0) return null
 
-  const data = await haalJson(`${ESPN}/${competitie}/scoreboard?dates=${datum}`)
-  const espnId = zoekEspnWedstrijd(data.events, fixture.thuis, fixture.uit)
-  if (espnId) await kvSet(sleutel, { espnId, op: new Date().toISOString() })
+  // Eerst de dag van de aftrap; pas als die niets oplevert de dag ervoor en
+  // erna. Zo kost de normale situatie één aanroep.
+  let espnId = null
+  for (const datum of datums) {
+    const data = await haalJson(`${ESPN}/${competitie}/scoreboard?dates=${datum}`)
+    espnId = zoekEspnWedstrijd(data.events, fixture.thuis, fixture.uit)
+    if (espnId) break
+  }
+
+  await kvSet(sleutel, { espnId: espnId || null, op: new Date().toISOString() })
   return espnId
 }
 
@@ -75,20 +92,30 @@ export default async function handler(req, res) {
     const fixture = wedstrijden.find(w => String(w.matchId) === String(matchId))
     if (!fixture) return res.status(404).json({ error: 'Wedstrijd niet gevonden' })
 
+    const eigenStatus = wedstrijdStatus(fixture)
+
     const espnId = await zoekEspnId(fixture)
-    if (!espnId) return res.status(200).json({ opstellingen: [], reden: 'wedstrijd niet gevonden bij ESPN' })
+    if (!espnId) {
+      return res.status(200).json({
+        opstellingen: [],
+        status: eigenStatus,
+        reden: 'wedstrijd niet gevonden bij ESPN',
+      })
+    }
 
     const competitie = espnCompetitie(fixture.competitie)
     const samenvatting = await haalJson(`${ESPN}/${competitie}/summary?event=${espnId}`)
     const opstellingen = maakOpstelling(samenvatting.rosters)
     const definitief = opstellingIsDefinitief(samenvatting)
-    const status = espnStatus(samenvatting)
+    // ESPN weet het beter dan wij, behalve als het daar helemaal ontbreekt.
+    const status = espnStatus(samenvatting) === 'voor' ? eigenStatus : espnStatus(samenvatting)
 
-    // Een lege opstelling is geen fout: tot ongeveer een uur voor de aftrap
-    // bestaat hij simpelweg nog niet. We bewaren hem dan ook niet, zodat de
-    // volgende aanroep opnieuw kijkt.
+    // Een lege opstelling is vóór de wedstrijd geen fout: tot ongeveer een uur
+    // voor de aftrap bestaat hij simpelweg nog niet, en dan bewaren we niets
+    // zodat de volgende aanroep opnieuw kijkt. Bij een gespeelde wedstrijd is
+    // leeg wél het eindantwoord — die komt er niet meer bij.
     const bruikbaar = opstellingen.filter(o => o.basis.length > 0)
-    if (bruikbaar.length > 0) {
+    if (bruikbaar.length > 0 || status === 'afgelopen') {
       await kvSet(cacheSleutel, { opstellingen: bruikbaar, definitief, status, op: new Date().toISOString() })
     }
 

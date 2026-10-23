@@ -107,6 +107,13 @@ wissels binnen te krijgen: wie erin kwam voor wie, en in welke minuut. De cache
 op de server is daarom kort tijdens de wedstrijd (45 seconden) en wat langer
 daarbuiten (5 minuten).
 
+Bij een gespeelde wedstrijd blijft het linkje staan om terug te kijken, met de
+opstelling en alle wissels. Die verandert niet meer, dus hij wordt dan een maand
+bewaard en kost na de eerste keer geen enkele aanroep meer. Levert ESPN niets,
+dan wordt ook dát bewaard (zes uur), zodat een oude wedstrijd zonder opstelling
+niet elke keer opnieuw wordt opgezocht — en dan zegt het blok dat de bron geen
+opstelling heeft, in plaats van "nog niet bekend".
+
 ## Meldingen
 
 Elke speler die meldingen aan heeft staan (Account → Meldingen) krijgt op twee

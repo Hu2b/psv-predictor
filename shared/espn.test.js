@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { espnCompetitie, espnDatum, teamKomtOvereen, zoekEspnWedstrijd, maakOpstelling, opstellingIsDefinitief, espnStatus, minuutNummer } from './espn.js'
+import { espnCompetitie, espnDatum, espnDatumVarianten, teamKomtOvereen, zoekEspnWedstrijd, maakOpstelling, opstellingIsDefinitief, espnStatus, wedstrijdStatus, minuutNummer } from './espn.js'
 
 test('espnCompetitie: bekende competities krijgen een pad, onbekende niets', () => {
   assert.equal(espnCompetitie('ERE'), 'ned.1')
@@ -15,6 +15,13 @@ test('espnDatum: UTC-datum als JJJJMMDD', () => {
   assert.equal(espnDatum('2026-10-23T18:00Z'), '20261023')
   assert.equal(espnDatum(null), null)
   assert.equal(espnDatum('geen datum'), null)
+})
+
+test('espnDatumVarianten: eigen dag eerst, daarna de dag ervoor en erna', () => {
+  assert.deepEqual(espnDatumVarianten('2026-10-18T14:45Z'), ['20261018', '20261017', '20261019'])
+  // Over een maandgrens heen moet de kalender gewoon kloppen.
+  assert.deepEqual(espnDatumVarianten('2026-11-01T19:00Z'), ['20261101', '20261031', '20261102'])
+  assert.deepEqual(espnDatumVarianten('geen datum'), [])
 })
 
 test('teamKomtOvereen: verschillende schrijfwijzes van dezelfde club matchen', () => {
@@ -119,6 +126,23 @@ test('espnStatus: onbekend telt als "voor", zodat er blijft bijgewerkt', () => {
   assert.equal(espnStatus(undefined), 'voor')
   assert.equal(espnStatus({}), 'voor')
   assert.equal(espnStatus({ header: { competitions: [{}] } }), 'voor')
+})
+
+test('wedstrijdStatus: de statuscode van onze eigen agenda telt', () => {
+  assert.equal(wedstrijdStatus({ status: 'FT' }), 'afgelopen')
+  assert.equal(wedstrijdStatus({ status: 'PEN' }), 'afgelopen')
+  assert.equal(wedstrijdStatus({ status: '2H' }), 'bezig')
+  assert.equal(wedstrijdStatus({ status: 'TIMED', datumISO: '2026-10-25T18:45Z' }, Date.parse('2026-10-25T12:00Z')), 'voor')
+})
+
+test('wedstrijdStatus: zonder bruikbare status beslist de klok', () => {
+  const aftrap = '2026-10-25T18:45Z'
+  // Tijdens de wedstrijd nog niet afgelopen...
+  assert.equal(wedstrijdStatus({ datumISO: aftrap }, Date.parse('2026-10-25T20:00Z')), 'voor')
+  // ...maar drie uur na de aftrap zeker wel.
+  assert.equal(wedstrijdStatus({ datumISO: aftrap }, Date.parse('2026-10-26T09:00Z')), 'afgelopen')
+  assert.equal(wedstrijdStatus(undefined), 'voor')
+  assert.equal(wedstrijdStatus({ datumISO: 'geen datum' }), 'voor')
 })
 
 test('minuutNummer: eerste getal uit de kloktekst', () => {

@@ -36,6 +36,17 @@ export function espnDatum(datumISO) {
   return `${jaar}${maand}${dag}`
 }
 
+// De dag van de aftrap plus de dag ervoor en erna. ESPN hangt een wedstrijd aan
+// één scorebord-datum, maar welke dat is hangt af van de tijdzone waarin hij is
+// weggeschreven. Bij een late avondwedstrijd kan dat een dag schelen. Dit wordt
+// alleen gebruikt als de eigen dag niets oplevert, dus het kost normaal niets.
+export function espnDatumVarianten(datumISO) {
+  const d = new Date(datumISO)
+  if (Number.isNaN(d.getTime())) return []
+  const dag = 24 * 60 * 60 * 1000
+  return [0, -dag, dag].map(verschil => espnDatum(new Date(d.getTime() + verschil).toISOString()))
+}
+
 // Woorden die niets onderscheidends zeggen en die de twee bronnen willekeurig
 // wel of niet meenemen.
 const VULWOORDEN = new Set(['fc', 'sc', 'afc', 'cf', 'ac', 'vv', 'bv', 'rkc', 'de', 'the'])
@@ -106,6 +117,24 @@ export function espnStatus(samenvatting) {
   const staat = samenvatting?.header?.competitions?.[0]?.status?.type?.state
   if (staat === 'in') return 'bezig'
   if (staat === 'post') return 'afgelopen'
+  return 'voor'
+}
+
+// Dezelfde drie woorden, maar afgeleid uit onze eigen agenda in plaats van uit
+// ESPN. Nodig als ESPN de wedstrijd niet kent: dan weet de app tenminste dat ze
+// naar iets gespeelds kijkt, en zegt het blok niet "nog niet bekend" over een
+// wedstrijd van vorige maand. De statuscodes komen van football-data.org; staat
+// er niets bruikbaar in, dan beslist de klok (drie uur na de aftrap is elke
+// wedstrijd voorbij).
+const AFGELOPEN = ['FT', 'AET', 'PEN']
+const BEZIG = ['1H', 'HT', '2H', 'ET', 'BT', 'LIVE']
+const SPEELDUUR_MS = 3 * 60 * 60 * 1000
+
+export function wedstrijdStatus(fixture, nu = Date.now()) {
+  if (AFGELOPEN.includes(fixture?.status)) return 'afgelopen'
+  if (BEZIG.includes(fixture?.status)) return 'bezig'
+  const aftrap = fixture?.datumISO ? new Date(fixture.datumISO).getTime() : NaN
+  if (!Number.isNaN(aftrap) && aftrap < nu - SPEELDUUR_MS) return 'afgelopen'
   return 'voor'
 }
 
