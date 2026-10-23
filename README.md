@@ -155,6 +155,13 @@ https://psv-predictor.vercel.app/api/cron-herinnering
 Authorization: Bearer <CRON_SECRET>
 ```
 
+> **Let op bij het toevoegen van endpoints.** Elk bestand in `api/` dat niet
+> met een liggend streepje begint, wordt door Vercel een aparte serverless
+> functie — en op het gratis abonnement mogen dat er maar **twaalf**. Daar
+> zitten we nu precies aan. Een dertiende laat de hele deploy mislukken (en dan
+> blijft de vorige versie draaien, dus je merkt het pas als een nieuw endpoint
+> 404 geeft). Hulpbestanden en tests horen daarom met `_` te beginnen.
+
 Het endpoint zoekt zelf de wedstrijden die over 20 tot 40 minuten beginnen. Dat
 venster is ruim genoeg dat een tikker van 10 minuten er altijd in valt, en het
 slot in KV zorgt dat meerdere treffers toch één bericht opleveren. Vaker aantikken

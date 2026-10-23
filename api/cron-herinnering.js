@@ -1,5 +1,6 @@
 import { haalAlleWedstrijden } from './_wedstrijden.js'
 import { stuurHerinneringen } from './_notificaties.js'
+import { wachtendeWedstrijden } from './_herinnering.js'
 
 // Stuurt kort voor de aftrap een herinnering aan iedereen die nog niet heeft
 // voorspeld. Wordt aangetikt door een externe tikker (zie README): Vercel's
@@ -9,27 +10,6 @@ import { stuurHerinneringen } from './_notificaties.js'
 // Het endpoint is opzettelijk dom en herhaalbaar: het kijkt wélke wedstrijden
 // nu in het venster vallen en laat stuurHerinneringen() bepalen of er al iets
 // uit is gegaan. Twee keer aantikken levert dus geen twee berichten op.
-
-// Het venster rond "een half uur van tevoren". Ruim genoeg dat een tikker die
-// elke tien minuten langskomt er altijd minstens één keer in valt, en smal
-// genoeg dat niemand drie kwartier van tevoren al een bericht krijgt.
-const VENSTER_VROEG_MIN = 40
-const VENSTER_LAAT_MIN = 20
-
-export function valtInVenster(datumISO, nu = Date.now()) {
-  const aftrap = new Date(datumISO).getTime()
-  if (Number.isNaN(aftrap)) return false
-  const minuten = (aftrap - nu) / 60000
-  return minuten <= VENSTER_VROEG_MIN && minuten >= VENSTER_LAAT_MIN
-}
-
-// Een wedstrijd die al begonnen of gespeeld is krijgt niets meer.
-const GESPEELD = ['FT', 'AET', 'PEN', '1H', 'HT', '2H', 'ET', 'BT', 'LIVE']
-
-export function wachtendeWedstrijden(fixtures, nu = Date.now()) {
-  return (fixtures || []).filter(f => !GESPEELD.includes(f.status) && valtInVenster(f.datumISO, nu))
-}
-
 export default async function handler(req, res) {
   // Dezelfde sleutel als de dagelijkse cron. Vercel stuurt hem als
   // Authorization-header mee; een externe tikker die geen headers kan zetten

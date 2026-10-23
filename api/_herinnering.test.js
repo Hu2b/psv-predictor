@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { valtInVenster, wachtendeWedstrijden } from './cron-herinnering.js'
+import { valtInVenster, wachtendeWedstrijden } from './_herinnering.js'
 
 const AFTRAP = '2026-10-17T14:30:00Z' // 16:30 Nederlandse tijd
 const minutenVoor = m => Date.parse(AFTRAP) - m * 60000
