@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import styles from './Opstelling.module.css'
 
 // Toont de opstellingen van beide ploegen. Standaard ingeklapt tot één regel,
@@ -16,23 +16,44 @@ export default function Opstelling({ matchId, datumISO }) {
   const [status, setStatus] = useState('voor')
   const [bijgewerkt, setBijgewerkt] = useState(null)
 
+  // Welke wedstrijd nu in beeld staat. Een antwoord dat binnenkomt nadat er al
+  // doorgeswipet is, hoort niet meer getoond te worden — anders zie je de
+  // opstelling van de ene wedstrijd bij de andere staan.
+  const huidige = useRef(matchId)
+
   // `stil` onderdrukt de laadmelding. Bij het automatisch bijwerken wil je
   // niet elke minuut "Laden…" over je scherm zien flitsen; het blok hoort dan
   // gewoon stil te blijven staan tot er echt iets verandert.
   async function laad({ stil = false } = {}) {
+    const voor = matchId
     if (!stil) setLaden(true)
     try {
-      const r = await fetch(`/api/opstelling?matchId=${matchId}`)
+      const r = await fetch(`/api/opstelling?matchId=${voor}`)
       const data = await r.json()
+      if (huidige.current !== voor) return
       setOpstellingen(data.opstellingen || [])
       setDefinitief(Boolean(data.definitief))
       setStatus(data.status || 'voor')
       setBijgewerkt(new Date())
     } catch (_) {
+      if (huidige.current !== voor) return
       if (!stil) setOpstellingen([])
+    } finally {
+      if (huidige.current === voor && !stil) setLaden(false)
     }
-    if (!stil) setLaden(false)
   }
+
+  // Swipen naar een andere wedstrijd betekent een andere opstelling. Stond het
+  // blok open, dan blijft het open en wordt de nieuwe meteen opgehaald; wat er
+  // nog stond wordt eerst gewist, zodat er geen moment de verkeerde elf staat.
+  useEffect(() => {
+    huidige.current = matchId
+    setOpstellingen(null)
+    setDefinitief(false)
+    setStatus('voor')
+    setBijgewerkt(null)
+    if (open) laad()
+  }, [matchId])
 
   // Zolang dit blok openstaat en de wedstrijd niet is afgelopen, wordt er elke
   // minuut bijgewerkt. Vóór de aftrap om te zien of de opgegeven elf nog
