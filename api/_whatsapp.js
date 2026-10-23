@@ -22,7 +22,9 @@ import { fetchMetTimeout } from './_fetch.js'
 //   TWILIO_ACCOUNT_SID    - Account SID uit de Twilio Console (begint met AC)
 //   TWILIO_AUTH_TOKEN     - Auth Token uit de Twilio Console
 //   TWILIO_WHATSAPP_FROM  - de WhatsApp-afzender, bijv. +14155238886
-//   TWILIO_CONTENT_SID    - SID van het goedgekeurde sjabloon (begint met HX)
+//   TWILIO_CONTENT_SID    - SID van het uitslagsjabloon (begint met HX)
+//   TWILIO_CONTENT_SID_VOORSPELLINGEN - idem, voor de voorspellingenmelding
+//   TWILIO_CONTENT_SID_HERINNERING    - idem, voor de herinnering vooraf
 const TWILIO_API = 'https://api.twilio.com/2010-04-01'
 
 // De omgevingsvariabelen worden bij elke aanroep opnieuw gelezen in plaats van
@@ -35,18 +37,22 @@ function instellingen() {
     afzender: process.env.TWILIO_WHATSAPP_FROM || '',
     sjabloonUitslag: process.env.TWILIO_CONTENT_SID || '',
     sjabloonVoorspellingen: process.env.TWILIO_CONTENT_SID_VOORSPELLINGEN || '',
+    sjabloonHerinnering: process.env.TWILIO_CONTENT_SID_HERINNERING || '',
   }
 }
 
-// De app kent twee soorten berichten, elk met een eigen goedgekeurd sjabloon.
+// De app kent drie soorten berichten, elk met een eigen goedgekeurd sjabloon.
 // Ze staan los van elkaar: je kunt het ene al in gebruik hebben terwijl het
 // andere nog in beoordeling is.
 export const SJABLOON_UITSLAG = 'uitslag'
 export const SJABLOON_VOORSPELLINGEN = 'voorspellingen'
+export const SJABLOON_HERINNERING = 'herinnering'
 
 export function sjabloonSid(soort) {
   const i = instellingen()
-  return soort === SJABLOON_VOORSPELLINGEN ? i.sjabloonVoorspellingen : i.sjabloonUitslag
+  if (soort === SJABLOON_VOORSPELLINGEN) return i.sjabloonVoorspellingen
+  if (soort === SJABLOON_HERINNERING) return i.sjabloonHerinnering
+  return i.sjabloonUitslag
 }
 
 // Zonder account, token én afzender kan er niets verstuurd worden; dan valt
@@ -90,6 +96,8 @@ export function whatsappInstellingen() {
     sjabloon: i.sjabloonUitslag,
     sjabloonVoorspellingenAanwezig: Boolean(i.sjabloonVoorspellingen),
     sjabloonVoorspellingen: i.sjabloonVoorspellingen,
+    sjabloonHerinneringAanwezig: Boolean(i.sjabloonHerinnering),
+    sjabloonHerinnering: i.sjabloonHerinnering,
   }
 }
 

@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import H2H from './H2H.jsx'
 import Opstelling from './Opstelling.jsx'
 import PredictionForm from './PredictionForm.jsx'
@@ -19,11 +19,21 @@ function formatTijd(datumISO) {
   })
 }
 
-export default function NextMatch({ fixture, fixtures, speler }) {
-  const [gekozenId, setGekozenId] = useState(null)
+// `startWedstrijd` komt van een rechtstreekse link (/w/12345), zoals in de
+// herinnering kort voor de aftrap. Die opent niet alleen die wedstrijd, maar
+// klapt ook de opstelling meteen uit — dat is precies waar zo'n link voor
+// bedoeld is.
+export default function NextMatch({ fixture, fixtures, speler, startWedstrijd = null }) {
+  const [gekozenId, setGekozenId] = useState(startWedstrijd)
   const [randMelding, setRandMelding] = useState(null)
   const [onthuld, setOnthuld] = useState(false)
   const touchStartX = useRef(null)
+
+  // Vangnet voor als de link pas bekend is nadat dit scherm al staat (je moest
+  // bijvoorbeeld eerst inloggen).
+  useEffect(() => {
+    if (startWedstrijd) setGekozenId(startWedstrijd)
+  }, [startWedstrijd])
 
   const alleWedstrijden = [...fixtures].sort((a, b) => new Date(a.datumISO) - new Date(b.datumISO))
 
@@ -207,7 +217,13 @@ export default function NextMatch({ fixture, fixtures, speler }) {
       </div>
 
       {isLive && <LiveScore fixture={getoond} />}
-      {toonOpstelling && <Opstelling matchId={getoond.matchId} datumISO={getoond.datumISO} />}
+      {toonOpstelling && (
+        <Opstelling
+          matchId={getoond.matchId}
+          datumISO={getoond.datumISO}
+          standaardOpen={String(getoond.matchId) === String(startWedstrijd)}
+        />
+      )}
       {toonH2H && <H2H matchId={getoond.matchId} thuis={getoond.thuis} uit={getoond.uit} />}
       <PredictionForm fixture={getoond} speler={speler} onOnthuld={setOnthuld} />
     </div>

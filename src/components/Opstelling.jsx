@@ -8,8 +8,11 @@ import styles from './Opstelling.module.css'
 // Clubs maken hun opstelling doorgaans ongeveer een uur voor de aftrap bekend.
 // Daarvóór levert de bron niets, en dan zegt dit blok dat ook gewoon in plaats
 // van leeg te blijven — anders lijkt het alsof er iets stuk is.
-export default function Opstelling({ matchId, datumISO }) {
-  const [open, setOpen] = useState(false)
+// `standaardOpen` staat aan bij een rechtstreekse link naar deze wedstrijd
+// (/w/12345), zoals in de herinnering kort voor de aftrap: dan hoort de
+// opstelling er meteen bij te staan zonder dat er nog getikt hoeft te worden.
+export default function Opstelling({ matchId, datumISO, standaardOpen = false }) {
+  const [open, setOpen] = useState(Boolean(standaardOpen))
   const [laden, setLaden] = useState(false)
   const [opstellingen, setOpstellingen] = useState(null)
   const [definitief, setDefinitief] = useState(false)

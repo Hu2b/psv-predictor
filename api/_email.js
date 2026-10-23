@@ -108,6 +108,18 @@ export async function stuurEmailGewijzigdMail(oudEmail, nieuwEmail, naam) {
   ])
 }
 
+// Herinnering een half uur voor de aftrap, alleen voor wie nog niet heeft
+// voorspeld. De link wijst rechtstreeks naar die wedstrijd, met de opstelling
+// er meteen bij.
+export async function stuurHerinneringMail(email, g) {
+  await verstuurMail(email, `Nog geen voorspelling: ${g.wedstrijd} — PSV Poule`, `
+    <p>Hoi ${g.naam},</p>
+    <p>⏰ Over een half uur begint <strong>${g.wedstrijd}</strong>${g.tijd ? ` · ${g.tijd}` : ''}.</p>
+    <p>Jij hebt nog geen voorspelling ingevuld. Na de aftrap kan het niet meer.</p>
+    <p><a href="${g.link || APP_URL}">Vul je voorspelling in</a></p>
+  `)
+}
+
 // Melding zodra iedereen heeft voorspeld: de voorspellingen zijn vanaf dat
 // moment zichtbaar in de app, dus mogen ze ook in de mail. Terugval voor
 // spelers zonder telefoonnummer, of wanneer WhatsApp (nog) niet werkt.

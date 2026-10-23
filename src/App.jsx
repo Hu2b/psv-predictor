@@ -56,10 +56,23 @@ export default function App() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [accountOpen, setAccountOpen] = useState(false)
+  const [startWedstrijd, setStartWedstrijd] = useState(null)
 
   useEffect(() => {
     async function initialiseer() {
       const params = new URLSearchParams(window.location.search)
+
+      // Rechtstreekse link naar één wedstrijd, zoals in de herinnering kort
+      // voor de aftrap: /w/12345. Die opent meteen die wedstrijd mét de
+      // opstelling erbij. Het blijft in de state staan, dus hij werkt ook als
+      // je eerst nog moet inloggen.
+      const padWedstrijd = window.location.pathname.match(/^\/w\/([^/]+)/)
+      const wedstrijdVanUrl = padWedstrijd ? padWedstrijd[1] : params.get('wedstrijd')
+      if (wedstrijdVanUrl) {
+        setStartWedstrijd(decodeURIComponent(wedstrijdVanUrl))
+        setTab('wedstrijd')
+        window.history.replaceState({}, '', '/')
+      }
       const verifyToken = params.get('verify')
       const resetToken = params.get('reset')
       const bevestigToken = params.get('bevestigEmail')
@@ -237,7 +250,12 @@ export default function App() {
             </button>
           </div>
         ) : tab === 'wedstrijd' ? (
-          <NextMatch fixture={getoondeWedstrijd} fixtures={fixtures} speler={speler} />
+          <NextMatch
+            fixture={getoondeWedstrijd}
+            fixtures={fixtures}
+            speler={speler}
+            startWedstrijd={startWedstrijd}
+          />
         ) : tab === 'totaal' ? (
           <StandingsLazy fixtures={fixtures} speler={speler.naam} />
         ) : speler.isAdmin ? (

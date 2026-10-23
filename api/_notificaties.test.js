@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { maakUitslagTekst, maakVoorspellingenTekst, maakAlleVoorspellingenRegel, maakVoorspellingenHandtekening, maakHandtekening, bepaalPosities, isTeOudVoorMelding, maakKlassement, maakKlassementRegel, maakVoorspellingen, maakVoorspellingenRegel, maakBerichtGegevens } from './_notificaties.js'
+import { maakUitslagTekst, maakVoorspellingenTekst, maakAlleVoorspellingenRegel, maakVoorspellingenHandtekening, maakHandtekening, bepaalPosities, isTeOudVoorMelding, maakKlassement, maakKlassementRegel, maakVoorspellingen, maakVoorspellingenRegel, maakBerichtGegevens, maakHerinneringTekst, wedstrijdPad, wedstrijdLink, aftrapTijd } from './_notificaties.js'
 
 test('maakHandtekening: zelfde uitslag en punten geeft dezelfde vingerafdruk, ongeacht sleutelvolgorde', () => {
   const a = maakHandtekening({ uitslag: { home: 2, away: 1 }, punten: { p1: 10, p2: 0 } })
@@ -157,4 +157,31 @@ test('maakVoorspellingenHandtekening: ongevoelig voor sleutelvolgorde, gevoelig 
   const c = maakVoorspellingenHandtekening({ x: { home: 3, away: 1 }, y: { home: 1, away: 1 } })
   assert.equal(a, b)
   assert.notEqual(a, c)
+})
+
+test('wedstrijdPad/wedstrijdLink: de wedstrijd zit in het pad, niet in een zoekparameter', () => {
+  // Meta staat in een sjabloonknop alleen een vast adres toe met een variabel
+  // achterstuk, dus het achterstuk moet op zichzelf bruikbaar zijn.
+  assert.equal(wedstrijdPad(538172), 'w/538172')
+  assert.equal(wedstrijdLink(538172), 'https://psv-predictor.vercel.app/w/538172')
+})
+
+test('aftrapTijd: UTC-tijd wordt Nederlandse klokstand', () => {
+  // 16:30 Nederlandse tijd in oktober is 14:30 UTC.
+  assert.equal(aftrapTijd('2026-10-17T14:30:00Z'), '16:30')
+  assert.equal(aftrapTijd('geen datum'), '')
+})
+
+test('maakHerinneringTekst: noemt de wedstrijd, de tijd en de link', () => {
+  const tekst = maakHerinneringTekst(['PSV – Ajax', '16:30'], 'https://voorbeeld.nl/w/1')
+  assert.ok(tekst.includes('PSV – Ajax'))
+  assert.ok(tekst.includes('16:30'))
+  assert.ok(tekst.includes('https://voorbeeld.nl/w/1'))
+  assert.ok(tekst.includes('nog geen voorspelling'))
+})
+
+test('maakHerinneringTekst: zonder link gewoon de tekst, zonder losse lege regel aan het eind', () => {
+  const tekst = maakHerinneringTekst(['PSV – Ajax', '16:30'])
+  assert.ok(!tekst.includes('http'))
+  assert.equal(tekst, tekst.trimEnd())
 })

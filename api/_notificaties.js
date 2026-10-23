@@ -1,7 +1,7 @@
 import { kvGet, kvSet } from './_kv.js'
 import { alleGeverifieerdeSpelers } from './_players.js'
-import { whatsappIngesteld, stuurWhatsappSjabloon, SJABLOON_UITSLAG, SJABLOON_VOORSPELLINGEN } from './_whatsapp.js'
-import { stuurUitslagMail, stuurVoorspellingenMail } from './_email.js'
+import { whatsappIngesteld, stuurWhatsappSjabloon, SJABLOON_UITSLAG, SJABLOON_VOORSPELLINGEN, SJABLOON_HERINNERING } from './_whatsapp.js'
+import { stuurUitslagMail, stuurVoorspellingenMail, stuurHerinneringMail } from './_email.js'
 import { zoekNaam } from '../shared/teams.js'
 
 // Verstuurt na het verwerken van een uitslag aan iedere speler een bericht met
@@ -340,6 +340,116 @@ export async function stuurVoorspellingenNotificaties(fixture, predicties) {
     aantal: gelukt,
   })
 
+  return { verstuurd: gelukt, van: ontvangers.length }
+}
+
+// ---------------------------------------------------------------------------
+// Herinnering kort voor de aftrap
+// ---------------------------------------------------------------------------
+// Gaat alleen naar wie nog NIET heeft voorspeld. Wie al klaar is hoort niets:
+// een herinnering voor iets wat je al gedaan hebt leest als ruis, en dan zet
+// iemand de meldingen uit.
+//
+// De link wijst naar de wedstrijd zelf, met de opstelling al opengeklapt. In
+// het sjabloon zit hij als knop onder het bericht, niet in de tekst — een URL
+// in de tekst liet Meta het sjabloon herclassificeren van Utility naar
+// Marketing (zie maakVoorspellingenTekst hierboven). Een knop mag wel.
+const APP_URL = process.env.APP_BASE_URL || 'https://psv-predictor.vercel.app'
+
+// Het achterstuk van de knop-URL. Meta staat in een sjabloonknop alleen een
+// vast adres toe met één variabel stukje erachter, dus de wedstrijd zit in het
+// pad en niet in een zoekparameter.
+export function wedstrijdPad(matchId) {
+  return `w/${String(matchId ?? '').trim()}`
+}
+
+export function wedstrijdLink(matchId) {
+  return `${APP_URL}/${wedstrijdPad(matchId)}`
+}
+
+// De aftrap als "16:30", in Nederlandse tijd. De opgeslagen tijd is UTC, en
+// een herinnering met het verkeerde uur erin is erger dan geen tijd.
+export function aftrapTijd(datumISO) {
+  const d = new Date(datumISO)
+  if (Number.isNaN(d.getTime())) return ''
+  return d.toLocaleTimeString('nl-NL', {
+    timeZone: 'Europe/Amsterdam',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+// Tekst voor zolang er nog geen goedgekeurd sjabloon is (en voor de e-mail).
+// Hier mag de link wél gewoon in: vrije tekst wordt niet geclassificeerd.
+export function maakHerinneringTekst(v, link = '') {
+  const w = (v || []).map(x => String(x ?? '').trim())
+  if (w.length < 2) return w.filter(Boolean).join('\n')
+  return [
+    `⏰ Over een half uur begint ${w[0]} (${w[1]}).`,
+    '',
+    'Jij hebt nog geen voorspelling ingevuld. Doe je het nog? Na de aftrap kan het niet meer.',
+    link ? '' : null,
+    link || null,
+  ].filter(r => r !== null).join('\n')
+}
+
+export async function stuurHerinneringen(fixture) {
+  if (!fixture?.matchId) return { verstuurd: 0, reden: 'geen wedstrijd' }
+
+  // Eén herinnering per wedstrijd. De tikker die dit endpoint aanroept komt
+  // binnen het tijdvenster meerdere keren langs; zonder dit slot zou iedereen
+  // dan om de paar minuten hetzelfde bericht krijgen.
+  const sleutel = `notificatie:herinnering:${fixture.matchId}`
+  const vorige = await kvGet(sleutel)
+  if (vorige?.verstuurdOp) return { verstuurd: 0, reden: 'al verstuurd' }
+
+  const [spelers, index] = await Promise.all([
+    alleGeverifieerdeSpelers(),
+    kvGet(`predictionIndex:${fixture.matchId}`),
+  ])
+  const alVoorspeld = new Set(index || [])
+
+  const ontvangers = spelers.filter(s => s.notificaties !== false && !alVoorspeld.has(s.id))
+  if (ontvangers.length === 0) {
+    // Ook dit vastleggen: iedereen was op tijd, dus er hoeft later niet
+    // opnieuw gekeken te worden.
+    await kvSet(sleutel, { verstuurdOp: new Date().toISOString(), aantal: 0 })
+    return { verstuurd: 0, reden: 'iedereen heeft al voorspeld' }
+  }
+
+  const wedstrijd = `${zoekNaam(fixture.thuis)} – ${zoekNaam(fixture.uit)}`
+  const tijd = aftrapTijd(fixture.datumISO)
+  const link = wedstrijdLink(fixture.matchId)
+  // Twee variabelen voor de tekst, de derde vult het achterstuk van de knop.
+  const variabelen = [wedstrijd, tijd, wedstrijdPad(fixture.matchId)]
+  const vrijeTekst = maakHerinneringTekst([wedstrijd, tijd], link)
+
+  const resultaten = await Promise.allSettled(ontvangers.map(async speler => {
+    if (whatsappIngesteld() && speler.telefoon) {
+      try {
+        await stuurWhatsappSjabloon(speler.telefoon, variabelen, {
+          soort: SJABLOON_HERINNERING,
+          vrijeTekst,
+        })
+        return
+      } catch (e) {
+        console.error(`Herinnering via WhatsApp mislukt voor ${speler.id}:`, e?.message || e)
+      }
+    }
+    await stuurHerinneringMail(speler.email, {
+      naam: speler.naam,
+      wedstrijd,
+      tijd,
+      link,
+    })
+  }))
+
+  const gelukt = resultaten.filter(r => r.status === 'fulfilled').length
+  for (const r of resultaten) {
+    if (r.status === 'rejected') console.error('Herinnering mislukt:', r.reason)
+  }
+
+  await kvSet(sleutel, { verstuurdOp: new Date().toISOString(), aantal: gelukt })
   return { verstuurd: gelukt, van: ontvangers.length }
 }
 

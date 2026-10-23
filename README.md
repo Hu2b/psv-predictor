@@ -56,6 +56,7 @@ zijn interne helpers, geen HTTP-endpoints.
 | `*    /api/admin`       | Beheer van wedstrijden en uitslagen (beheerderssessie)      |
 | `*    /api/admin-players` | Beheer van spelers (beheerderssessie + pincode)           |
 | `GET  /api/cron-uitslagen` | Cron-vangnet dat uitslagen verwerkt (zie `vercel.json`)  |
+| `GET  /api/cron-herinnering` | Herinnering voor de aftrap (externe tikker, zie hieronder) |
 
 ## Omgevingsvariabelen
 
@@ -70,13 +71,14 @@ Nodig in productie (Vercel → Project → Settings → Environment Variables):
 | `RESEND_FROM_EMAIL`  | nee       | Afzender (standaard een resend.dev-adres)                   |
 | `APP_BASE_URL`       | nee       | Basis-URL voor e-maillinks én de toegestane CORS-origin     |
 | `ADMIN_EMAILS`       | nee       | Kommagescheiden lijst van beheerders-e-mailadressen         |
-| `CRON_SECRET`        | aanbevolen| Beschermt `/api/cron-uitslagen` (Vercel stuurt 'm mee)      |
+| `CRON_SECRET`        | aanbevolen| Beschermt beide cron-endpoints (Vercel stuurt 'm mee)       |
 | `PSV_SEASON`         | nee       | Forceert een seizoen i.p.v. automatisch bepalen             |
 | `TWILIO_ACCOUNT_SID` | nee       | Account SID uit de Twilio Console (zie hieronder)           |
 | `TWILIO_AUTH_TOKEN`  | nee       | Auth Token uit de Twilio Console                            |
 | `TWILIO_WHATSAPP_FROM` | nee     | De WhatsApp-afzender, bijv. `+14155238886`                  |
 | `TWILIO_CONTENT_SID` | nee       | SID van het uitslagsjabloon (begint met `HX`)               |
 | `TWILIO_CONTENT_SID_VOORSPELLINGEN` | nee | SID van het voorspellingensjabloon            |
+| `TWILIO_CONTENT_SID_HERINNERING` | nee | SID van het herinneringssjabloon                 |
 
 ## Opstellingen
 
@@ -116,25 +118,49 @@ opstelling heeft, in plaats van "nog niet bekend".
 
 ## Meldingen
 
-Elke speler die meldingen aan heeft staan (Account → Meldingen) krijgt op twee
+Elke speler die meldingen aan heeft staan (Account → Meldingen) krijgt op drie
 momenten bericht:
 
-1. **Zodra iedereen heeft voorspeld** — op dat moment worden de voorspellingen
-   in de app onthuld. Het bericht toont ieders voorspelling en linkt naar de
-   app. Afgevuurd vanuit `api/prediction.js`, nadat de laatste voorspelling is
-   opgeslagen.
-2. **Na elke verwerkte uitslag** — met de eindstand, de voorspellingen en
+1. **Een half uur voor de aftrap** — alleen wie dan nog geen voorspelling heeft
+   ingevuld. Met een knop die rechtstreeks naar die wedstrijd gaat, met de
+   opstelling er al bij (`/w/{matchId}`). Afgevuurd vanuit
+   `api/cron-herinnering.js`.
+2. **Zodra iedereen heeft voorspeld** — op dat moment worden de voorspellingen
+   in de app onthuld. Het bericht toont ieders voorspelling. Afgevuurd vanuit
+   `api/prediction.js`, nadat de laatste voorspelling is opgeslagen.
+3. **Na elke verwerkte uitslag** — met de eindstand, de voorspellingen en
    punten van alle deelnemers, en het nieuwe klassement.
 
-> **Geen URL's in de sjablonen.** Meta herclassificeerde een eerdere versie van
-> het voorspellingensjabloon van *Utility* naar *Marketing* omdat er een link
-> naar de app in stond. Marketingberichten zijn per stuk duurder en vallen
-> onder aparte limieten per ontvanger. Beide sjablonen verwijzen daarom hooguit
-> naar "de app", zonder adres. De e-mailversies linken wél gewoon door.
+> **Geen URL's in de tekst van een sjabloon.** Meta herclassificeerde een
+> eerdere versie van het voorspellingensjabloon van *Utility* naar *Marketing*
+> omdat er een link naar de app in stond. Marketingberichten zijn per stuk
+> duurder en vallen onder aparte limieten per ontvanger. De sjablonen verwijzen
+> daarom hooguit naar "de app", zonder adres. Een **knop** onder het bericht mag
+> wél: zo komt de herinnering toch met een werkende link. De e-mailversies
+> linken altijd gewoon door.
 
-Beide hebben hun eigen sjabloon en hun eigen vingerafdruk in KV
-(`notificatie:{matchId}` en `notificatie:voorspellingen:{matchId}`), zodat een
-herberekening of een tweede aanroep geen dubbel bericht oplevert.
+Alle drie hebben hun eigen sjabloon en hun eigen slot in KV
+(`notificatie:{matchId}`, `notificatie:voorspellingen:{matchId}` en
+`notificatie:herinnering:{matchId}`), zodat een herberekening of een tweede
+aanroep geen dubbel bericht oplevert.
+
+### De tikker voor de herinnering
+
+Vercel's eigen cron draait op het gratis abonnement maar één keer per dag; daar
+red je "een half uur van tevoren" niet mee. `/api/cron-herinnering` wordt daarom
+van buitenaf aangetikt, bij voorkeur elke 10 minuten:
+
+```
+https://psv-predictor.vercel.app/api/cron-herinnering
+Authorization: Bearer <CRON_SECRET>
+```
+
+Het endpoint zoekt zelf de wedstrijden die over 20 tot 40 minuten beginnen. Dat
+venster is ruim genoeg dat een tikker van 10 minuten er altijd in valt, en het
+slot in KV zorgt dat meerdere treffers toch één bericht opleveren. Vaker aantikken
+mag; dan gaat er niets dubbel uit. Kan de tikker geen headers zetten, dan mag de
+sleutel ook als `?secret=` mee — minder netjes, want een zoekparameter belandt in
+logbestanden.
 
 Het kanaal volgt vanzelf uit de instellingen:
 

@@ -104,6 +104,13 @@ export default function AdminMeldingen({ setMelding }) {
 
         <div className={styles.predRij}>
           <div className={styles.predInfo}>
+            <span className={styles.predNaam}>Sjabloon herinnering</span>
+          </div>
+          <span className={styles.predLeeg}>{wa.sjabloonHerinnering || '— vrije tekst'}</span>
+        </div>
+
+        <div className={styles.predRij}>
+          <div className={styles.predInfo}>
             <span className={styles.predNaam}>Jouw nummer</span>
           </div>
           <span className={styles.predLeeg}>
