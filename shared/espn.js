@@ -99,6 +99,22 @@ export function opstellingIsDefinitief(samenvatting) {
   return status === 'in' || status === 'post'
 }
 
+// 'voor' = nog niet begonnen, 'bezig' = loopt, 'afgelopen' = klaar. Bepaalt
+// hoe vaak de app bijwerkt en wat er boven de opstelling staat. Onbekend telt
+// als 'voor': dan wordt er wél bijgewerkt en blijft er niets hangen.
+export function espnStatus(samenvatting) {
+  const staat = samenvatting?.header?.competitions?.[0]?.status?.type?.state
+  if (staat === 'in') return 'bezig'
+  if (staat === 'post') return 'afgelopen'
+  return 'voor'
+}
+
+// "83'" en "90'+3'" worden 83 en 90, genoeg om wissels op volgorde te zetten.
+export function minuutNummer(tekst) {
+  const match = String(tekst ?? '').match(/\d+/)
+  return match ? Number(match[0]) : 0
+}
+
 // Zet het rosters-blok van ESPN om naar wat de app toont: per ploeg de
 // formatie, de basisopstelling op rugnummer-volgorde van het veld, en de bank.
 export function maakOpstelling(rosters) {
@@ -112,7 +128,20 @@ export function maakOpstelling(rosters) {
       plek: Number(s.formationPlace || 0),
       ingevallen: Boolean(s.subbedIn),
       gewisseld: Boolean(s.subbedOut),
+      // De minuut staat bij de speler zelf, in zijn lijstje gebeurtenissen.
+      minuut: (s.plays || []).find(p => p.substitution)?.clock?.displayValue || '',
+      vervangenDoor: s.subbedOutFor?.athlete?.displayName || null,
+      gekomenVoor: s.subbedInFor?.athlete?.displayName || null,
     }))
+
+    // De wissels op een rij, op volgorde van de klok. We leiden ze af uit de
+    // spelers die ERIN kwamen: daar staat bij wie ze vervingen, dus één regel
+    // per wissel in plaats van twee halve.
+    const wissels = spelers
+      .filter(s => s.ingevallen && s.gekomenVoor)
+      .map(s => ({ minuut: s.minuut, erin: s.naam, eruit: s.gekomenVoor }))
+      .sort((a, b) => minuutNummer(a.minuut) - minuutNummer(b.minuut))
+
     return {
       team: r.team?.displayName || '',
       logo: r.team?.logos?.[0]?.href || null,
@@ -120,6 +149,7 @@ export function maakOpstelling(rosters) {
       formatie: r.formation || '',
       basis: spelers.filter(s => s.basis).sort((a, b) => a.plek - b.plek),
       bank: spelers.filter(s => !s.basis),
+      wissels,
     }
   })
 }

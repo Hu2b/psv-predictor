@@ -13,6 +13,7 @@ export default function Opstelling({ matchId, datumISO }) {
   const [laden, setLaden] = useState(false)
   const [opstellingen, setOpstellingen] = useState(null)
   const [definitief, setDefinitief] = useState(false)
+  const [status, setStatus] = useState('voor')
   const [bijgewerkt, setBijgewerkt] = useState(null)
 
   // `stil` onderdrukt de laadmelding. Bij het automatisch bijwerken wil je
@@ -25,6 +26,7 @@ export default function Opstelling({ matchId, datumISO }) {
       const data = await r.json()
       setOpstellingen(data.opstellingen || [])
       setDefinitief(Boolean(data.definitief))
+      setStatus(data.status || 'voor')
       setBijgewerkt(new Date())
     } catch (_) {
       if (!stil) setOpstellingen([])
@@ -32,25 +34,27 @@ export default function Opstelling({ matchId, datumISO }) {
     if (!stil) setLaden(false)
   }
 
-  // Zolang de opstelling voorlopig is en dit blok openstaat, wordt hij elke
-  // minuut opnieuw opgehaald — maar pas vanaf een half uur voor de aftrap, want
-  // daarvóór verandert er toch niets. Zodra hij definitief is stopt het
-  // vanzelf, en drie uur na de aftrap ook: een vergeten tabblad moet niet tot
-  // in de eeuwigheid blijven pollen.
+  // Zolang dit blok openstaat en de wedstrijd niet is afgelopen, wordt er elke
+  // minuut bijgewerkt. Vóór de aftrap om te zien of de opgegeven elf nog
+  // wijzigt, tijdens de wedstrijd om de wissels binnen te krijgen.
+  //
+  // Het begint twee uur voor de aftrap — clubs geven hun opstelling ongeveer
+  // een uur van tevoren vrij, dus dat is ruim op tijd — en stopt drie uur na de
+  // aftrap sowieso, zodat een vergeten tabblad niet eindeloos blijft pollen.
   //
   // Deze hook staat bewust vóór de `if (!open)` hieronder. React eist dat
   // hooks bij elke render in dezelfde volgorde worden aangeroepen, en een
   // vroege return ertussen breekt dat.
   useEffect(() => {
-    if (!open || definitief || !datumISO) return undefined
+    if (!open || status === 'afgelopen' || !datumISO) return undefined
 
     const timer = setInterval(() => {
       const minutenTotAftrap = (new Date(datumISO) - new Date()) / 60000
-      if (minutenTotAftrap <= 30 && minutenTotAftrap > -180) laad({ stil: true })
+      if (minutenTotAftrap <= 120 && minutenTotAftrap > -180) laad({ stil: true })
     }, 60 * 1000)
 
     return () => clearInterval(timer)
-  }, [open, definitief, matchId, datumISO])
+  }, [open, status, matchId, datumISO])
 
   function openen() {
     setOpen(true)
@@ -77,16 +81,17 @@ export default function Opstelling({ matchId, datumISO }) {
       {!laden && opstellingen?.length === 0 && (
         <p className={styles.leeg}>
           Nog niet bekend. Clubs geven hun opstelling meestal ongeveer een uur
-          voor de aftrap vrij — probeer het dan opnieuw.
+          voor de aftrap vrij. Laat dit blok openstaan, dan verschijnt hij
+          vanzelf zodra hij er is.
         </p>
       )}
 
       {!laden && opstellingen?.length > 0 && (
         <p className={definitief ? styles.definitief : styles.voorlopig}>
-          {definitief
-            ? '✅ Definitieve opstelling'
-            : '⏳ Opgegeven opstelling — kan tot de aftrap nog wijzigen'}
-          {!definitief && bijgewerkt && (
+          {status === 'voor' && '⏳ Opgegeven opstelling — kan tot de aftrap nog wijzigen'}
+          {status === 'bezig' && '🔴 Wedstrijd bezig — wissels komen er vanzelf bij'}
+          {status === 'afgelopen' && '✅ Definitieve opstelling'}
+          {status !== 'afgelopen' && bijgewerkt && (
             <span className={styles.bijgewerkt}>
               {' '}· bijgewerkt {bijgewerkt.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })}
             </span>
@@ -112,16 +117,36 @@ export default function Opstelling({ matchId, datumISO }) {
                   >
                     <span className={styles.rugnummer}>{s.rugnummer}</span>
                     <span className={styles.naam}>{s.naam}</span>
-                    <span className={styles.positie}>{s.positie}</span>
+                    <span className={styles.positie}>
+                      {s.gewisseld && s.minuut ? `↓ ${s.minuut}` : s.positie}
+                    </span>
                   </div>
                 ))}
               </div>
+
+              {ploeg.wissels?.length > 0 && (
+                <>
+                  <div className={styles.bankKop}>Wissels</div>
+                  <div className={styles.wissels}>
+                    {ploeg.wissels.map(w => (
+                      <div key={`${w.minuut}-${w.erin}`} className={styles.wissel}>
+                        <span className={styles.wisselMinuut}>{w.minuut}</span>
+                        <span className={styles.wisselNamen}>
+                          <span className={styles.erin}>▲ {w.erin}</span>
+                          {' '}
+                          <span className={styles.eruit}>▼ {w.eruit}</span>
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
 
               {ploeg.bank.length > 0 && (
                 <>
                   <div className={styles.bankKop}>Bank</div>
                   <div className={styles.bank}>
-                    {ploeg.bank.map(s => s.naam).join(' · ')}
+                    {ploeg.bank.filter(s => !s.ingevallen).map(s => s.naam).join(' · ') || '—'}
                   </div>
                 </>
               )}

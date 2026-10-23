@@ -96,8 +96,16 @@ Twee dingen om te weten:
   aanroep geeft een lege opstelling terug, nooit een foutstatus, en het
   wedstrijdscherm blijft gewoon werken.
 
-De link verschijnt in de app pas als de wedstrijd binnen drie uur begint, omdat
-clubs hun opstelling doorgaans ongeveer een uur voor de aftrap vrijgeven.
+De link verschijnt in de app vanaf een dag voor de aftrap. Is de opstelling er
+nog niet (clubs geven hem doorgaans ongeveer een uur van tevoren vrij), dan zegt
+het blok dat; laat je het openstaan, dan verschijnt hij vanzelf.
+
+Zolang het blok openstaat en de wedstrijd niet is afgelopen, wordt er elke
+minuut bijgewerkt — vanaf twee uur voor de aftrap tot drie uur erna. Vóór de
+aftrap om een late wijziging in de basis te zien, tijdens de wedstrijd om de
+wissels binnen te krijgen: wie erin kwam voor wie, en in welke minuut. De cache
+op de server is daarom kort tijdens de wedstrijd (45 seconden) en wat langer
+daarbuiten (5 minuten).
 
 ## Meldingen
 

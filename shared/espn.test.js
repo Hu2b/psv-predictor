@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { espnCompetitie, espnDatum, teamKomtOvereen, zoekEspnWedstrijd, maakOpstelling, opstellingIsDefinitief } from './espn.js'
+import { espnCompetitie, espnDatum, teamKomtOvereen, zoekEspnWedstrijd, maakOpstelling, opstellingIsDefinitief, espnStatus, minuutNummer } from './espn.js'
 
 test('espnCompetitie: bekende competities krijgen een pad, onbekende niets', () => {
   assert.equal(espnCompetitie('ERE'), 'ned.1')
@@ -106,4 +106,87 @@ test('opstellingIsDefinitief: bij ontbrekende status liever voorlopig dan defini
   assert.equal(opstellingIsDefinitief(undefined), false)
   assert.equal(opstellingIsDefinitief({}), false)
   assert.equal(opstellingIsDefinitief({ header: {} }), false)
+})
+
+test('espnStatus: ESPN-staat omgezet naar onze drie woorden', () => {
+  const met = staat => ({ header: { competitions: [{ status: { type: { state: staat } } }] } })
+  assert.equal(espnStatus(met('pre')), 'voor')
+  assert.equal(espnStatus(met('in')), 'bezig')
+  assert.equal(espnStatus(met('post')), 'afgelopen')
+})
+
+test('espnStatus: onbekend telt als "voor", zodat er blijft bijgewerkt', () => {
+  assert.equal(espnStatus(undefined), 'voor')
+  assert.equal(espnStatus({}), 'voor')
+  assert.equal(espnStatus({ header: { competitions: [{}] } }), 'voor')
+})
+
+test('minuutNummer: eerste getal uit de kloktekst', () => {
+  assert.equal(minuutNummer("83'"), 83)
+  assert.equal(minuutNummer("90'+3'"), 90)
+  assert.equal(minuutNummer('45'), 45)
+  assert.equal(minuutNummer(''), 0)
+  assert.equal(minuutNummer(undefined), 0)
+})
+
+const ROSTERS_MET_WISSELS = [{
+  homeAway: 'home',
+  team: { displayName: 'PSV Eindhoven' },
+  roster: [
+    {
+      starter: true, jersey: '9', formationPlace: '9',
+      athlete: { displayName: 'Spits' },
+      position: { abbreviation: 'F' },
+      subbedOut: true,
+      subbedOutFor: { athlete: { displayName: 'Invaller Laat' } },
+      plays: [{ substitution: true, clock: { displayValue: "83'" } }],
+    },
+    {
+      starter: true, jersey: '6', formationPlace: '6',
+      athlete: { displayName: 'Middenvelder' },
+      position: { abbreviation: 'M' },
+      subbedOut: true,
+      subbedOutFor: { athlete: { displayName: 'Invaller Vroeg' } },
+      plays: [{ substitution: true, clock: { displayValue: "61'" } }],
+    },
+    {
+      starter: false, jersey: '20',
+      athlete: { displayName: 'Invaller Laat' },
+      position: { abbreviation: 'SUB' },
+      subbedIn: true,
+      subbedInFor: { athlete: { displayName: 'Spits' } },
+      plays: [{ substitution: true, clock: { displayValue: "83'" } }],
+    },
+    {
+      starter: false, jersey: '21',
+      athlete: { displayName: 'Invaller Vroeg' },
+      position: { abbreviation: 'SUB' },
+      subbedIn: true,
+      subbedInFor: { athlete: { displayName: 'Middenvelder' } },
+      plays: [{ substitution: true, clock: { displayValue: "61'" } }],
+    },
+    { starter: false, jersey: '22', athlete: { displayName: 'Blijft Zitten' }, position: { abbreviation: 'SUB' } },
+  ],
+}]
+
+test('maakOpstelling: wissels op een rij, chronologisch en met de juiste namen', () => {
+  const [ploeg] = maakOpstelling(ROSTERS_MET_WISSELS)
+  assert.deepEqual(ploeg.wissels, [
+    { minuut: "61'", erin: 'Invaller Vroeg', eruit: 'Middenvelder' },
+    { minuut: "83'", erin: 'Invaller Laat', eruit: 'Spits' },
+  ])
+})
+
+test('maakOpstelling: de minuut staat ook bij de gewisselde basisspeler', () => {
+  const [ploeg] = maakOpstelling(ROSTERS_MET_WISSELS)
+  const spits = ploeg.basis.find(s => s.naam === 'Spits')
+  assert.equal(spits.gewisseld, true)
+  assert.equal(spits.minuut, "83'")
+  assert.equal(spits.vervangenDoor, 'Invaller Laat')
+})
+
+test('maakOpstelling: zonder wissels blijft de lijst leeg', () => {
+  const [ploeg] = maakOpstelling(ROSTERS)
+  // De spits staat wel als gewisseld, maar ESPN meldt (nog) niet wie erin kwam.
+  assert.deepEqual(ploeg.wissels, [])
 })

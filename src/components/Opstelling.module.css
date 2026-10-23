@@ -155,6 +155,37 @@
 
 .gewisseld .naam { opacity: 0.55; }
 
+.wissels {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.wissel {
+  display: grid;
+  grid-template-columns: 38px 1fr;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.wisselMinuut {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 11px;
+  color: var(--psv-gray-lt);
+  text-align: right;
+}
+
+.wisselNamen {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.erin { color: var(--psv-white); }
+.eruit { color: var(--psv-gray-lt); }
+
 .bankKop {
   font-size: 10px;
   font-weight: 700;

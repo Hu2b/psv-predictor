@@ -2,7 +2,7 @@ import { kvGet, kvSet } from './_kv.js'
 import { zetCors } from './_cors.js'
 import { fetchMetTimeout } from './_fetch.js'
 import { haalAlleWedstrijden } from './_wedstrijden.js'
-import { espnCompetitie, espnDatum, zoekEspnWedstrijd, maakOpstelling, opstellingIsDefinitief } from '../shared/espn.js'
+import { espnCompetitie, espnDatum, zoekEspnWedstrijd, maakOpstelling, opstellingIsDefinitief, espnStatus } from '../shared/espn.js'
 
 // Opstellingen komen van ESPN, niet van football-data.org — dat levert ze op
 // ons abonnement niet. ESPN publiceert ze ongeveer een uur voor de aftrap.
@@ -17,7 +17,15 @@ const ESPN = 'https://site.api.espn.com/apis/site/v2/sports/soccer'
 // houden we lang vast. De opstelling zelf verandert nog tot vlak voor de
 // aftrap en tijdens de wedstrijd (wissels), dus die verloopt snel.
 const ID_TTL_MS = 30 * 24 * 60 * 60 * 1000
-const OPSTELLING_TTL_MS = 5 * 60 * 1000
+
+// Tijdens de wedstrijd vallen er wissels, dus dan moet de cache kort zijn —
+// anders zie je een wissel pas minuten later. Daarbuiten verandert er weinig.
+const TTL_BEZIG_MS = 45 * 1000
+const TTL_RUST_MS = 5 * 60 * 1000
+
+function cacheTtl(status) {
+  return status === 'bezig' ? TTL_BEZIG_MS : TTL_RUST_MS
+}
 
 async function haalJson(url) {
   const res = await fetchMetTimeout(url)
@@ -54,10 +62,11 @@ export default async function handler(req, res) {
   const cacheSleutel = `espn:opstelling:${matchId}`
   try {
     const cached = await kvGet(cacheSleutel)
-    if (cached && Date.now() - new Date(cached.op).getTime() < OPSTELLING_TTL_MS) {
+    if (cached && Date.now() - new Date(cached.op).getTime() < cacheTtl(cached.status)) {
       return res.status(200).json({
         opstellingen: cached.opstellingen,
         definitief: Boolean(cached.definitief),
+        status: cached.status || 'voor',
         bron: 'espn',
       })
     }
@@ -73,16 +82,17 @@ export default async function handler(req, res) {
     const samenvatting = await haalJson(`${ESPN}/${competitie}/summary?event=${espnId}`)
     const opstellingen = maakOpstelling(samenvatting.rosters)
     const definitief = opstellingIsDefinitief(samenvatting)
+    const status = espnStatus(samenvatting)
 
     // Een lege opstelling is geen fout: tot ongeveer een uur voor de aftrap
     // bestaat hij simpelweg nog niet. We bewaren hem dan ook niet, zodat de
     // volgende aanroep opnieuw kijkt.
     const bruikbaar = opstellingen.filter(o => o.basis.length > 0)
     if (bruikbaar.length > 0) {
-      await kvSet(cacheSleutel, { opstellingen: bruikbaar, definitief, op: new Date().toISOString() })
+      await kvSet(cacheSleutel, { opstellingen: bruikbaar, definitief, status, op: new Date().toISOString() })
     }
 
-    return res.status(200).json({ opstellingen: bruikbaar, definitief, bron: 'espn' })
+    return res.status(200).json({ opstellingen: bruikbaar, definitief, status, bron: 'espn' })
   } catch (e) {
     console.error('Opstelling ophalen mislukt:', e)
     // Geen 500: een ontbrekende opstelling mag het wedstrijdscherm nooit

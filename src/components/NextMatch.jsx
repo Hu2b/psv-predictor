@@ -98,14 +98,14 @@ export default function NextMatch({ fixture, fixtures, speler }) {
   const kickoffVoorbij = getoond.datumISO ? new Date(getoond.datumISO) <= nu : false
   const toonH2H = !kickoffVoorbij && !onthuld
 
-  // De opstelling bestaat pas ongeveer een uur voor de aftrap. Dagen van
-  // tevoren het linkje al tonen levert alleen maar "nog niet bekend" op, dus
-  // verschijnt het pas als de wedstrijd binnen drie uur begint — en daarna
-  // blijft het staan, ook tijdens en na de wedstrijd.
+  // Vanaf een dag voor de aftrap staat het linkje er, zodat je zelf kunt gaan
+  // kijken zodra de opstelling bekend is (meestal zo'n uur van tevoren). Is hij
+  // er nog niet, dan zegt het blok dat; laat je het openstaan, dan verschijnt
+  // hij vanzelf. Na de wedstrijd blijft het linkje staan om terug te kijken.
   const urenTotAftrap = getoond.datumISO
     ? (new Date(getoond.datumISO) - nu) / (60 * 60 * 1000)
     : null
-  const toonOpstelling = urenTotAftrap !== null && urenTotAftrap < 3
+  const toonOpstelling = urenTotAftrap !== null && urenTotAftrap < 24
 
   return (
     <div className={styles.wrapper}>
