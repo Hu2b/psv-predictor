@@ -131,13 +131,19 @@ momenten bericht:
 3. **Na elke verwerkte uitslag** — met de eindstand, de voorspellingen en
    punten van alle deelnemers, en het nieuwe klassement.
 
-> **Geen URL's in de tekst van een sjabloon.** Meta herclassificeerde een
-> eerdere versie van het voorspellingensjabloon van *Utility* naar *Marketing*
-> omdat er een link naar de app in stond. Marketingberichten zijn per stuk
-> duurder en vallen onder aparte limieten per ontvanger. De sjablonen verwijzen
-> daarom hooguit naar "de app", zonder adres. Een **knop** onder het bericht mag
-> wél: zo komt de herinnering toch met een werkende link. De e-mailversies
-> linken altijd gewoon door.
+> **Let op de categorie die Meta aan een sjabloon geeft.** Een eerdere versie
+> van het voorspellingensjabloon ging van *Utility* naar *Marketing* omdat er
+> een link naar de app in de tekst stond. Marketingberichten zijn per stuk
+> duurder, vallen onder aparte limieten, en een ontvanger kan ze in WhatsApp
+> apart uitzetten terwijl utility-berichten blijven komen.
+>
+> Een link in een **knop** helpt daar niet per se tegen: het herinneringssjabloon
+> belandde met knop alsnog in Marketing. Waarschijnlijk telt vooral de aard van
+> het bericht — Meta rekent een aansporing om iets te gaan doen tot Marketing,
+> en alleen een melding over iets dat al loopt of al gebeurd is tot Utility. Dat
+> het herinneringssjabloon Marketing is, is daarom een bewuste keuze: de knop is
+> precies waar dat bericht voor bedoeld is. De andere twee zijn Utility en
+> noemen geen adres. De e-mailversies linken altijd gewoon door.
 
 Alle drie hebben hun eigen sjabloon en hun eigen slot in KV
 (`notificatie:{matchId}`, `notificatie:voorspellingen:{matchId}` en
