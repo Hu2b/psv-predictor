@@ -148,9 +148,11 @@ export default function Opstelling({ matchId, datumISO, standaardOpen = false })
                   >
                     <span className={styles.rugnummer}>{s.rugnummer}</span>
                     <span className={styles.naam}>{s.naam}</span>
-                    <span className={styles.positie}>
-                      {s.gewisseld && s.minuut ? `↓ ${s.minuut}` : s.positie}
-                    </span>
+                    {/* Bewust de positie, ook bij wie gewisseld is: de minuut
+                        staat al in het Wissels-blok hieronder, en twee keer
+                        dezelfde informatie kost alleen maar de positie. Dat
+                        iemand eruit ging zie je aan de lichtere naam. */}
+                    <span className={styles.positie}>{s.positie}</span>
                   </div>
                 ))}
               </div>
