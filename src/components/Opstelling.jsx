@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { achternaam } from '../../shared/espn.js'
 import styles from './Opstelling.module.css'
 
 // Toont de opstellingen van beide ploegen. Standaard ingeklapt tot één regel,
@@ -192,13 +193,13 @@ export default function Opstelling({ matchId, datumISO, standaardOpen = false })
                 </>
               )}
 
+              {/* Op één regel, met het kopje ervoor in plaats van erboven, en
+                  alleen achternamen: het gaat erom wie er zit. */}
               {ploeg.bank.length > 0 && (
-                <>
-                  <div className={styles.bankKop}>Bank</div>
-                  <div className={styles.bank}>
-                    {ploeg.bank.filter(s => !s.ingevallen).map(s => s.naam).join(' · ') || '—'}
-                  </div>
-                </>
+                <div className={styles.bank}>
+                  <span className={styles.bankLabel}>Bank</span>
+                  {ploeg.bank.filter(s => !s.ingevallen).map(s => achternaam(s.naam)).join(' · ') || '—'}
+                </div>
               )}
             </div>
             )

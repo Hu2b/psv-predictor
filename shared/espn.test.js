@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { espnCompetitie, espnDatum, espnDatumVarianten, teamKomtOvereen, zoekEspnWedstrijd, maakOpstelling, opstellingIsDefinitief, espnStatus, wedstrijdStatus, minuutNummer, psvEerst } from './espn.js'
+import { espnCompetitie, espnDatum, espnDatumVarianten, teamKomtOvereen, zoekEspnWedstrijd, maakOpstelling, opstellingIsDefinitief, espnStatus, wedstrijdStatus, minuutNummer, psvEerst, achternaam } from './espn.js'
 
 test('espnCompetitie: bekende competities krijgen een pad, onbekende niets', () => {
   assert.equal(espnCompetitie('ERE'), 'ned.1')
@@ -227,4 +227,13 @@ test('psvEerst: laat de volgorde met rust als PSV er niet bij staat', () => {
   const zonder = [{ team: 'Feyenoord Rotterdam' }, { team: 'Ajax Amsterdam' }]
   assert.deepEqual(psvEerst(zonder).map(o => o.team), ['Feyenoord Rotterdam', 'Ajax Amsterdam'])
   assert.deepEqual(psvEerst(undefined), [])
+})
+
+test('achternaam: het laatste woord, en een enkele naam blijft heel', () => {
+  assert.equal(achternaam('Shuryjano Cornecion'), 'Cornecion')
+  assert.equal(achternaam('Tijn Smolenaars'), 'Smolenaars')
+  assert.equal(achternaam('Moura'), 'Moura')
+  assert.equal(achternaam('  Nick   Olij  '), 'Olij')
+  assert.equal(achternaam(''), '')
+  assert.equal(achternaam(undefined), '')
 })

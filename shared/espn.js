@@ -144,6 +144,14 @@ export function minuutNummer(tekst) {
   return match ? Number(match[0]) : 0
 }
 
+// Alleen de achternaam, voor de bank. Daar gaat het om wie er zit, niet om de
+// volledige naam, en zo past het rijtje op één regel. Eén woord blijft heel
+// (veel Brazilianen hebben maar één naam).
+export function achternaam(naam) {
+  const delen = String(naam ?? '').trim().split(/\s+/).filter(Boolean)
+  return delen.length > 1 ? delen[delen.length - 1] : (delen[0] || '')
+}
+
 // PSV bovenaan, ongeacht of ze thuis of uit spelen. Het is een PSV-poule; je
 // kijkt naar de eigen ploeg en pas daarna naar de tegenstander.
 export function psvEerst(opstellingen) {
