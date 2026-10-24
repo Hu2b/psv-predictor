@@ -142,10 +142,18 @@
   text-align: right;
 }
 
+/* Mag afbreken: met de vervanger erachter wordt de regel soms te lang voor een
+   telefoon, en een afgekapte naam van de invaller heeft niemand iets aan. */
 .naam {
+  overflow-wrap: anywhere;
+}
+
+/* De invaller staat juist wél op het veld, dus die blijft helder ook al is de
+   naam ervoor gedimd. */
+.vervanger {
+  font-size: 11px;
+  color: var(--psv-white);
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .positie {
@@ -153,7 +161,9 @@
   color: var(--psv-gray-lt);
 }
 
-.gewisseld .naam { opacity: 0.55; }
+/* Dimmen via de kleur en niet via opacity: opacity op de regel zou ook de
+   invaller erachter vervagen, en die kan een kind niet meer ongedaan maken. */
+.gewisseld .naam { color: var(--psv-gray-lt); }
 
 .wissels {
   display: flex;

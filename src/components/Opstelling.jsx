@@ -132,7 +132,16 @@ export default function Opstelling({ matchId, datumISO, standaardOpen = false })
 
       {!laden && opstellingen?.length > 0 && (
         <div className={styles.ploegen}>
-          {opstellingen.map(ploeg => (
+          {opstellingen.map(ploeg => {
+            // Een wissel staat achter de basisspeler die eruit ging. Wat
+            // overblijft is de invaller die zélf nog gewisseld werd — die
+            // staat niet in de basis, dus die krijgt onderaan alsnog een
+            // regel. Zeldzaam (meestal een blessure), maar anders raak je hem
+            // kwijt.
+            const basisNamen = new Set(ploeg.basis.map(s => s.naam))
+            const overigeWissels = (ploeg.wissels || []).filter(w => !basisNamen.has(w.eruit))
+
+            return (
             <div key={ploeg.team} className={styles.ploeg}>
               <div className={styles.ploegKop}>
                 {ploeg.logo && <img className={styles.ploegLogo} src={ploeg.logo} alt="" />}
@@ -147,21 +156,24 @@ export default function Opstelling({ matchId, datumISO, standaardOpen = false })
                     className={`${styles.speler} ${s.gewisseld ? styles.gewisseld : ''}`}
                   >
                     <span className={styles.rugnummer}>{s.rugnummer}</span>
-                    <span className={styles.naam}>{s.naam}</span>
-                    {/* Bewust de positie, ook bij wie gewisseld is: de minuut
-                        staat al in het Wissels-blok hieronder, en twee keer
-                        dezelfde informatie kost alleen maar de positie. Dat
-                        iemand eruit ging zie je aan de lichtere naam. */}
+                    <span className={styles.naam}>
+                      {s.naam}
+                      {s.gewisseld && s.vervangenDoor && (
+                        <span className={styles.vervanger}>
+                          {' '}({s.minuut} {s.vervangenDoor})
+                        </span>
+                      )}
+                    </span>
                     <span className={styles.positie}>{s.positie}</span>
                   </div>
                 ))}
               </div>
 
-              {ploeg.wissels?.length > 0 && (
+              {overigeWissels.length > 0 && (
                 <>
                   <div className={styles.bankKop}>Wissels</div>
                   <div className={styles.wissels}>
-                    {ploeg.wissels.map(w => (
+                    {overigeWissels.map(w => (
                       <div key={`${w.minuut}-${w.erin}`} className={styles.wissel}>
                         <span className={styles.wisselMinuut}>{w.minuut}</span>
                         <span className={styles.wisselNamen}>
@@ -184,7 +196,8 @@ export default function Opstelling({ matchId, datumISO, standaardOpen = false })
                 </>
               )}
             </div>
-          ))}
+            )
+          })}
         </div>
       )}
     </div>
