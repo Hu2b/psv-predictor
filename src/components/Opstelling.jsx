@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { achternaam } from '../../shared/espn.js'
+import { achternaam, teamKomtOvereen } from '../../shared/espn.js'
 import styles from './Opstelling.module.css'
 
 // Toont de opstellingen van beide ploegen. Standaard ingeklapt tot één regel,
@@ -142,6 +142,11 @@ export default function Opstelling({ matchId, datumISO, standaardOpen = false })
             const basisNamen = new Set(ploeg.basis.map(s => s.naam))
             const overigeWissels = (ploeg.wissels || []).filter(w => !basisNamen.has(w.eruit))
 
+            // Op de bank van PSV de volledige naam: dat zijn de spelers die je
+            // kent en waarvan je wilt zien wie er zit. Bij de tegenstander is
+            // de achternaam genoeg en scheelt het een regel.
+            const isPsv = teamKomtOvereen(ploeg.team, 'PSV')
+
             return (
             <div key={ploeg.team} className={styles.ploeg}>
               <div className={styles.ploegKop}>
@@ -198,7 +203,10 @@ export default function Opstelling({ matchId, datumISO, standaardOpen = false })
               {ploeg.bank.length > 0 && (
                 <div className={styles.bank}>
                   <span className={styles.bankLabel}>Bank</span>
-                  {ploeg.bank.filter(s => !s.ingevallen).map(s => achternaam(s.naam)).join(' · ') || '—'}
+                  {ploeg.bank
+                    .filter(s => !s.ingevallen)
+                    .map(s => (isPsv ? s.naam : achternaam(s.naam)))
+                    .join(' · ') || '—'}
                 </div>
               )}
             </div>
