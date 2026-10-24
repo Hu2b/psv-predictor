@@ -2,7 +2,7 @@ import { kvGet, kvSet } from './_kv.js'
 import { zetCors } from './_cors.js'
 import { fetchMetTimeout } from './_fetch.js'
 import { haalAlleWedstrijden } from './_wedstrijden.js'
-import { espnCompetitie, espnDatumVarianten, zoekEspnWedstrijd, maakOpstelling, opstellingIsDefinitief, espnStatus, wedstrijdStatus } from '../shared/espn.js'
+import { espnCompetitie, espnDatumVarianten, zoekEspnWedstrijd, maakOpstelling, opstellingIsDefinitief, espnStatus, wedstrijdStatus, psvEerst } from '../shared/espn.js'
 
 // Opstellingen komen van ESPN, niet van football-data.org — dat levert ze op
 // ons abonnement niet. ESPN publiceert ze ongeveer een uur voor de aftrap.
@@ -81,7 +81,7 @@ export default async function handler(req, res) {
     const cached = await kvGet(cacheSleutel)
     if (cached && Date.now() - new Date(cached.op).getTime() < cacheTtl(cached.status)) {
       return res.status(200).json({
-        opstellingen: cached.opstellingen,
+        opstellingen: psvEerst(cached.opstellingen),
         definitief: Boolean(cached.definitief),
         status: cached.status || 'voor',
         bron: 'espn',
@@ -119,7 +119,7 @@ export default async function handler(req, res) {
       await kvSet(cacheSleutel, { opstellingen: bruikbaar, definitief, status, op: new Date().toISOString() })
     }
 
-    return res.status(200).json({ opstellingen: bruikbaar, definitief, status, bron: 'espn' })
+    return res.status(200).json({ opstellingen: psvEerst(bruikbaar), definitief, status, bron: 'espn' })
   } catch (e) {
     console.error('Opstelling ophalen mislukt:', e)
     // Geen 500: een ontbrekende opstelling mag het wedstrijdscherm nooit

@@ -144,6 +144,16 @@ export function minuutNummer(tekst) {
   return match ? Number(match[0]) : 0
 }
 
+// PSV bovenaan, ongeacht of ze thuis of uit spelen. Het is een PSV-poule; je
+// kijkt naar de eigen ploeg en pas daarna naar de tegenstander.
+export function psvEerst(opstellingen) {
+  return [...(opstellingen || [])].sort((a, b) => {
+    const aPsv = teamKomtOvereen(a.team, 'PSV') ? 0 : 1
+    const bPsv = teamKomtOvereen(b.team, 'PSV') ? 0 : 1
+    return aPsv - bPsv
+  })
+}
+
 // Zet het rosters-blok van ESPN om naar wat de app toont: per ploeg de
 // formatie, de basisopstelling op rugnummer-volgorde van het veld, en de bank.
 export function maakOpstelling(rosters) {

@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { espnCompetitie, espnDatum, espnDatumVarianten, teamKomtOvereen, zoekEspnWedstrijd, maakOpstelling, opstellingIsDefinitief, espnStatus, wedstrijdStatus, minuutNummer } from './espn.js'
+import { espnCompetitie, espnDatum, espnDatumVarianten, teamKomtOvereen, zoekEspnWedstrijd, maakOpstelling, opstellingIsDefinitief, espnStatus, wedstrijdStatus, minuutNummer, psvEerst } from './espn.js'
 
 test('espnCompetitie: bekende competities krijgen een pad, onbekende niets', () => {
   assert.equal(espnCompetitie('ERE'), 'ned.1')
@@ -213,4 +213,18 @@ test('maakOpstelling: zonder wissels blijft de lijst leeg', () => {
   const [ploeg] = maakOpstelling(ROSTERS)
   // De spits staat wel als gewisseld, maar ESPN meldt (nog) niet wie erin kwam.
   assert.deepEqual(ploeg.wissels, [])
+})
+
+test('psvEerst: PSV bovenaan, thuis of uit maakt niet uit', () => {
+  const uit = [{ team: 'FC Porto' }, { team: 'PSV Eindhoven' }]
+  assert.deepEqual(psvEerst(uit).map(o => o.team), ['PSV Eindhoven', 'FC Porto'])
+
+  const thuis = [{ team: 'PSV Eindhoven' }, { team: 'Ajax Amsterdam' }]
+  assert.deepEqual(psvEerst(thuis).map(o => o.team), ['PSV Eindhoven', 'Ajax Amsterdam'])
+})
+
+test('psvEerst: laat de volgorde met rust als PSV er niet bij staat', () => {
+  const zonder = [{ team: 'Feyenoord Rotterdam' }, { team: 'Ajax Amsterdam' }]
+  assert.deepEqual(psvEerst(zonder).map(o => o.team), ['Feyenoord Rotterdam', 'Ajax Amsterdam'])
+  assert.deepEqual(psvEerst(undefined), [])
 })
