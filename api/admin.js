@@ -93,12 +93,25 @@ export default async function handler(req, res) {
   // Twilio onverkort terug — dat is precies wat je nodig hebt om een verkeerd
   // token, een onbekende sjabloon-SID of een niet-aangemeld nummer te vinden.
   if (req.method === 'POST' && action === 'testMelding') {
+    const soort = body?.soort || 'uitslag'
     try {
-      const info = await stuurTestMelding(check.beheerder)
+      // De herinnering gaat over de eerstvolgende wedstrijd; die zoeken we
+      // hier op, want _notificaties.js mag _wedstrijden.js niet importeren.
+      let fixture = null
+      if (soort === 'herinnering') {
+        const wedstrijden = await haalAlleWedstrijden()
+        const nu = Date.now()
+        fixture = wedstrijden
+          .filter(w => w.datumISO && new Date(w.datumISO).getTime() > nu)
+          .sort((a, b) => new Date(a.datumISO) - new Date(b.datumISO))[0] || null
+      }
+
+      const info = await stuurTestMelding(check.beheerder, { soort, fixture })
       return res.status(200).json({ success: true, ...info })
     } catch (e) {
       return res.status(200).json({
         success: false,
+        soort,
         kanaal: whatsappInstellingen().ingesteld && check.beheerder.telefoon ? 'whatsapp' : 'email',
         error: e?.message || 'Onbekende fout',
       })

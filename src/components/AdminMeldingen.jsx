@@ -5,7 +5,9 @@ import { getSessionToken } from '../lib/sessie.js'
 export default function AdminMeldingen({ setMelding }) {
   const [instellingen, setInstellingen] = useState(null)
   const [laden, setLaden] = useState(true)
-  const [bezig, setBezig] = useState(false)
+  // Houdt bij wélke proef er loopt ('uitslag' | 'voorspellingen' |
+  // 'herinnering'), zodat alleen die ene knop op "Bezig…" springt.
+  const [bezig, setBezig] = useState(null)
   const [uitslag, setUitslag] = useState(null)
 
   async function laadInstellingen() {
@@ -21,25 +23,25 @@ export default function AdminMeldingen({ setMelding }) {
 
   useEffect(() => { laadInstellingen() }, [])
 
-  async function stuurTest() {
-    setBezig(true)
+  async function stuurTest(soort) {
+    setBezig(soort)
     setUitslag(null)
     try {
       const r = await fetch('/api/admin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'testMelding', sessionToken: getSessionToken() })
+        body: JSON.stringify({ action: 'testMelding', soort, sessionToken: getSessionToken() })
       })
       const data = await r.json()
       setUitslag(data)
       setMelding(data.success
-        ? { type: 'ok', tekst: `Proefbericht verstuurd via ${data.kanaal}` }
+        ? { type: 'ok', tekst: `Proefbericht (${soort}) verstuurd via ${data.kanaal}` }
         : { type: 'fout', tekst: 'Proefbericht mislukt — zie details hieronder' })
     } catch (_) {
-      setUitslag({ success: false, error: 'Netwerkfout' })
+      setUitslag({ success: false, soort, error: 'Netwerkfout' })
       setMelding({ type: 'fout', tekst: 'Netwerkfout' })
     }
-    setBezig(false)
+    setBezig(null)
   }
 
   if (laden) return <div className={styles.sectie}><p className={styles.leegTekst}>Laden…</p></div>
@@ -50,11 +52,14 @@ export default function AdminMeldingen({ setMelding }) {
     <div className={styles.sectie}>
       <label className={styles.label}>Meldingen</label>
       <p className={styles.leegTekst}>
-        Spelers krijgen automatisch bericht op twee momenten: zodra iedereen
-        heeft voorspeld (met alle voorspellingen en een link naar de app), en
+        Spelers krijgen automatisch bericht op drie momenten: een half uur voor
+        de aftrap (alleen wie dan nog niet heeft voorspeld, met een knop naar de
+        wedstrijd), zodra iedereen heeft voorspeld (met alle voorspellingen), en
         na elke verwerkte uitslag (met de eindstand, ieders punten en het nieuwe
         klassement). Hieronder zie je welk kanaal daarvoor gebruikt wordt, en
-        kun je het testen.
+        kun je elk bericht los testen. De proeven voor uitslag en voorspellingen
+        gebruiken de laatst gespeelde wedstrijd, de herinnering de
+        eerstvolgende.
       </p>
 
       <div className={styles.predBlok}>
@@ -139,15 +144,29 @@ export default function AdminMeldingen({ setMelding }) {
         </p>
       )}
 
-      <button className={styles.btn} onClick={stuurTest} disabled={bezig}>
-        {bezig ? 'Bezig…' : 'Stuur mij een proefbericht'}
-      </button>
+      {/* Drie losse knoppen in plaats van één: elk bericht heeft zijn eigen
+          sjabloon, en als er één weigert wil je weten wélke. */}
+      {[
+        ['uitslag', 'Proef: uitslag'],
+        ['voorspellingen', 'Proef: voorspellingen'],
+        ['herinnering', 'Proef: herinnering'],
+      ].map(([soort, label]) => (
+        <button
+          key={soort}
+          className={styles.btn}
+          onClick={() => stuurTest(soort)}
+          disabled={Boolean(bezig)}
+        >
+          {bezig === soort ? 'Bezig…' : label}
+        </button>
+      ))}
 
       {uitslag && (
         <div className={styles.predBlok}>
           {uitslag.success ? (
             <p className={styles.leegTekst}>
-              ✅ Verstuurd via <strong>{uitslag.kanaal}</strong> naar {uitslag.naar}.
+              ✅ Proef <strong>{uitslag.soort}</strong> verstuurd via{' '}
+              <strong>{uitslag.kanaal}</strong> naar {uitslag.naar}.
               <br />Gebaseerd op: {uitslag.gebaseerdOp}
               {!uitslag.echteData && ' (zodra er een uitslag verwerkt is, gebruikt de test die echte wedstrijd)'}
               <br />Niets ontvangen? Controleer bij WhatsApp of je nummer is aangemeld
@@ -155,7 +174,9 @@ export default function AdminMeldingen({ setMelding }) {
             </p>
           ) : (
             <>
-              <p className={styles.leegTekst}>❌ Mislukt via {uitslag.kanaal}. Foutmelding:</p>
+              <p className={styles.leegTekst}>
+                ❌ Proef {uitslag.soort} mislukt via {uitslag.kanaal}. Foutmelding:
+              </p>
               <pre className={styles.foutDetail}>{uitslag.error}</pre>
             </>
           )}

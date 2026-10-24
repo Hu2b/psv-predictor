@@ -484,7 +484,10 @@ function voorbeeldResultaat(speler) {
 // vingerafdruk, geen andere ontvangers, en fouten worden doorgegeven in plaats
 // van alleen gelogd, zodat de beheerder ziet wat Meta terugmeldt bij een
 // verkeerd token of een sjabloonnaam die net anders is.
-export async function stuurTestMelding(speler) {
+export async function stuurTestMelding(speler, { soort = SJABLOON_UITSLAG, fixture = null } = {}) {
+  if (soort === SJABLOON_HERINNERING) return testHerinnering(speler, fixture)
+  if (soort === SJABLOON_VOORSPELLINGEN) return testVoorspellingen(speler)
+
   const spelers = await alleGeverifieerdeSpelers()
   const naamPerSpeler = Object.fromEntries(spelers.map(s => [s.id, s.naam]))
 
@@ -497,9 +500,93 @@ export async function stuurTestMelding(speler) {
 
   return {
     ...info,
+    soort,
     gebaseerdOp: echt
       ? `${gegevens.wedstrijd} (${result.datum || 'laatste wedstrijd'})`
       : 'voorbeeldgegevens — er is nog geen uitslag verwerkt',
     echteData: Boolean(echt),
+  }
+}
+
+// Eén proefbericht versturen. Geen terugval op e-mail als WhatsApp weigert:
+// bij een proef wil je juist de foutmelding van Twilio zien. Alleen wanneer
+// WhatsApp helemaal niet is ingesteld of er geen nummer bekend is, gaat het
+// per mail — dan is dat immers ook het echte kanaal.
+async function verstuurProef(speler, { soort, variabelen, vrijeTekst, mail }) {
+  if (whatsappIngesteld() && speler.telefoon) {
+    await stuurWhatsappSjabloon(speler.telefoon, variabelen, { soort, vrijeTekst })
+    return { kanaal: 'whatsapp', naar: `+${speler.telefoon}` }
+  }
+  await mail()
+  return { kanaal: 'email', naar: speler.email }
+}
+
+// Proef van de melding "iedereen heeft voorspeld", op de voorspellingen van de
+// laatst verwerkte wedstrijd — net als de uitslagproef.
+async function testVoorspellingen(speler) {
+  const spelers = await alleGeverifieerdeSpelers()
+  const naamPerSpeler = Object.fromEntries(spelers.map(s => [s.id, s.naam]))
+
+  const echt = await haalLaatsteResultaat()
+  const result = echt || voorbeeldResultaat(speler)
+  if (!echt) naamPerSpeler.voorbeeld = 'Voorbeeldspeler'
+
+  const wedstrijd = `${zoekNaam(result.thuis)} – ${zoekNaam(result.uit)}`
+  const variabelen = [wedstrijd, maakAlleVoorspellingenRegel(result.predicties, naamPerSpeler)]
+
+  const info = await verstuurProef(speler, {
+    soort: SJABLOON_VOORSPELLINGEN,
+    variabelen,
+    vrijeTekst: maakVoorspellingenTekst(variabelen),
+    mail: () => stuurVoorspellingenMail(speler.email, {
+      naam: speler.naam,
+      wedstrijd,
+      datum: result.datum || '',
+      voorspellingen: Object.entries(result.predicties || {})
+        .map(([playerId, p]) => ({
+          playerId,
+          naam: naamPerSpeler[playerId] || '???',
+          score: p && Number.isInteger(p.home) && Number.isInteger(p.away) ? `${p.home}-${p.away}` : '—',
+        }))
+        .sort((a, b) => a.naam.localeCompare(b.naam)),
+      playerId: speler.id,
+    }),
+  })
+
+  return {
+    ...info,
+    soort: SJABLOON_VOORSPELLINGEN,
+    gebaseerdOp: echt
+      ? `${wedstrijd} (${result.datum || 'laatste wedstrijd'})`
+      : 'voorbeeldgegevens — er is nog geen uitslag verwerkt',
+    echteData: Boolean(echt),
+  }
+}
+
+// Proef van de herinnering, op de EERSTVOLGENDE wedstrijd — daar gaat zo'n
+// bericht tenslotte over. De wedstrijd komt van de aanroeper; dit bestand mag
+// _wedstrijden.js niet importeren, want dat importeert op zijn beurt dit.
+async function testHerinnering(speler, fixture) {
+  if (!fixture?.matchId) {
+    throw new Error('Geen aanstaande wedstrijd gevonden om een herinnering over te sturen')
+  }
+
+  const wedstrijd = `${zoekNaam(fixture.thuis)} – ${zoekNaam(fixture.uit)}`
+  const tijd = aftrapTijd(fixture.datumISO)
+  const link = wedstrijdLink(fixture.matchId)
+  const variabelen = [wedstrijd, tijd, String(fixture.matchId)]
+
+  const info = await verstuurProef(speler, {
+    soort: SJABLOON_HERINNERING,
+    variabelen,
+    vrijeTekst: maakHerinneringTekst([wedstrijd, tijd], link),
+    mail: () => stuurHerinneringMail(speler.email, { naam: speler.naam, wedstrijd, tijd, link }),
+  })
+
+  return {
+    ...info,
+    soort: SJABLOON_HERINNERING,
+    gebaseerdOp: `${wedstrijd}${fixture.datum ? ` (${fixture.datum}${tijd ? ` · ${tijd}` : ''})` : ''}`,
+    echteData: true,
   }
 }
