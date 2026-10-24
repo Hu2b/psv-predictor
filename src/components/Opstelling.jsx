@@ -164,7 +164,12 @@ export default function Opstelling({ matchId, datumISO, standaardOpen = false })
                         </span>
                       )}
                     </span>
-                    <span className={styles.positie}>{s.positie}</span>
+                    {/* De voluit geschreven positie als zweeftekst; op een
+                        telefoon valt er niets te zweven, maar op een computer
+                        scheelt het raden wat CD-R betekent. */}
+                    <span className={styles.positie} title={s.positieNaam || ''}>
+                      {s.positie}
+                    </span>
                   </div>
                 ))}
               </div>

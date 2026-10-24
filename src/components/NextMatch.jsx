@@ -9,6 +9,13 @@ import styles from './NextMatch.module.css'
 
 const SWIPE_DREMPEL = 50 // minimale swipe-afstand in pixels
 
+// Hetzelfde gebaar op een trackpad of Magic Mouse komt binnen als wheel-events
+// met een horizontale component. Die vuren tientallen keren per veeg (en daarna
+// nog even na door de uitloop), dus er is een drempel nodig én een slot: één
+// veeg hoort één wedstrijd op te schuiven, niet tien.
+const WIEL_DREMPEL = 60    // opgetelde horizontale afstand voor één stap
+const WIEL_RUST_MS = 250   // zo lang stilte betekent: het gebaar is voorbij
+
 function formatTijd(datumISO) {
   if (!datumISO) return ''
   const d = new Date(datumISO)
@@ -28,6 +35,7 @@ export default function NextMatch({ fixture, fixtures, speler, startWedstrijd = 
   const [randMelding, setRandMelding] = useState(null)
   const [onthuld, setOnthuld] = useState(false)
   const touchStartX = useRef(null)
+  const kaartRef = useRef(null)
 
   // Vangnet voor als de link pas bekend is nadat dit scherm al staat (je moest
   // bijvoorbeeld eerst inloggen).
@@ -81,6 +89,45 @@ export default function NextMatch({ fixture, fixtures, speler, startWedstrijd = 
     }
     setGekozenId(alleWedstrijden[huidigeIndex - 1].matchId)
   }
+
+  // Trackpad en Magic Mouse. Bewust een eigen listener in plaats van onWheel:
+  // React hangt wheel-events passief op, en dan werkt preventDefault() niet.
+  // Dat is hier nodig, anders pakt de browser de horizontale veeg op als
+  // "ga terug in de geschiedenis" en val je uit de app.
+  useEffect(() => {
+    const kaart = kaartRef.current
+    if (!kaart) return undefined
+
+    let opgeteld = 0
+    let vergrendeld = false
+    let rustTimer = null
+
+    function afhandelen(e) {
+      // Verticaal scrollen met rust laten: alleen een duidelijk horizontale
+      // beweging telt als veeg.
+      if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return
+      e.preventDefault()
+
+      clearTimeout(rustTimer)
+      rustTimer = setTimeout(() => { opgeteld = 0; vergrendeld = false }, WIEL_RUST_MS)
+
+      if (vergrendeld) return
+      opgeteld += e.deltaX
+      if (opgeteld > WIEL_DREMPEL) {
+        vergrendeld = true
+        gaNaarVolgende() // naar links vegen → verder in de lijst
+      } else if (opgeteld < -WIEL_DREMPEL) {
+        vergrendeld = true
+        gaNaarVorige()
+      }
+    }
+
+    kaart.addEventListener('wheel', afhandelen, { passive: false })
+    return () => {
+      clearTimeout(rustTimer)
+      kaart.removeEventListener('wheel', afhandelen)
+    }
+  }, [huidigeIndex, alleWedstrijden])
 
   function handleTouchStart(e) {
     touchStartX.current = e.touches[0].clientX
@@ -140,6 +187,7 @@ export default function NextMatch({ fixture, fixtures, speler, startWedstrijd = 
       </div>
 
       <div
+        ref={kaartRef}
         className={styles.card}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
