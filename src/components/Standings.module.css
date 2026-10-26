@@ -323,3 +323,22 @@
   font-size: 12px;
   color: var(--psv-gray-lt);
 }
+
+/* Linkje naar het trendscherm. Bewust ingetogen en niet nóg een gekleurde
+   knop naast Delen: het is een doorverwijzing, geen actie. */
+.trendLink {
+  background: var(--psv-surface);
+  border: 1px solid var(--psv-border);
+  border-radius: var(--radius-lg);
+  padding: 11px 14px;
+  width: 100%;
+  text-align: left;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--psv-white);
+  cursor: pointer;
+}
+
+.trendLink:active {
+  opacity: 0.85;
+}

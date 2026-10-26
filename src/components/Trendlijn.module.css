@@ -1,0 +1,189 @@
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.terug {
+  background: none;
+  border: none;
+  padding: 0;
+  align-self: flex-start;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--psv-red);
+  cursor: pointer;
+}
+
+.titel {
+  font-family: var(--font-display);
+  font-size: 20px;
+  margin: 0;
+  color: var(--psv-white);
+}
+
+.onderschrift,
+.leeg {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--psv-gray-lt);
+}
+
+/* Uitleesregel bij de aanwijzer. Vaste hoogte, zodat de grafiek niet opspringt
+   zodra er iets in komt te staan. */
+.uitlezing {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  min-height: 32px;
+  padding: 7px 10px;
+  border: 1px solid var(--psv-border);
+  border-radius: var(--radius-lg);
+  background: var(--psv-surface);
+  font-size: 12px;
+  color: var(--psv-white);
+}
+
+.uitlezingHint { color: var(--psv-gray-lt); }
+
+.uitlezingNr {
+  font-family: var(--font-display);
+  font-weight: 700;
+  color: var(--psv-red);
+}
+
+.uitlezingWedstrijd { color: var(--psv-gray-lt); }
+
+.uitlezingSpeler {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.stip {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.grafiek {
+  width: 100%;
+  height: auto;
+  display: block;
+  touch-action: pan-y; /* verticaal scrollen blijft gewoon werken */
+}
+
+.raster {
+  stroke: var(--psv-border);
+  stroke-width: 1;
+}
+
+.as {
+  stroke: var(--psv-gray-md);
+  stroke-width: 1;
+}
+
+/* Waar het gespeelde deel ophoudt. Gestippeld, want het is geen meetwaarde. */
+.grens {
+  stroke: var(--psv-gray-md);
+  stroke-width: 1;
+  stroke-dasharray: 3 4;
+}
+
+.kruisdraad {
+  stroke: var(--psv-gray-lt);
+  stroke-width: 1;
+}
+
+.asLabel {
+  fill: var(--psv-gray-lt);
+  font-size: 10px;
+  font-family: var(--font-body);
+}
+
+.asTitel {
+  fill: var(--psv-gray-lt);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-family: var(--font-body);
+}
+
+/* Een randje in de achtergrondkleur houdt de punten uit elkaar waar twee
+   lijnen elkaar kruisen. */
+.punt {
+  stroke: var(--psv-bg);
+  stroke-width: 2;
+}
+
+/* Tekst draagt tekstkleur, niet de kleur van de lijn: de stip ernaast en de
+   lijn zelf dragen de identiteit al. */
+.eindLabel {
+  fill: var(--psv-white);
+  font-size: 10px;
+  font-weight: 700;
+  font-family: var(--font-body);
+}
+
+.legenda {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  font-size: 12px;
+  color: var(--psv-gray-lt);
+}
+
+.legendaItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.jezelf {
+  color: var(--psv-white);
+  font-weight: 700;
+}
+
+.tabelBlok {
+  border-top: 1px solid var(--psv-border);
+  padding-top: 10px;
+}
+
+.tabelKop {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--psv-gray-lt);
+  cursor: pointer;
+}
+
+.tabelScroll {
+  overflow-x: auto;
+  margin-top: 8px;
+}
+
+.tabel {
+  border-collapse: collapse;
+  font-size: 12px;
+  color: var(--psv-white);
+}
+
+.tabel th,
+.tabel td {
+  padding: 3px 12px 3px 0;
+  text-align: right;
+  font-weight: 400;
+}
+
+.tabel thead th,
+.tabel tbody th {
+  color: var(--psv-gray-lt);
+  font-weight: 700;
+  text-align: right;
+}

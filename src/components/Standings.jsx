@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import Trendlijn from './Trendlijn.jsx'
 import { zoekLogo } from '../../shared/teams.js'
 import { competitieNaam } from '../../shared/competities.js'
 import { tekenAfgerondeRect, VEILIGE_MAX_AFMETING, deelOfValTerug, fillTextRechtsUitgelijnd, deelKleuren, FONT_DISPLAY, FONT_BODY, wachtOpFonts, maakDeelCanvas, canvasNaarBlob } from '../lib/deelHelpers.js'
@@ -257,6 +258,7 @@ export default function Standings({ fixtures, speler }) {
   const [loading, setLoading] = useState(true)
   const [laadFout, setLaadFout] = useState(false)
   const [poging, setPoging] = useState(0)
+  const [toonTrend, setToonTrend] = useState(false)
   const deelBlobRef = useRef(null)
 
   useEffect(() => {
@@ -360,6 +362,20 @@ export default function Standings({ fixtures, speler }) {
 
   const gesorteerdeResultaten = [...results].sort((a, b) => new Date(b.datumISO) - new Date(a.datumISO))
 
+  if (toonTrend) {
+    return (
+      <div className={styles.wrapper}>
+        <Trendlijn
+          resultaten={results}
+          fixtures={fixtures}
+          naamPerSpeler={spelerNaamMap}
+          speler={speler}
+          onTerug={() => setToonTrend(false)}
+        />
+      </div>
+    )
+  }
+
   return (
     <div className={styles.wrapper}>
       <div className={styles.klassement}>
@@ -397,6 +413,12 @@ export default function Standings({ fixtures, speler }) {
               Delen
             </>
           )}
+        </button>
+      )}
+
+      {results.length > 0 && (
+        <button className={styles.trendLink} onClick={() => setToonTrend(true)}>
+          📈 Trendlijn — puntenverloop over het seizoen ›
         </button>
       )}
 
