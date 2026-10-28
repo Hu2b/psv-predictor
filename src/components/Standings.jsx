@@ -434,7 +434,7 @@ export default function Standings({ fixtures, speler }) {
       )}
 
       <button className={styles.trendLink} onClick={() => setScherm('vloek')}>
-        💀 De PSV-vloek — vergaat het de winnaar daarna slecht? ›
+        💀 De PSV-vloek — stort de winnaar daarna in? ›
       </button>
 
       {results.length > 0 && (
