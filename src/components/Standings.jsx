@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import Trendlijn from './Trendlijn.jsx'
+import Vloek from './Vloek.jsx'
 import { zoekLogo } from '../../shared/teams.js'
 import { competitieNaam } from '../../shared/competities.js'
 import { tekenAfgerondeRect, VEILIGE_MAX_AFMETING, deelOfValTerug, fillTextRechtsUitgelijnd, deelKleuren, FONT_DISPLAY, FONT_BODY, wachtOpFonts, maakDeelCanvas, canvasNaarBlob } from '../lib/deelHelpers.js'
@@ -258,7 +259,9 @@ export default function Standings({ fixtures, speler }) {
   const [loading, setLoading] = useState(true)
   const [laadFout, setLaadFout] = useState(false)
   const [poging, setPoging] = useState(0)
-  const [toonTrend, setToonTrend] = useState(false)
+  // 'klassement' | 'trend' | 'vloek' — de twee extra schermen hangen onder
+  // het klassement en vervangen het zolang ze openstaan.
+  const [scherm, setScherm] = useState('klassement')
   const deelBlobRef = useRef(null)
 
   useEffect(() => {
@@ -362,7 +365,7 @@ export default function Standings({ fixtures, speler }) {
 
   const gesorteerdeResultaten = [...results].sort((a, b) => new Date(b.datumISO) - new Date(a.datumISO))
 
-  if (toonTrend) {
+  if (scherm === 'trend') {
     return (
       <div className={styles.wrapper}>
         <Trendlijn
@@ -370,8 +373,16 @@ export default function Standings({ fixtures, speler }) {
           fixtures={fixtures}
           naamPerSpeler={spelerNaamMap}
           speler={speler}
-          onTerug={() => setToonTrend(false)}
+          onTerug={() => setScherm('klassement')}
         />
+      </div>
+    )
+  }
+
+  if (scherm === 'vloek') {
+    return (
+      <div className={styles.wrapper}>
+        <Vloek onTerug={() => setScherm('klassement')} />
       </div>
     )
   }
@@ -417,10 +428,14 @@ export default function Standings({ fixtures, speler }) {
       )}
 
       {results.length > 0 && (
-        <button className={styles.trendLink} onClick={() => setToonTrend(true)}>
+        <button className={styles.trendLink} onClick={() => setScherm('trend')}>
           📈 Trendlijn — puntenverloop over het seizoen ›
         </button>
       )}
+
+      <button className={styles.trendLink} onClick={() => setScherm('vloek')}>
+        💀 De PSV-vloek — vergaat het de winnaar daarna slecht? ›
+      </button>
 
       {results.length > 0 && (
         <div className={styles.resultatenWrapper}>

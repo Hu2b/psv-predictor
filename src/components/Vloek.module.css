@@ -1,0 +1,288 @@
+/* Kleuren voor de uitslag van de club die van PSV won. Getoetst op onderscheid
+   bij kleurenblindheid tegen deze donkere achtergrond; rood en groen halen het
+   net, en er staat sowieso altijd een letter en een uitslag bij. Verander ze
+   niet zonder opnieuw te toetsen. */
+.wrapper {
+  --verlies: #E1000E;
+  --winst: #3BA06A;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.terug {
+  background: none;
+  border: none;
+  padding: 0;
+  align-self: flex-start;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--psv-red);
+  cursor: pointer;
+}
+
+.titel {
+  font-family: var(--font-display);
+  font-size: 22px;
+  margin: 0;
+  color: var(--psv-white);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.schedelGroot { font-size: 18px; }
+
+.leus,
+.leeg {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--psv-gray-lt);
+}
+
+.leus { font-style: italic; }
+
+/* --- samenvatting --- */
+.samenvatting {
+  border: 1px solid var(--psv-border);
+  border-radius: var(--radius-lg);
+  background: var(--psv-surface);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.hero {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.heroGetal {
+  font-family: var(--font-display);
+  font-size: 44px;
+  line-height: 1;
+  font-weight: 700;
+  color: var(--psv-red);
+}
+
+.heroTekst {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--psv-gray-lt);
+}
+
+.balkKop {
+  margin: 4px 0 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--psv-gray-lt);
+}
+
+.balkRij {
+  display: grid;
+  grid-template-columns: 78px 1fr 42px;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--psv-white);
+}
+
+.balkLabel { color: var(--psv-gray-lt); }
+
+.balkBaan {
+  height: 10px;
+  border-radius: 5px;
+  background: var(--psv-gray);
+  overflow: hidden;
+}
+
+.balkVulling {
+  display: block;
+  height: 100%;
+  border-radius: 5px;
+  background: var(--verlies);
+}
+
+.balkCijfer {
+  font-family: var(--font-display);
+  font-weight: 700;
+  text-align: right;
+}
+
+.oordeel {
+  margin: 4px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--psv-gray-lt);
+}
+
+.oordeel strong { color: var(--psv-white); }
+
+/* --- legenda --- */
+.legenda {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  font-size: 11px;
+  color: var(--psv-gray-lt);
+}
+
+.legenda span { display: inline-flex; align-items: center; gap: 5px; }
+
+.legendaUitleg { font-style: italic; }
+
+.stip {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.stipVerlies { background: var(--verlies); }
+.stipWinst { background: var(--winst); }
+.stipGelijk { background: var(--psv-gray-lt); }
+
+/* --- lijst --- */
+.lijstKop {
+  margin: 6px 0 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--psv-gray-lt);
+}
+
+.lijst {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.kaart {
+  border: 1px solid var(--psv-border);
+  border-radius: var(--radius-lg);
+  background: var(--psv-surface);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.kaartMeta {
+  font-size: 11px;
+  color: var(--psv-gray-lt);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.seizoen {
+  font-family: var(--font-display);
+  font-weight: 700;
+  color: var(--psv-red);
+  background: rgba(225,0,14,0.08);
+  border-radius: 3px;
+  padding: 1px 5px;
+}
+
+.uitslag {
+  font-size: 14px;
+  color: var(--psv-white);
+}
+
+.ns {
+  font-size: 10px;
+  color: var(--psv-gray-lt);
+}
+
+.ernaKop {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--psv-gray-lt);
+  margin-top: 2px;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chip {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  min-width: 62px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--psv-border);
+  background: var(--psv-gray);
+}
+
+.chipKop {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--psv-white);
+  white-space: nowrap;
+}
+
+.chipTegen {
+  font-size: 9px;
+  color: var(--psv-gray-lt);
+  white-space: nowrap;
+}
+
+.schedel { margin-right: 2px; }
+
+/* De rand draagt de kleur, niet de tekst: zo blijft de uitslag goed leesbaar
+   en is de kleur een extra signaal in plaats van het enige. */
+.chipVerlies {
+  border-color: var(--verlies);
+  background: rgba(225,0,14,0.14);
+}
+
+.chipWinst {
+  border-color: var(--winst);
+  background: rgba(59,160,106,0.12);
+}
+
+.chipGelijk {
+  border-color: var(--psv-gray-md);
+}
+
+.chipLeeg {
+  font-size: 11px;
+  color: var(--psv-gray-lt);
+}
+
+/* --- bronnen --- */
+.bronBlok {
+  border-top: 1px solid var(--psv-border);
+  padding-top: 10px;
+}
+
+.bronKop {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--psv-gray-lt);
+  cursor: pointer;
+}
+
+.bronLijst {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--psv-gray-lt);
+}

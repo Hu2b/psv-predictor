@@ -1,0 +1,220 @@
+import { useState, useEffect } from 'react'
+import styles from './Vloek.module.css'
+
+// De PSV-vloek: wie PSV verslaat, stort daarna zelf in. Of niet — dat is
+// precies wat dit scherm uitzoekt.
+//
+// Het getal "7 van de 11" zegt op zichzelf niets, want misschien verliest elke
+// club wel vaak. Daarom staat er altijd naast hoe vaak een club zijn wedstrijd
+// gemiddeld verliest. Pas als de vloek daar duidelijk boven zit, is er iets
+// aan de hand — en zit hij eronder, dan is dát de uitkomst.
+const DREMPEL = 0.05 // hoeveel de vloek boven het gemiddelde moet liggen
+
+function seizoenLabel(datumISO) {
+  const d = new Date(datumISO)
+  if (Number.isNaN(d.getTime())) return ''
+  const jaar = d.getMonth() + 1 >= 7 ? d.getFullYear() : d.getFullYear() - 1
+  return `${jaar}/${String(jaar + 1).slice(2)}`
+}
+
+function procent(deel) {
+  return deel === null || deel === undefined ? '—' : `${Math.round(deel * 100)}%`
+}
+
+const COMPETITIE = { ERE: 'Eredivisie', KNVB: 'KNVB-beker' }
+
+// Eén vervolgwedstrijd. De letter en de uitslag staan er altijd bij, dus de
+// kleur is nooit het enige wat het verschil maakt.
+function Chip({ wedstrijd }) {
+  if (!wedstrijd.gespeeld) {
+    return (
+      <span className={`${styles.chip} ${styles.chipLeeg}`}>
+        <span className={styles.chipKop}>— moet nog</span>
+        <span className={styles.chipTegen}>{wedstrijd.tegenstander}</span>
+      </span>
+    )
+  }
+
+  const soort = wedstrijd.resultaat === 'V' ? styles.chipVerlies
+    : wedstrijd.resultaat === 'W' ? styles.chipWinst
+    : styles.chipGelijk
+
+  return (
+    <span
+      className={`${styles.chip} ${soort}`}
+      title={`${wedstrijd.datum} · ${COMPETITIE[wedstrijd.competitie] || wedstrijd.competitie}`}
+    >
+      <span className={styles.chipKop}>
+        {wedstrijd.resultaat === 'V' && <span className={styles.schedel}>💀</span>}
+        {wedstrijd.resultaat} {wedstrijd.score}
+        {/* Zonder dit leest "V 1–1" als een fout in plaats van als een
+            bekeravond die op strafschoppen verloren ging. */}
+        {wedstrijd.naStrafschoppen && <span className={styles.ns}> n.s.</span>}
+      </span>
+      <span className={styles.chipTegen}>
+        {wedstrijd.thuis ? '' : '@'}{wedstrijd.tegenstander}
+      </span>
+    </span>
+  )
+}
+
+export default function Vloek({ onTerug }) {
+  const [data, setData] = useState(null)
+  const [laden, setLaden] = useState(true)
+  const [fout, setFout] = useState(false)
+
+  useEffect(() => {
+    let gestopt = false
+    async function laad() {
+      setLaden(true)
+      setFout(false)
+      try {
+        const r = await fetch('/api/h2h?vloek=1')
+        const d = await r.json()
+        if (!gestopt) setData(d)
+      } catch (_) {
+        if (!gestopt) setFout(true)
+      }
+      if (!gestopt) setLaden(false)
+    }
+    laad()
+    return () => { gestopt = true }
+  }, [])
+
+  const kop = (
+    <>
+      <button className={styles.terug} onClick={onTerug}>‹ Terug naar klassement</button>
+      <h2 className={styles.titel}>De PSV-vloek <span className={styles.schedelGroot}>💀</span></h2>
+      <p className={styles.leus}>Wie PSV verslaat, betaalt de prijs. Toch?</p>
+    </>
+  )
+
+  if (laden) return <div className={styles.wrapper}>{kop}<p className={styles.leeg}>Vloek wordt opgeroepen…</p></div>
+  if (fout || data?.fout) {
+    return (
+      <div className={styles.wrapper}>
+        {kop}
+        <p className={styles.leeg}>De gegevens zijn nu niet op te halen. Probeer het later nog eens.</p>
+      </div>
+    )
+  }
+
+  const { rijen = [], samenvatting, bronnen = [] } = data || {}
+  const ontbreekt = bronnen.filter(b => b.reden || b.aantal === 0)
+
+  if (rijen.length === 0) {
+    return (
+      <div className={styles.wrapper}>
+        {kop}
+        <p className={styles.leeg}>
+          Geen nederlagen gevonden in de gegevens die we hebben. Dat is of heel
+          knap, of er ontbreekt iets — kijk hieronder.
+        </p>
+        <Bronnen bronnen={bronnen} />
+      </div>
+    )
+  }
+
+  const sterker = samenvatting.vloekKans !== null && samenvatting.gemiddeld !== null
+    && samenvatting.vloekKans > samenvatting.gemiddeld + DREMPEL
+
+  return (
+    <div className={styles.wrapper}>
+      {kop}
+
+      <div className={styles.samenvatting}>
+        <div className={styles.hero}>
+          <span className={styles.heroGetal}>{samenvatting.nederlagen}</span>
+          <span className={styles.heroTekst}>
+            nederlagen in {data.seizoenen?.length || 3} seizoenen
+            <br />Eredivisie en KNVB-beker
+          </span>
+        </div>
+
+        <p className={styles.balkKop}>Daarna verloor de winnaar…</p>
+        {samenvatting.per.map(p => (
+          <div key={p.nr} className={styles.balkRij}>
+            <span className={styles.balkLabel}>
+              {p.nr === 1 ? 'de volgende' : `de ${p.nr}e daarna`}
+            </span>
+            <span className={styles.balkBaan}>
+              <span
+                className={styles.balkVulling}
+                style={{ width: p.van > 0 ? `${(p.verloren / p.van) * 100}%` : '0%' }}
+              />
+            </span>
+            <span className={styles.balkCijfer}>{p.verloren}/{p.van}</span>
+          </div>
+        ))}
+
+        <p className={styles.oordeel}>
+          {samenvatting.gemiddeld === null ? (
+            'Nog te weinig gegevens om er iets van te vinden.'
+          ) : sterker ? (
+            <>
+              De vloek sloeg toe in <strong>{procent(samenvatting.vloekKans)}</strong> van
+              de {samenvatting.kansen} wedstrijden erna, tegen{' '}
+              {procent(samenvatting.gemiddeld)} normaal. <strong>De vloek is echt.</strong>
+            </>
+          ) : (
+            <>
+              De vloek sloeg toe in <strong>{procent(samenvatting.vloekKans)}</strong> van
+              de {samenvatting.kansen} wedstrijden erna. Een club verliest er sowieso{' '}
+              {procent(samenvatting.gemiddeld)} van. <strong>Geen vloek, gewoon voetbal.</strong>
+            </>
+          )}
+        </p>
+      </div>
+
+      <div className={styles.legenda}>
+        <span><span className={`${styles.stip} ${styles.stipVerlies}`} />V = verloren</span>
+        <span><span className={`${styles.stip} ${styles.stipGelijk}`} />G = gelijk</span>
+        <span><span className={`${styles.stip} ${styles.stipWinst}`} />W = gewonnen</span>
+        <span className={styles.legendaUitleg}>gezien vanuit de club die van PSV won</span>
+      </div>
+
+      <h3 className={styles.lijstKop}>De nederlagen</h3>
+      <div className={styles.lijst}>
+        {rijen.map(rij => (
+          <div key={`${rij.verlies.datumISO}-${rij.winnaar}`} className={styles.kaart}>
+            <div className={styles.kaartMeta}>
+              <span className={styles.seizoen}>{seizoenLabel(rij.verlies.datumISO)}</span>
+              {rij.verlies.datum} · {COMPETITIE[rij.verlies.competitie] || rij.verlies.competitie}
+            </div>
+            <div className={styles.uitslag}>
+              {rij.verlies.thuisNaam} <strong>{rij.verlies.home}–{rij.verlies.away}</strong> {rij.verlies.uitNaam}
+              {rij.verlies.naStrafschoppen && <span className={styles.ns}> n.s.</span>}
+            </div>
+            <div className={styles.ernaKop}>{rij.winnaarNaam} daarna</div>
+            <div className={styles.chips}>
+              {rij.erna.length === 0
+                ? <span className={styles.chipLeeg}>nog niets gespeeld</span>
+                : rij.erna.map(w => <Chip key={w.datumISO} wedstrijd={w} />)}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {ontbreekt.length > 0 && <Bronnen bronnen={bronnen} />}
+    </div>
+  )
+}
+
+// Wat er wel en niet binnenkwam. Zonder dit zou een ontbrekend seizoen er
+// uitzien als "PSV verloor toen niets", en dat is een leugen met een glimlach.
+function Bronnen({ bronnen }) {
+  return (
+    <details className={styles.bronBlok}>
+      <summary className={styles.bronKop}>Welke gegevens zitten hierin?</summary>
+      <ul className={styles.bronLijst}>
+        {bronnen.map(b => (
+          <li key={`${b.seizoen}-${b.competitie}`}>
+            {COMPETITIE[b.competitie] || b.competitie} {b.seizoen}/{String(b.seizoen + 1).slice(2)}:{' '}
+            {b.aantal > 0 ? `${b.aantal} wedstrijden` : 'niets'}
+            {b.reden ? ` — ${b.reden}` : ''}
+          </li>
+        ))}
+      </ul>
+    </details>
+  )
+}

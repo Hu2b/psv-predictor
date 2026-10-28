@@ -111,7 +111,7 @@ export const TEAMS = {
 // onzichtbare verschillen (of schrijfwijze-verschillen als "SC Heerenveen"
 // i.p.v. onze "sc Heerenveen") de match laten missen en zo bij de
 // 3-letter-noodgreep terechtkomen i.p.v. de juiste, bekende afkorting.
-function normaliseer(naam) {
+export function normaliseer(naam) {
   return String(naam)
     .toLowerCase()
     .trim()

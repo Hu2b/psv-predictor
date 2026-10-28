@@ -2,6 +2,9 @@ import { kvGet, kvSet } from './_kv.js'
 import { zetCors } from './_cors.js'
 import { fetchMetTimeout } from './_fetch.js'
 import { zoekVerzorgdeNaam } from '../shared/teams.js'
+import { haalVloekWedstrijden } from './_vloekdata.js'
+import { maakVloek } from '../shared/vloek.js'
+import { SEASON } from './_wedstrijden.js'
 
 // Ook dit endpoint draait nu op football-data.org. De oude versie stuurde
 // team-id's van football-data.org naar api-sports.io, dat een eigen
@@ -28,9 +31,29 @@ function formatDatum(dateStr) {
   return `${d.getDate()} ${maanden[d.getMonth()]} ${d.getFullYear()}`
 }
 
+// De PSV-vloek hangt hier aan vast en niet aan een eigen endpoint, omdat elk
+// bestand in api/ zonder liggend streepje een aparte serverless functie wordt
+// en we op het gratis abonnement op twaalf zitten. Inhoudelijk past het ook:
+// allebei kijken ze naar wedstrijden uit het verleden.
+async function vloekAntwoord(res) {
+  const { wedstrijden, bronnen, seizoenen } = await haalVloekWedstrijden(SEASON)
+  const vloek = maakVloek(wedstrijden)
+  return res.status(200).json({ ...vloek, bronnen, seizoenen })
+}
+
 export default async function handler(req, res) {
   zetCors(res, 'GET, OPTIONS')
   if (req.method === 'OPTIONS') return res.status(200).end()
+
+  if (req.query.vloek) {
+    try {
+      return await vloekAntwoord(res)
+    } catch (e) {
+      console.error('Vloek ophalen mislukt:', e)
+      return res.status(200).json({ rijen: [], samenvatting: null, fout: e?.message || 'ophalen mislukt' })
+    }
+  }
+
   const { matchId } = req.query
   if (!matchId) return res.status(400).json({ error: 'matchId verplicht' })
 
