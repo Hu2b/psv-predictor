@@ -114,6 +114,10 @@ export function maakVloek(wedstrijden, club = EIGEN) {
         datum: w.datum,
         competitie: w.competitie,
         tegenstander: thuis ? w.uit : w.thuis,
+        // De naam erbij, want de sleutel van een club die we niet kennen is
+        // niet om aan te zien ("~excelsior '31"). In de beker spelen
+        // amateurclubs mee, dus dat komt echt voor.
+        tegenstanderNaam: (thuis ? w.uitNaam : w.thuisNaam) || '',
         thuis,
         score: isGespeeld(w) ? `${eigen}–${tegen}` : null,
         resultaat: uitslagVoor(w, winnaar),

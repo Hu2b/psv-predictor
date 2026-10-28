@@ -28,6 +28,16 @@ function getal(waarde) {
 
 const COMPETITIE = { ERE: 'Eredivisie', KNVB: 'KNVB-beker' }
 
+// Wat er op de chip komt te staan. Clubs die we kennen hebben een nette
+// afkorting (HEE, UTR); een onbekende club — in de beker spelen amateurs mee —
+// heeft alleen een interne sleutel met een tilde ervoor, en die hoort niet in
+// beeld. Dan tonen we zijn naam.
+function tegenLabel(wedstrijd) {
+  const sleutel = wedstrijd.tegenstander || ''
+  if (!sleutel.startsWith('~')) return sleutel
+  return wedstrijd.tegenstanderNaam || sleutel.slice(1)
+}
+
 // Eén vervolgwedstrijd. De letter en de uitslag staan er altijd bij, dus de
 // kleur is nooit het enige wat het verschil maakt.
 function Chip({ wedstrijd }) {
@@ -35,7 +45,7 @@ function Chip({ wedstrijd }) {
     return (
       <span className={`${styles.chip} ${styles.chipLeeg}`}>
         <span className={styles.chipKop}>— moet nog</span>
-        <span className={styles.chipTegen}>{wedstrijd.tegenstander}</span>
+        <span className={styles.chipTegen}>{tegenLabel(wedstrijd)}</span>
       </span>
     )
   }
@@ -47,7 +57,7 @@ function Chip({ wedstrijd }) {
   return (
     <span
       className={`${styles.chip} ${soort}`}
-      title={`${wedstrijd.datum} · ${COMPETITIE[wedstrijd.competitie] || wedstrijd.competitie}`}
+      title={`${wedstrijd.datum} · ${COMPETITIE[wedstrijd.competitie] || wedstrijd.competitie}${wedstrijd.tegenstanderNaam ? ` · ${wedstrijd.tegenstanderNaam}` : ''}`}
     >
       <span className={styles.chipKop}>
         {wedstrijd.resultaat === 'V' && <span className={styles.schedel}>💀</span>}
@@ -56,8 +66,8 @@ function Chip({ wedstrijd }) {
             bekeravond die op strafschoppen verloren ging. */}
         {wedstrijd.naStrafschoppen && <span className={styles.ns}> n.s.</span>}
       </span>
-      <span className={styles.chipTegen}>
-        {wedstrijd.thuis ? '' : '@'}{wedstrijd.tegenstander}
+      <span className={styles.chipTegen} title={wedstrijd.tegenstanderNaam || undefined}>
+        {wedstrijd.thuis ? '' : '@'}{tegenLabel(wedstrijd)}
       </span>
     </span>
   )

@@ -239,6 +239,11 @@
   font-size: 9px;
   color: var(--psv-gray-lt);
   white-space: nowrap;
+  /* De naam van een amateurclub uit de beker kan lang zijn; die mag de chip
+     niet uit elkaar trekken. */
+  max-width: 92px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .schedel { margin-right: 2px; }

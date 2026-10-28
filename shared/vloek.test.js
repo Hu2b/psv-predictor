@@ -190,3 +190,17 @@ test('maakVloek: het eigen gemiddelde van de club is de maatstaf', () => {
   assert.ok(samenvatting.normaalPerWedstrijd > 0)
   assert.equal(samenvatting.perWedstrijd, 1 / 2)
 })
+
+test('maakVloek: bij een onbekende club komt de naam mee voor het scherm', () => {
+  const beker = {
+    datumISO: '2026-11-01T19:00:00Z', datum: '1 nov 2026', competitie: 'KNVB',
+    thuis: "~excelsior '31", uit: 'ADO',
+    thuisNaam: "Excelsior '31", uitNaam: 'ADO Den Haag',
+    home: 1, away: 1, winnaar: 'HOME', naStrafschoppen: true, gespeeld: true,
+  }
+  const lijst = [w('2026-10-17', 'ADO', 'PSV', 2, 1), beker]
+  const [rij] = maakVloek(lijst).rijen
+  // De sleutel blijft wat hij is, maar er hoort een leesbare naam bij.
+  assert.equal(rij.erna[0].tegenstander, "~excelsior '31")
+  assert.equal(rij.erna[0].tegenstanderNaam, "Excelsior '31")
+})
