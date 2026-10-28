@@ -17,8 +17,11 @@ import { TEAMS, normaliseer, zoekVerzorgdeNaam } from '../shared/teams.js'
 const API_BASE = 'https://api.football-data.org/v4'
 const ESPN = 'https://site.api.espn.com/apis/site/v2/sports/soccer'
 
-const TTL_AFGELOPEN_MS = 30 * 24 * 60 * 60 * 1000
+// Een afgesloten seizoen wordt één keer opgehaald en daarna nooit meer: die
+// uitslagen veranderen niet. Alleen het lopende seizoen wordt ververst, en
+// een mislukte poging wordt na een paar uur opnieuw geprobeerd.
 const TTL_LOPEND_MS = 60 * 60 * 1000
+const TTL_MISLUKT_MS = 6 * 60 * 60 * 1000
 
 const MAANDEN = ['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec']
 
@@ -195,16 +198,28 @@ async function haalBeker(seizoen) {
 // ---------------------------------------------------------------------------
 // Samenstellen en bewaren
 // ---------------------------------------------------------------------------
+// `lopend` zegt of dit seizoen nog bezig is. Dat wordt ook bij de gegevens
+// bewaard, want een seizoen dat tijdens de rit is opgehaald is onvolledig: die
+// moet na afloop nog één keer opnieuw, anders bevriezen we een halve jaargang.
+export function magUitCache(bewaard, lopend, nu = Date.now()) {
+  if (!bewaard?.op) return false
+  const gevuld = (bewaard.wedstrijden || []).length > 0
+  const compleet = gevuld && bewaard.lopendBijOphalen === false
+
+  // Afgesloten seizoen, volledig opgehaald: klaar, voorgoed.
+  if (!lopend && compleet) return true
+
+  const ttl = gevuld ? TTL_LOPEND_MS : TTL_MISLUKT_MS
+  return nu - new Date(bewaard.op).getTime() < ttl
+}
+
 async function metCache(sleutel, lopend, ophalen) {
   const bewaard = await kvGet(sleutel)
-  const ttl = lopend ? TTL_LOPEND_MS : TTL_AFGELOPEN_MS
-  if (bewaard?.op && Date.now() - new Date(bewaard.op).getTime() < ttl) {
-    return { ...bewaard, uitCache: true }
-  }
+  if (magUitCache(bewaard, lopend)) return { ...bewaard, uitCache: true }
 
   try {
     const vers = await ophalen()
-    await kvSet(sleutel, { ...vers, op: new Date().toISOString() })
+    await kvSet(sleutel, { ...vers, lopendBijOphalen: lopend, op: new Date().toISOString() })
     return vers
   } catch (e) {
     // Liever verouderd dan niets: een seizoen dat we al hadden blijft staan.

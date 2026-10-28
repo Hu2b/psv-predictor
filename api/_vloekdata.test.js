@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { normaliseerFootballData, normaliseerEspn, clubSleutel, seizoenMaanden, formatDatum } from './_vloekdata.js'
+import { normaliseerFootballData, normaliseerEspn, clubSleutel, seizoenMaanden, formatDatum, magUitCache } from './_vloekdata.js'
 
 test('clubSleutel: beide bronnen komen op dezelfde sleutel uit', () => {
   // football-data schrijft "AFC Ajax", ESPN "Ajax" — zonder dit zouden het
@@ -121,4 +121,39 @@ test('seizoenMaanden: augustus tot en met juni, over de jaarwisseling heen', () 
 test('formatDatum: Nederlandse korte notatie', () => {
   assert.equal(formatDatum('2026-10-17T18:45:00Z'), '17 okt 2026')
   assert.equal(formatDatum('geen datum'), '')
+})
+
+const UUR = 60 * 60 * 1000
+const bewaard = (velden = {}) => ({
+  wedstrijden: [{ datumISO: '2025-09-01T18:45:00Z' }],
+  lopendBijOphalen: false,
+  op: new Date(Date.now() - 100 * 24 * UUR).toISOString(),
+  ...velden,
+})
+
+test('magUitCache: een afgesloten seizoen wordt maar één keer opgehaald', () => {
+  // Honderd dagen oud en nog steeds goed: die uitslagen veranderen niet meer.
+  assert.equal(magUitCache(bewaard(), false), true)
+})
+
+test('magUitCache: het lopende seizoen wordt elk uur ververst', () => {
+  assert.equal(magUitCache(bewaard({ op: new Date().toISOString() }), true), true)
+  assert.equal(magUitCache(bewaard(), true), false)
+})
+
+test('magUitCache: een seizoen dat tijdens de rit is opgehaald gaat er nog één keer overheen', () => {
+  // Opgehaald toen het seizoen nog liep, dus onvolledig. Nu het afgelopen is
+  // moet het opnieuw, anders bevriezen we een halve jaargang.
+  assert.equal(magUitCache(bewaard({ lopendBijOphalen: true }), false), false)
+})
+
+test('magUitCache: een mislukte poging wordt later opnieuw geprobeerd', () => {
+  const leeg = { wedstrijden: [], lopendBijOphalen: false }
+  assert.equal(magUitCache({ ...leeg, op: new Date().toISOString() }, false), true)
+  assert.equal(magUitCache({ ...leeg, op: new Date(Date.now() - 7 * UUR).toISOString() }, false), false)
+})
+
+test('magUitCache: zonder iets in de cache altijd ophalen', () => {
+  assert.equal(magUitCache(null, false), false)
+  assert.equal(magUitCache({}, false), false)
 })
