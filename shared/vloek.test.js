@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { uitslagVoor, nederlagen, volgendeVan, gemiddeldeVerlieskans, puntenVoor, gemiddeldePunten, maakVloek } from './vloek.js'
+import { seizoenVan, uitslagVoor, nederlagen, volgendeVan, gemiddeldeVerlieskans, puntenVoor, gemiddeldePunten, maakVloek } from './vloek.js'
 
 const w = (datum, thuis, uit, home, away, extra = {}) => ({
   datumISO: `${datum}T18:45:00Z`,
@@ -203,4 +203,12 @@ test('maakVloek: bij een onbekende club komt de naam mee voor het scherm', () =>
   // De sleutel blijft wat hij is, maar er hoort een leesbare naam bij.
   assert.equal(rij.erna[0].tegenstander, "~excelsior '31")
   assert.equal(rij.erna[0].tegenstanderNaam, "Excelsior '31")
+})
+
+test('seizoenVan: een seizoen loopt van juli tot juni', () => {
+  assert.equal(seizoenVan('2025-08-30T18:45:00Z'), 2025)
+  assert.equal(seizoenVan('2026-03-22T14:30:00Z'), 2025)
+  assert.equal(seizoenVan('2026-07-01T14:30:00Z'), 2026)
+  assert.equal(seizoenVan('2026-06-30T14:30:00Z'), 2025)
+  assert.equal(seizoenVan('geen datum'), null)
 })

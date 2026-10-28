@@ -23,6 +23,14 @@ export function isGespeeld(w) {
   return Boolean(w?.gespeeld)
 }
 
+// Bij welk seizoen hoort deze datum? Een seizoen loopt van juli tot juni, dus
+// 30 augustus 2025 en 22 maart 2026 horen allebei bij 2025/26.
+export function seizoenVan(datumISO) {
+  const d = new Date(datumISO)
+  if (Number.isNaN(d.getTime())) return null
+  return d.getMonth() + 1 >= 7 ? d.getFullYear() : d.getFullYear() - 1
+}
+
 // Speelt deze club mee, en zo ja: thuis of uit?
 export function rolVan(wedstrijd, club) {
   if (wedstrijd?.thuis === club) return 'HOME'

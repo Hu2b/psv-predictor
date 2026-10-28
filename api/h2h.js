@@ -3,7 +3,7 @@ import { zetCors } from './_cors.js'
 import { fetchMetTimeout } from './_fetch.js'
 import { zoekVerzorgdeNaam } from '../shared/teams.js'
 import { haalVloekWedstrijden } from './_vloekdata.js'
-import { maakVloek } from '../shared/vloek.js'
+import { maakVloek, seizoenVan } from '../shared/vloek.js'
 import { SEASON } from './_wedstrijden.js'
 
 // Ook dit endpoint draait nu op football-data.org. De oude versie stuurde
@@ -37,8 +37,16 @@ function formatDatum(dateStr) {
 // allebei kijken ze naar wedstrijden uit het verleden.
 async function vloekAntwoord(res) {
   const { wedstrijden, bronnen, seizoenen } = await haalVloekWedstrijden(SEASON)
-  const vloek = maakVloek(wedstrijden)
-  return res.status(200).json({ ...vloek, bronnen, seizoenen })
+
+  // Alle drie de varianten in één antwoord. Het scheelt niets aan rekenwerk —
+  // de wedstrijden staan toch al in het geheugen — en het scherm kan dan
+  // wisselen zonder opnieuw te hoeven ophalen.
+  const varianten = { beide: maakVloek(wedstrijden) }
+  for (const seizoen of seizoenen) {
+    varianten[String(seizoen)] = maakVloek(wedstrijden.filter(w => seizoenVan(w.datumISO) === seizoen))
+  }
+
+  return res.status(200).json({ varianten, bronnen, seizoenen })
 }
 
 export default async function handler(req, res) {
@@ -50,7 +58,7 @@ export default async function handler(req, res) {
       return await vloekAntwoord(res)
     } catch (e) {
       console.error('Vloek ophalen mislukt:', e)
-      return res.status(200).json({ rijen: [], samenvatting: null, fout: e?.message || 'ophalen mislukt' })
+      return res.status(200).json({ varianten: null, fout: e?.message || 'ophalen mislukt' })
     }
   }
 

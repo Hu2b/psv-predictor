@@ -300,3 +300,28 @@
   letter-spacing: 0;
   font-weight: 400;
 }
+
+/* Filter op seizoen. Eén rij boven de samenvatting, zodat duidelijk is dat
+   alles eronder erdoor bepaald wordt. */
+.filter {
+  display: flex;
+  gap: 6px;
+}
+
+.filterKnop {
+  flex: 1;
+  padding: 7px 4px;
+  border: 1px solid var(--psv-border);
+  border-radius: var(--radius-lg);
+  background: var(--psv-surface);
+  color: var(--psv-gray-lt);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.filterAan {
+  border-color: var(--psv-red);
+  background: rgba(225,0,14,0.14);
+  color: var(--psv-white);
+}

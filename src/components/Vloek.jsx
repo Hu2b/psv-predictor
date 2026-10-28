@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { seizoenVan } from '../../shared/vloek.js'
 import styles from './Vloek.module.css'
 
 // De PSV-vloek: wie PSV verslaat, stort daarna zelf in. Of niet — dat is
@@ -14,10 +15,13 @@ import styles from './Vloek.module.css'
 const DREMPEL = 0.2
 
 function seizoenLabel(datumISO) {
-  const d = new Date(datumISO)
-  if (Number.isNaN(d.getTime())) return ''
-  const jaar = d.getMonth() + 1 >= 7 ? d.getFullYear() : d.getFullYear() - 1
-  return `${jaar}/${String(jaar + 1).slice(2)}`
+  const jaar = seizoenVan(datumISO)
+  return jaar === null ? '' : kort(jaar)
+}
+
+// 2026 -> "26/27"
+function kort(jaar) {
+  return `${String(jaar).slice(2)}/${String(jaar + 1).slice(2)}`
 }
 
 // Eén cijfer achter de komma, met een komma zoals het hoort.
@@ -77,6 +81,9 @@ export default function Vloek({ onTerug }) {
   const [data, setData] = useState(null)
   const [laden, setLaden] = useState(true)
   const [fout, setFout] = useState(false)
+  // 'beide' of een seizoensjaartal als tekst. Alle varianten komen in één
+  // antwoord mee, dus wisselen kost geen nieuwe aanroep.
+  const [keuze, setKeuze] = useState('beide')
 
   useEffect(() => {
     let gestopt = false
@@ -114,16 +121,44 @@ export default function Vloek({ onTerug }) {
     )
   }
 
-  const { rijen = [], samenvatting, bronnen = [] } = data || {}
+  const { varianten = {}, bronnen = [], seizoenen = [] } = data || {}
   const ontbreekt = bronnen.filter(b => b.reden || b.aantal === 0)
 
-  if (rijen.length === 0) {
+  // De knoppen: beide seizoenen plus elk seizoen apart, nieuwste eerst.
+  const keuzes = [
+    { waarde: 'beide', label: 'Beide' },
+    ...[...seizoenen].sort((a, b) => b - a).map(j => ({ waarde: String(j), label: kort(j) })),
+  ]
+
+  const filter = (
+    <div className={styles.filter} role="group" aria-label="Welk seizoen">
+      {keuzes.map(k => (
+        <button
+          key={k.waarde}
+          className={`${styles.filterKnop} ${keuze === k.waarde ? styles.filterAan : ''}`}
+          onClick={() => setKeuze(k.waarde)}
+          aria-pressed={keuze === k.waarde}
+        >
+          {k.label}
+        </button>
+      ))}
+    </div>
+  )
+
+  const gekozen = varianten[keuze] || varianten.beide || {}
+  const { rijen = [], samenvatting } = gekozen
+  const periode = keuze === 'beide'
+    ? `${seizoenen.length || 2} seizoenen`
+    : kort(Number(keuze))
+
+  if (rijen.length === 0 || !samenvatting) {
     return (
       <div className={styles.wrapper}>
         {kop}
+        {keuzes.length > 1 && filter}
         <p className={styles.leeg}>
-          Geen nederlagen gevonden in de gegevens die we hebben. Dat is of heel
-          knap, of er ontbreekt iets — kijk hieronder.
+          Geen nederlagen gevonden in {periode}. Dat is of heel knap, of er
+          ontbreekt iets — kijk hieronder.
         </p>
         <Bronnen bronnen={bronnen} />
       </div>
@@ -140,12 +175,13 @@ export default function Vloek({ onTerug }) {
   return (
     <div className={styles.wrapper}>
       {kop}
+      {keuzes.length > 1 && filter}
 
       <div className={styles.samenvatting}>
         <div className={styles.hero}>
           <span className={styles.heroGetal}>{samenvatting.nederlagen}</span>
           <span className={styles.heroTekst}>
-            nederlagen in {data.seizoenen?.length || 2} seizoenen
+            {samenvatting.nederlagen === 1 ? 'nederlaag' : 'nederlagen'} in {periode}
             <br />Eredivisie en KNVB-beker
           </span>
         </div>
