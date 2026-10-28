@@ -58,6 +58,29 @@ export function volgendeVan(wedstrijden, club, naISO, aantal = 3) {
     .slice(0, aantal)
 }
 
+// Drie punten voor winst, één voor gelijk. Daarmee telt een gelijkspel mee
+// als wat het is: twee punten laten liggen. Alleen naar nederlagen kijken zou
+// 1-1 gelijkstellen aan een klinkende zege.
+export function puntenVoor(wedstrijd, club) {
+  const uitslag = uitslagVoor(wedstrijd, club)
+  if (uitslag === null) return null
+  return uitslag === 'W' ? 3 : uitslag === 'G' ? 1 : 0
+}
+
+// Wat haalt deze club normaal per wedstrijd? Dat is de eerlijke maatstaf: de
+// clubs die van PSV winnen zijn vaak bovengemiddeld, en dan zegt "weinig
+// punten" pas iets als je het afzet tegen hun eigen gemiddelde.
+//
+// Alles telt mee, ook de zege op PSV en de drie wedstrijden erna. Over een
+// heel seizoen verschuift dat het gemiddelde nauwelijks, en het alternatief
+// (die wedstrijden eruit filteren) maakt de uitkomst juist moeilijker uit te
+// leggen.
+export function gemiddeldePunten(wedstrijden, club) {
+  const eigen = opDatum(wedstrijden).filter(w => rolVan(w, club) && isGespeeld(w))
+  if (eigen.length === 0) return null
+  return eigen.reduce((totaal, w) => totaal + puntenVoor(w, club), 0) / eigen.length
+}
+
 // Hoe vaak verliest een club zijn wedstrijd, gemiddeld over alles wat er in
 // de lijst staat? Zonder dat getal zegt "7 van de 11" niets: misschien
 // verliest iedereen wel vaak. Elke gespeelde wedstrijd levert twee ploegen op
@@ -90,11 +113,24 @@ export function maakVloek(wedstrijden, club = EIGEN) {
         thuis,
         score: isGespeeld(w) ? `${eigen}–${tegen}` : null,
         resultaat: uitslagVoor(w, winnaar),
+        punten: puntenVoor(w, winnaar),
         naStrafschoppen: Boolean(w.naStrafschoppen),
         gespeeld: isGespeeld(w),
       }
     })
-    return { verlies, winnaar, winnaarNaam: winnaarNaam || winnaar, erna }
+
+    const gespeeld = erna.filter(w => w.gespeeld)
+    const normaal = gemiddeldePunten(alles, winnaar)
+    return {
+      verlies,
+      winnaar,
+      winnaarNaam: winnaarNaam || winnaar,
+      erna,
+      gepakt: gespeeld.reduce((t, w) => t + w.punten, 0),
+      mogelijk: gespeeld.length * 3,
+      normaal,
+      verwacht: normaal === null ? null : normaal * gespeeld.length,
+    }
   })
 
   // Per vervolgwedstrijd: hoe vaak ging het mis voor de winnaar? De noemer
@@ -103,15 +139,26 @@ export function maakVloek(wedstrijden, club = EIGEN) {
   // moet worden.
   const per = [0, 1, 2].map(i => {
     const bestaand = rijen.map(r => r.erna[i]).filter(w => w && w.gespeeld)
+    const gepakt = bestaand.reduce((t, w) => t + w.punten, 0)
     return {
       nr: i + 1,
       verloren: bestaand.filter(w => w.resultaat === 'V').length,
       van: bestaand.length,
+      gepakt,
+      mogelijk: bestaand.length * 3,
+      gelaten: bestaand.length * 3 - gepakt,
     }
   })
 
   const treffers = per.reduce((t, p) => t + p.verloren, 0)
   const kansen = per.reduce((t, p) => t + p.van, 0)
+  const gepakt = rijen.reduce((t, r) => t + r.gepakt, 0)
+  const mogelijk = rijen.reduce((t, r) => t + r.mogelijk, 0)
+
+  // Wat hadden ze normaal gehaald? Per club zijn eigen gemiddelde, maal het
+  // aantal wedstrijden dat er voor hen al gespeeld is.
+  const metNormaal = rijen.filter(r => r.verwacht !== null)
+  const verwacht = metNormaal.reduce((t, r) => t + r.verwacht, 0)
 
   return {
     rijen: [...rijen].reverse(), // nieuwste nederlaag bovenaan
@@ -122,6 +169,12 @@ export function maakVloek(wedstrijden, club = EIGEN) {
       kansen,
       vloekKans: kansen > 0 ? treffers / kansen : null,
       gemiddeld: gemiddeldeVerlieskans(alles),
+      gepakt,
+      mogelijk,
+      gelaten: mogelijk - gepakt,
+      perWedstrijd: kansen > 0 ? gepakt / kansen : null,
+      normaalPerWedstrijd: kansen > 0 && metNormaal.length === rijen.length ? verwacht / kansen : null,
+      tekort: metNormaal.length === rijen.length ? verwacht - gepakt : null,
     },
   }
 }

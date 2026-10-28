@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { uitslagVoor, nederlagen, volgendeVan, gemiddeldeVerlieskans, maakVloek } from './vloek.js'
+import { uitslagVoor, nederlagen, volgendeVan, gemiddeldeVerlieskans, puntenVoor, gemiddeldePunten, maakVloek } from './vloek.js'
 
 const w = (datum, thuis, uit, home, away, extra = {}) => ({
   datumISO: `${datum}T18:45:00Z`,
@@ -95,10 +95,8 @@ test('maakVloek: koppelt elke nederlaag aan de drie wedstrijden erna', () => {
   // Thuis of uit, gezien vanuit de winnaar.
   assert.deepEqual(rij.erna.map(e => e.thuis), [false, true, false])
 
-  assert.deepEqual(vloek.samenvatting.per, [
-    { nr: 1, verloren: 1, van: 1 },
-    { nr: 2, verloren: 0, van: 1 },
-    { nr: 3, verloren: 1, van: 1 },
+  assert.deepEqual(vloek.samenvatting.per.map(p => [p.nr, p.verloren, p.van]), [
+    [1, 1, 1], [2, 0, 1], [3, 1, 1],
   ])
   assert.equal(vloek.samenvatting.nederlagen, 1)
   assert.equal(vloek.samenvatting.treffers, 2)
@@ -121,10 +119,8 @@ test('maakVloek: een nog te spelen vervolgwedstrijd telt niet mee in de noemer',
   ]
   const { samenvatting, rijen } = maakVloek(lijst)
   assert.equal(rijen[0].erna.length, 2)
-  assert.deepEqual(samenvatting.per, [
-    { nr: 1, verloren: 1, van: 1 },
-    { nr: 2, verloren: 0, van: 0 },
-    { nr: 3, verloren: 0, van: 0 },
+  assert.deepEqual(samenvatting.per.map(p => [p.nr, p.verloren, p.van]), [
+    [1, 1, 1], [2, 0, 0], [3, 0, 0],
   ])
 })
 
@@ -133,4 +129,60 @@ test('maakVloek: zonder nederlagen een lege maar bruikbare uitkomst', () => {
   assert.deepEqual(rijen, [])
   assert.equal(samenvatting.nederlagen, 0)
   assert.equal(samenvatting.vloekKans, null)
+})
+
+test('puntenVoor: drie voor winst, een voor gelijk, nul voor verlies', () => {
+  const m = w('2026-10-17', 'ADO', 'PSV', 2, 1)
+  assert.equal(puntenVoor(m, 'ADO'), 3)
+  assert.equal(puntenVoor(m, 'PSV'), 0)
+  assert.equal(puntenVoor(w('2026-10-25', 'PSV', 'FEY', 1, 1), 'PSV'), 1)
+  // Nog niet gespeeld levert geen punten op, ook geen nul.
+  assert.equal(puntenVoor(w('2026-11-01', 'PSV', 'AJA', null, null, { gespeeld: false, winnaar: null }), 'PSV'), null)
+})
+
+test('gemiddeldePunten: het eigen gemiddelde van een club', () => {
+  const lijst = [
+    w('2026-08-01', 'ADO', 'NEC', 2, 0),   // 3
+    w('2026-08-08', 'AJA', 'ADO', 1, 1),   // 1
+    w('2026-08-15', 'ADO', 'AZ', 0, 2),    // 0
+    w('2026-08-22', 'UTR', 'TWE', 1, 0),   // zonder ADO
+  ]
+  assert.equal(gemiddeldePunten(lijst, 'ADO'), 4 / 3)
+  assert.equal(gemiddeldePunten(lijst, 'PSV'), null)
+})
+
+test('maakVloek: punten per vervolgwedstrijd en wat er is blijven liggen', () => {
+  const lijst = [
+    w('2026-10-17', 'ADO', 'PSV', 2, 1),
+    w('2026-10-21', 'AJA', 'ADO', 3, 0),   // V -> 0
+    w('2026-10-26', 'ADO', 'TWE', 1, 1),   // G -> 1
+    w('2026-11-02', 'UTR', 'ADO', 2, 0),   // V -> 0
+  ]
+  const { rijen, samenvatting } = maakVloek(lijst)
+  assert.deepEqual(rijen[0].erna.map(e => e.punten), [0, 1, 0])
+  assert.equal(rijen[0].gepakt, 1)
+  assert.equal(rijen[0].mogelijk, 9)
+
+  assert.equal(samenvatting.gepakt, 1)
+  assert.equal(samenvatting.mogelijk, 9)
+  assert.equal(samenvatting.gelaten, 8)
+  assert.deepEqual(samenvatting.per.map(p => p.gepakt), [0, 1, 0])
+  assert.deepEqual(samenvatting.per.map(p => p.gelaten), [3, 2, 3])
+})
+
+test('maakVloek: het eigen gemiddelde van de club is de maatstaf', () => {
+  const lijst = [
+    // ADO pakt in deze vier eigen wedstrijden 3+0+1+0 = 4 uit 4 -> 1,0 per duel
+    w('2026-09-01', 'ADO', 'NEC', 2, 0),
+    w('2026-10-17', 'ADO', 'PSV', 2, 1),
+    w('2026-10-21', 'AJA', 'ADO', 3, 0),
+    w('2026-10-26', 'ADO', 'TWE', 1, 1),
+  ]
+  const { samenvatting, rijen } = maakVloek(lijst)
+  // Drie punten uit vier wedstrijden na aftrek van de PSV-zege zit erin; het
+  // gaat erom dat er een eigen gemiddelde berekend is en een verwachting.
+  assert.ok(rijen[0].normaal > 0)
+  assert.equal(rijen[0].verwacht, rijen[0].normaal * 2)
+  assert.ok(samenvatting.normaalPerWedstrijd > 0)
+  assert.equal(samenvatting.perWedstrijd, 1 / 2)
 })

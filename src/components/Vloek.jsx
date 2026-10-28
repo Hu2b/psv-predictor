@@ -8,7 +8,10 @@ import styles from './Vloek.module.css'
 // club wel vaak. Daarom staat er altijd naast hoe vaak een club zijn wedstrijd
 // gemiddeld verliest. Pas als de vloek daar duidelijk boven zit, is er iets
 // aan de hand — en zit hij eronder, dan is dát de uitkomst.
-const DREMPEL = 0.05 // hoeveel de vloek boven het gemiddelde moet liggen
+// Hoeveel punten per wedstrijd de winnaar onder zijn eigen gemiddelde moet
+// blijven voordat we het een vloek durven noemen. Een vijfde punt per duel is
+// over een stuk of tien wedstrijden geen toeval meer.
+const DREMPEL = 0.2
 
 function seizoenLabel(datumISO) {
   const d = new Date(datumISO)
@@ -17,8 +20,10 @@ function seizoenLabel(datumISO) {
   return `${jaar}/${String(jaar + 1).slice(2)}`
 }
 
-function procent(deel) {
-  return deel === null || deel === undefined ? '—' : `${Math.round(deel * 100)}%`
+// Eén cijfer achter de komma, met een komma zoals het hoort.
+function getal(waarde) {
+  if (waarde === null || waarde === undefined) return '—'
+  return waarde.toFixed(1).replace('.', ',')
 }
 
 const COMPETITIE = { ERE: 'Eredivisie', KNVB: 'KNVB-beker' }
@@ -115,8 +120,12 @@ export default function Vloek({ onTerug }) {
     )
   }
 
-  const sterker = samenvatting.vloekKans !== null && samenvatting.gemiddeld !== null
-    && samenvatting.vloekKans > samenvatting.gemiddeld + DREMPEL
+  // De vloek telt als echt wanneer de winnaars dáárna duidelijk minder punten
+  // pakken dan ze normaal halen. Hun eigen gemiddelde is de maatstaf: wie van
+  // PSV wint is vaak een goede ploeg, en dan zegt "weinig punten" pas iets als
+  // je het daartegen afzet.
+  const sterker = samenvatting.perWedstrijd !== null && samenvatting.normaalPerWedstrijd !== null
+    && samenvatting.perWedstrijd < samenvatting.normaalPerWedstrijd - DREMPEL
 
   return (
     <div className={styles.wrapper}>
@@ -131,7 +140,10 @@ export default function Vloek({ onTerug }) {
           </span>
         </div>
 
-        <p className={styles.balkKop}>Daarna verloor de winnaar…</p>
+        {/* Punten in plaats van alleen nederlagen: een gelijkspel is twee
+            punten laten liggen, en dat hoort mee te tellen. Hoe voller de
+            balk, hoe meer er is blijven liggen. */}
+        <p className={styles.balkKop}>Punten laten liggen</p>
         {samenvatting.per.map(p => (
           <div key={p.nr} className={styles.balkRij}>
             <span className={styles.balkLabel}>
@@ -140,36 +152,44 @@ export default function Vloek({ onTerug }) {
             <span className={styles.balkBaan}>
               <span
                 className={styles.balkVulling}
-                style={{ width: p.van > 0 ? `${(p.verloren / p.van) * 100}%` : '0%' }}
+                style={{ width: p.mogelijk > 0 ? `${(p.gelaten / p.mogelijk) * 100}%` : '0%' }}
               />
             </span>
-            <span className={styles.balkCijfer}>{p.verloren}/{p.van}</span>
+            <span className={styles.balkCijfer}>{p.gelaten}/{p.mogelijk}</span>
           </div>
         ))}
 
         <p className={styles.oordeel}>
-          {samenvatting.gemiddeld === null ? (
-            'Nog te weinig gegevens om er iets van te vinden.'
+          {samenvatting.normaalPerWedstrijd === null ? (
+            <>
+              In die {samenvatting.kansen} wedstrijden pakten ze{' '}
+              <strong>{samenvatting.gepakt} van de {samenvatting.mogelijk} punten</strong>.
+              Nog te weinig gegevens om er een vloek bij te roepen.
+            </>
           ) : sterker ? (
             <>
-              De vloek sloeg toe in <strong>{procent(samenvatting.vloekKans)}</strong> van
-              de {samenvatting.kansen} wedstrijden erna, tegen{' '}
-              {procent(samenvatting.gemiddeld)} normaal. <strong>De vloek is echt.</strong>
+              In die {samenvatting.kansen} wedstrijden pakten ze{' '}
+              <strong>{samenvatting.gepakt} van de {samenvatting.mogelijk} punten</strong> —{' '}
+              {getal(samenvatting.perWedstrijd)} per duel, terwijl ze normaal{' '}
+              {getal(samenvatting.normaalPerWedstrijd)} halen. Dat zijn{' '}
+              {getal(samenvatting.tekort)} punten minder dan je zou verwachten.{' '}
+              <strong>De vloek is echt.</strong>
             </>
           ) : (
             <>
-              De vloek sloeg toe in <strong>{procent(samenvatting.vloekKans)}</strong> van
-              de {samenvatting.kansen} wedstrijden erna. Een club verliest er sowieso{' '}
-              {procent(samenvatting.gemiddeld)} van. <strong>Geen vloek, gewoon voetbal.</strong>
+              In die {samenvatting.kansen} wedstrijden pakten ze{' '}
+              <strong>{samenvatting.gepakt} van de {samenvatting.mogelijk} punten</strong> —{' '}
+              {getal(samenvatting.perWedstrijd)} per duel, en normaal halen ze{' '}
+              {getal(samenvatting.normaalPerWedstrijd)}. <strong>Geen vloek, gewoon voetbal.</strong>
             </>
           )}
         </p>
       </div>
 
       <div className={styles.legenda}>
-        <span><span className={`${styles.stip} ${styles.stipVerlies}`} />V = verloren</span>
-        <span><span className={`${styles.stip} ${styles.stipGelijk}`} />G = gelijk</span>
-        <span><span className={`${styles.stip} ${styles.stipWinst}`} />W = gewonnen</span>
+        <span><span className={`${styles.stip} ${styles.stipVerlies}`} />V = 0 punten</span>
+        <span><span className={`${styles.stip} ${styles.stipGelijk}`} />G = 1 punt</span>
+        <span><span className={`${styles.stip} ${styles.stipWinst}`} />W = 3 punten</span>
         <span className={styles.legendaUitleg}>gezien vanuit de club die van PSV won</span>
       </div>
 
@@ -185,7 +205,14 @@ export default function Vloek({ onTerug }) {
               {rij.verlies.thuisNaam} <strong>{rij.verlies.home}–{rij.verlies.away}</strong> {rij.verlies.uitNaam}
               {rij.verlies.naStrafschoppen && <span className={styles.ns}> n.s.</span>}
             </div>
-            <div className={styles.ernaKop}>{rij.winnaarNaam} daarna</div>
+            <div className={styles.ernaKop}>
+              {rij.winnaarNaam} daarna
+              {rij.mogelijk > 0 && (
+                <span className={styles.ernaPunten}>
+                  {rij.gepakt} van {rij.mogelijk} punten
+                </span>
+              )}
+            </div>
             <div className={styles.chips}>
               {rij.erna.length === 0
                 ? <span className={styles.chipLeeg}>nog niets gespeeld</span>

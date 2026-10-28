@@ -286,3 +286,12 @@
   line-height: 1.6;
   color: var(--psv-gray-lt);
 }
+
+/* De puntenoogst achter het kopje, zodat je per nederlaag meteen ziet hoe
+   zwaar het de winnaar viel. */
+.ernaPunten {
+  float: right;
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 400;
+}
