@@ -3,7 +3,7 @@ import { fetchMetTimeout } from './_fetch.js'
 import { TEAMS, normaliseer, zoekVerzorgdeNaam } from '../shared/teams.js'
 
 // Haalt de wedstrijden op waar het vloek-scherm op rekent: Eredivisie en
-// KNVB-beker van dit seizoen en de twee daarvoor, van ALLE clubs — niet alleen
+// KNVB-beker van dit seizoen en het vorige, van ALLE clubs — niet alleen
 // van PSV. We moeten immers ook weten wat de club die van PSV won daarna deed.
 //
 // Twee bronnen, want geen van beide heeft alles:
@@ -228,7 +228,7 @@ async function metCache(sleutel, lopend, ophalen) {
   }
 }
 
-export async function haalVloekWedstrijden(huidigSeizoen, aantalSeizoenen = 3) {
+export async function haalVloekWedstrijden(huidigSeizoen, aantalSeizoenen = 2) {
   const seizoenen = []
   for (let i = 0; i < aantalSeizoenen; i++) seizoenen.push(huidigSeizoen - i)
 

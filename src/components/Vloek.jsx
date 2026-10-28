@@ -126,7 +126,7 @@ export default function Vloek({ onTerug }) {
         <div className={styles.hero}>
           <span className={styles.heroGetal}>{samenvatting.nederlagen}</span>
           <span className={styles.heroTekst}>
-            nederlagen in {data.seizoenen?.length || 3} seizoenen
+            nederlagen in {data.seizoenen?.length || 2} seizoenen
             <br />Eredivisie en KNVB-beker
           </span>
         </div>
