@@ -50,11 +50,14 @@ test('volgendeVan: de eerstvolgende wedstrijden van die club, in beide rollen', 
     w('2026-10-21', 'AJA', 'ADO', 3, 0),   // ADO uit
     w('2026-10-26', 'ADO', 'TWE', 1, 1),   // ADO thuis
     w('2026-11-02', 'UTR', 'ADO', 2, 0),
-    w('2026-11-09', 'ADO', 'AZ', 0, 1),    // vierde: valt buiten de drie
+    w('2026-11-09', 'ADO', 'AZ', 0, 1),
     w('2026-10-24', 'AJA', 'FEY', 1, 0),   // andere club: niet meetellen
   ]
+  // Standaard twee; de rest valt er bewust buiten.
   const erna = volgendeVan(lijst, 'ADO', '2026-10-17T18:45:00Z')
-  assert.deepEqual(erna.map(m => m.datum), ['2026-10-21', '2026-10-26', '2026-11-02'])
+  assert.deepEqual(erna.map(m => m.datum), ['2026-10-21', '2026-10-26'])
+  // En met een eigen aantal werkt hij ook.
+  assert.equal(volgendeVan(lijst, 'ADO', '2026-10-17T18:45:00Z', 4).length, 4)
 })
 
 test('volgendeVan: nog niet gespeelde wedstrijden tellen mee', () => {
@@ -77,7 +80,7 @@ test('gemiddeldeVerlieskans: één verliezer per beslist duel, twee ploegen per 
   assert.equal(gemiddeldeVerlieskans([]), null)
 })
 
-test('maakVloek: koppelt elke nederlaag aan de drie wedstrijden erna', () => {
+test('maakVloek: koppelt elke nederlaag aan de twee wedstrijden erna', () => {
   const lijst = [
     w('2026-10-17', 'ADO', 'PSV', 2, 1),
     w('2026-10-21', 'AJA', 'ADO', 3, 0),
@@ -89,18 +92,19 @@ test('maakVloek: koppelt elke nederlaag aan de drie wedstrijden erna', () => {
 
   const rij = vloek.rijen[0]
   assert.equal(rij.winnaar, 'ADO')
-  assert.deepEqual(rij.erna.map(e => e.resultaat), ['V', 'G', 'V'])
+  // De derde wedstrijd erna valt er bewust buiten: daar vlakt het effect af.
+  assert.deepEqual(rij.erna.map(e => e.resultaat), ['V', 'G'])
   // De uitslag staat vanuit ADO zelf: uit bij Ajax verloren ze met 0-3.
-  assert.deepEqual(rij.erna.map(e => e.score), ['0–3', '1–1', '0–2'])
+  assert.deepEqual(rij.erna.map(e => e.score), ['0–3', '1–1'])
   // Thuis of uit, gezien vanuit de winnaar.
-  assert.deepEqual(rij.erna.map(e => e.thuis), [false, true, false])
+  assert.deepEqual(rij.erna.map(e => e.thuis), [false, true])
 
   assert.deepEqual(vloek.samenvatting.per.map(p => [p.nr, p.verloren, p.van]), [
-    [1, 1, 1], [2, 0, 1], [3, 1, 1],
+    [1, 1, 1], [2, 0, 1],
   ])
   assert.equal(vloek.samenvatting.nederlagen, 1)
-  assert.equal(vloek.samenvatting.treffers, 2)
-  assert.equal(vloek.samenvatting.kansen, 3)
+  assert.equal(vloek.samenvatting.treffers, 1)
+  assert.equal(vloek.samenvatting.kansen, 2)
 })
 
 test('maakVloek: nieuwste nederlaag bovenaan', () => {
@@ -120,7 +124,7 @@ test('maakVloek: een nog te spelen vervolgwedstrijd telt niet mee in de noemer',
   const { samenvatting, rijen } = maakVloek(lijst)
   assert.equal(rijen[0].erna.length, 2)
   assert.deepEqual(samenvatting.per.map(p => [p.nr, p.verloren, p.van]), [
-    [1, 1, 1], [2, 0, 0], [3, 0, 0],
+    [1, 1, 1], [2, 0, 0],
   ])
 })
 
@@ -159,15 +163,15 @@ test('maakVloek: punten per vervolgwedstrijd en wat er is blijven liggen', () =>
     w('2026-11-02', 'UTR', 'ADO', 2, 0),   // V -> 0
   ]
   const { rijen, samenvatting } = maakVloek(lijst)
-  assert.deepEqual(rijen[0].erna.map(e => e.punten), [0, 1, 0])
+  assert.deepEqual(rijen[0].erna.map(e => e.punten), [0, 1])
   assert.equal(rijen[0].gepakt, 1)
-  assert.equal(rijen[0].mogelijk, 9)
+  assert.equal(rijen[0].mogelijk, 6)
 
   assert.equal(samenvatting.gepakt, 1)
-  assert.equal(samenvatting.mogelijk, 9)
-  assert.equal(samenvatting.gelaten, 8)
-  assert.deepEqual(samenvatting.per.map(p => p.gepakt), [0, 1, 0])
-  assert.deepEqual(samenvatting.per.map(p => p.gelaten), [3, 2, 3])
+  assert.equal(samenvatting.mogelijk, 6)
+  assert.equal(samenvatting.gelaten, 5)
+  assert.deepEqual(samenvatting.per.map(p => p.gepakt), [0, 1])
+  assert.deepEqual(samenvatting.per.map(p => p.gelaten), [3, 2])
 })
 
 test('maakVloek: het eigen gemiddelde van de club is de maatstaf', () => {

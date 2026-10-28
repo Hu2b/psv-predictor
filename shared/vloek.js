@@ -15,6 +15,10 @@
 
 const EIGEN = 'PSV'
 
+// Hoeveel wedstrijden na de nederlaag we volgen. Twee: daarna vlakt het effect
+// af en gaat het verschil op in gewone vormschommelingen.
+export const AANTAL_VERVOLG = 2
+
 export function isGespeeld(w) {
   return Boolean(w?.gespeeld)
 }
@@ -51,7 +55,7 @@ export function nederlagen(wedstrijden, club = EIGEN) {
 // De eerstvolgende wedstrijden van een club ná een bepaald moment. Nog niet
 // gespeelde wedstrijden tellen mee: bij de laatste nederlaag van dit seizoen
 // moet het scherm kunnen zeggen "moet nog komen" in plaats van niets.
-export function volgendeVan(wedstrijden, club, naISO, aantal = 3) {
+export function volgendeVan(wedstrijden, club, naISO, aantal = AANTAL_VERVOLG) {
   const grens = new Date(naISO).getTime()
   return opDatum(wedstrijden)
     .filter(w => rolVan(w, club) && new Date(w.datumISO).getTime() > grens)
@@ -71,7 +75,7 @@ export function puntenVoor(wedstrijd, club) {
 // clubs die van PSV winnen zijn vaak bovengemiddeld, en dan zegt "weinig
 // punten" pas iets als je het afzet tegen hun eigen gemiddelde.
 //
-// Alles telt mee, ook de zege op PSV en de drie wedstrijden erna. Over een
+// Alles telt mee, ook de zege op PSV en de wedstrijden erna. Over een
 // heel seizoen verschuift dat het gemiddelde nauwelijks, en het alternatief
 // (die wedstrijden eruit filteren) maakt de uitkomst juist moeilijker uit te
 // leggen.
@@ -99,7 +103,7 @@ export function maakVloek(wedstrijden, club = EIGEN) {
   const rijen = nederlagen(alles, club).map(verlies => {
     const winnaar = verlies.thuis === club ? verlies.uit : verlies.thuis
     const winnaarNaam = verlies.thuis === club ? verlies.uitNaam : verlies.thuisNaam
-    const erna = volgendeVan(alles, winnaar, verlies.datumISO, 3).map(w => {
+    const erna = volgendeVan(alles, winnaar, verlies.datumISO, AANTAL_VERVOLG).map(w => {
       const thuis = w.thuis === winnaar
       // De uitslag vanuit de club zelf, dus hun eigen doelpunten eerst.
       // Anders leest "V 3–0" bij een uitwedstrijd als een overwinning.
@@ -137,7 +141,7 @@ export function maakVloek(wedstrijden, club = EIGEN) {
   // telt alleen wedstrijden die er al zijn — anders zou een nederlaag van
   // vorige week het percentage omlaag trekken puur omdat de rest nog gespeeld
   // moet worden.
-  const per = [0, 1, 2].map(i => {
+  const per = Array.from({ length: AANTAL_VERVOLG }, (_, i) => i).map(i => {
     const bestaand = rijen.map(r => r.erna[i]).filter(w => w && w.gespeeld)
     const gepakt = bestaand.reduce((t, w) => t + w.punten, 0)
     return {
